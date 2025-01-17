@@ -1,4 +1,4 @@
-use crate::{models::Area, traits::Drawable};
+use crate::{constraints::SizeConstraints, models::Area, traits::Drawable};
 use lilt::Animated;
 pub use lilt::Easing;
 use std::{
@@ -8,6 +8,7 @@ use std::{
 };
 
 #[macro_export]
+/// Simple source code based identifier
 macro_rules! id {
     () => {{
         format!("{}:{}:{}", file!(), line!(), column!())
@@ -64,8 +65,17 @@ impl<State: TransitionState, T: TransitionDrawable<State>> Drawable<State> for T
         bank.animations.insert(hsh, anim);
         *state.bank() = bank;
     }
+    fn constraints(
+        &mut self,
+        available_area: Area,
+        state: &mut State,
+    ) -> Option<crate::constraints::SizeConstraints> {
+        <Self as TransitionDrawable<State>>::constraints(self, available_area, state)
+    }
 }
+/// A drawable object with interpolated transitions & layout
 pub trait TransitionDrawable<State: TransitionState> {
+    /// Draws the content with interpolated area & visibility
     fn draw_interpolated(
         &mut self,
         area: Area,
@@ -73,16 +83,23 @@ pub trait TransitionDrawable<State: TransitionState> {
         visible: bool,
         visible_amount: f32,
     );
+    fn constraints(&self, available_area: Area, state: &mut State) -> Option<SizeConstraints>;
+    /// Uniquely identifies the drawable across renders for interpolation
     fn id(&self) -> &u64;
+    /// The easing curve to use for interpolation
     fn easing(&self) -> Easing;
+    /// The duration of interpolation
     fn duration(&self) -> f32;
+    /// The delay of the interpolation
     fn delay(&self) -> f32;
 }
+/// Implements storage for animation state
 pub trait TransitionState {
+    /// Returns mutable access to a stored AnimationBank where animation state is stored
     fn bank(&mut self) -> &mut AnimationBank;
 }
 #[derive(Debug, Clone)]
-pub struct AnimArea {
+struct AnimArea {
     visible: Animated<bool, Instant>,
     x: Animated<f32, Instant>,
     y: Animated<f32, Instant>,
@@ -90,6 +107,7 @@ pub struct AnimArea {
     height: Animated<f32, Instant>,
 }
 #[derive(Debug, Clone)]
+/// State storage for animation state
 pub struct AnimationBank {
     animations: HashMap<u64, AnimArea>,
 }
@@ -99,11 +117,13 @@ impl Default for AnimationBank {
     }
 }
 impl AnimationBank {
+    /// Initialize an empty `AnimationBank`
     pub fn new() -> Self {
         Self {
             animations: HashMap::new(),
         }
     }
+    /// Checks if any animations are currently in progress
     pub fn in_progress(&self, time: Instant) -> bool {
         for value in self.animations.values() {
             if value.visible.in_progress(time)

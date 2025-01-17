@@ -5,7 +5,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct SizeConstraints {
+pub struct SizeConstraints {
     pub(crate) width: Constraint,
     pub(crate) height: Constraint,
     pub(crate) aspect: Option<f32>,
@@ -175,6 +175,7 @@ impl<State> NodeValue<State> {
                     None
                 }
             }
+            NodeValue::NodeTrait { node } => node.constraints(available_area, state),
             NodeValue::Empty | NodeValue::Group(_) => unreachable!(),
         }
     }

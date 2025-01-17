@@ -23,6 +23,7 @@ mod node_cache;
 mod subtree;
 mod tests;
 
+pub use constraints::SizeConstraints;
 pub use layout::Layout;
 pub use node::Node;
 

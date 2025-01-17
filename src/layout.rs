@@ -42,7 +42,7 @@ struct MyState {}
 ```
  */
 pub struct Layout<State> {
-    tree: LayoutFn<State>,
+    pub tree: LayoutFn<State>,
 }
 
 pub type LayoutFn<State> = Box<dyn Fn(&mut State) -> Node<State>>;
@@ -58,7 +58,7 @@ impl<State> Layout<State> {
 
 impl<State> Layout<State> {
     /// Calculates layout and draws all draw nodes in the tree
-    pub fn draw(&self, area: Area, state: &mut State) {
+    pub fn draw<'layout, 'draw>(&'layout self, area: Area, state: &'draw mut State) {
         let mut layout = (self.tree)(state);
         let constraints = layout.inner.constraints(area, state);
         layout.inner.layout(
@@ -124,6 +124,9 @@ pub(crate) enum NodeValue<State> {
         visible: bool,
         element: Box<NodeCache<State>>,
     },
+    NodeTrait {
+        node: Box<dyn NodeTrait<State>>,
+    },
 }
 
 impl<State> NodeValue<State> {
@@ -162,6 +165,9 @@ impl<State> NodeValue<State> {
             }
             Self::Visibility { element, visible } => {
                 element.draw(state, *visible && contextual_visibility)
+            }
+            Self::NodeTrait { node } => {
+                node.draw(state, contextual_visibility);
             }
             NodeValue::Group(_) | NodeValue::Empty | NodeValue::AreaReader { .. } => {
                 unreachable!()
@@ -265,10 +271,10 @@ impl<State> NodeValue<State> {
             | NodeValue::Space
             | NodeValue::AreaReader { .. }
             | NodeValue::Coupled { .. }
-            | NodeValue::Visibility { .. } => {
+            | NodeValue::Visibility { .. }
+            | NodeValue::NodeTrait { .. } => {
                 vec![available_area]
             }
-
             NodeValue::Group(_) | NodeValue::Empty => unreachable!(),
         }
     }
@@ -336,6 +342,14 @@ impl<State> NodeValue<State> {
             }
             NodeValue::Visibility { element, .. } => {
                 element.layout(allocated[0], None, None, state);
+            }
+            NodeValue::NodeTrait { node } => {
+                node.layout(
+                    available_area,
+                    contextual_x_align,
+                    contextual_y_align,
+                    state,
+                );
             }
             NodeValue::Group(_) | NodeValue::Empty => unreachable!(),
         }

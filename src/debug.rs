@@ -73,6 +73,7 @@ impl<State> fmt::Debug for NodeValue<State> {
                 .field("coupled", coupled)
                 .field("over", over)
                 .finish(),
+            NodeValue::NodeTrait { .. } => f.debug_struct("NodeTrait").finish(),
             NodeValue::Visibility { visible, element } => f
                 .debug_struct("Visibility")
                 .field("element", &element)
