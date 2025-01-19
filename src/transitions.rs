@@ -14,6 +14,45 @@ macro_rules! id {
         format!("{}:{}:{}", file!(), line!(), column!())
     }};
 }
+// pub mod const_simple_hash {
+//     /// A simple compile-time hash function based on FNV-1a
+//     pub const fn simple_hash(input: &str) -> u64 {
+//         const SEED: u64 = 0xcbf29ce484222325; // FNV offset basis
+//         const PRIME: u64 = 0x100000001b3; // FNV prime
+//         let mut hash = SEED;
+//         let bytes = input.as_bytes();
+//         let mut i = 0;
+//         while i < bytes.len() {
+//             hash ^= bytes[i] as u64;
+//             hash = hash.wrapping_mul(PRIME);
+//             i += 1;
+//         }
+//         hash
+//     }
+// }
+
+// #[macro_export]
+// /// Simple source code-based identifier with compile-time hashing
+// macro_rules! id {
+//     () => {{
+//         const HASH: u64 = {
+//             // Concatenate file, line, and column information
+//             let input = concat!(file!(), ":", line!(), ":", column!());
+//             // Compute the hash using the helper function
+//             backer::transitions::const_simple_hash::simple_hash(input)
+//         };
+//         HASH
+//     }};
+//     ($input:expr) => {{
+//         const HASH: u64 = {
+//             // Concatenate user input with file, line, and column information
+//             let input = concat!($input, ":", file!(), ":", line!(), ":", column!());
+//             // Compute the hash using the helper function
+//             backer::transitions::const_simple_hash::simple_hash(input)
+//         };
+//         HASH
+//     }};
+// }
 
 impl<State: TransitionState, T: TransitionDrawable<State>> Drawable<State> for T {
     fn draw(&mut self, area: Area, state: &mut State, visible: bool) {

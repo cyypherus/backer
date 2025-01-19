@@ -3,7 +3,7 @@ use crate::{
     layout::NodeValue,
     models::*,
     node_cache::NodeCache,
-    traits::{Drawable, ScopeCtx, ScopeCtxResult, Scoper},
+    traits::{Drawable, Scoper},
     Node,
 };
 use std::rc::Rc;
@@ -190,13 +190,14 @@ pub fn area_reader_with<State>(
     }
 }
 
-pub fn scoper<State: 'static, SubState: 'static>(
-    scope_fn: impl Fn(ScopeCtx<'_, SubState>, &mut State) -> ScopeCtxResult + 'static,
+pub fn scope<State: 'static, SubState: 'static>(
+    scope: impl Fn(&mut State) -> SubState + 'static,
+    embed: impl Fn(SubState, &mut State) + 'static,
     tree: impl Fn(&mut SubState) -> Node<SubState> + 'static,
 ) -> Node<State> {
     Node {
         inner: NodeValue::NodeTrait {
-            node: Box::new(Scoper::new(scope_fn, tree)),
+            node: Box::new(Scoper::new(scope, embed, tree)),
         },
     }
 }
