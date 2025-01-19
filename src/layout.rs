@@ -41,25 +41,16 @@ fn my_layout_fn(state: &mut MyState) -> Node<MyState> {
 struct MyState {}
 ```
  */
-pub struct Layout<State> {
-    pub tree: LayoutFn<State>,
-}
+// pub struct Layout<State> {
+//     pub tree: for<'state> fn(&'state mut State) -> Node<'static, State>,
+// }
 
-pub type LayoutFn<State> = Box<dyn Fn(&mut State) -> Node<State>>;
+pub trait Layout {
+    fn tree<'nodes, 'state, State>(&self, state: &'state mut State) -> Node<'nodes, State>;
 
-impl<State> Layout<State> {
-    /// Creates a new [`Layout<State>`].
-    pub fn new(tree: impl Fn(&mut State) -> Node<State> + 'static) -> Self {
-        Self {
-            tree: Box::new(tree),
-        }
-    }
-}
-
-impl<State> Layout<State> {
     /// Calculates layout and draws all draw nodes in the tree
-    pub fn draw<'layout, 'draw>(&'layout self, area: Area, state: &'draw mut State) {
-        let mut layout = (self.tree)(state);
+    fn draw<State>(&self, area: Area, state: &mut State) {
+        let mut layout = self.tree(state);
         let constraints = layout.inner.constraints(area, state);
         layout.inner.layout(
             area.constrained(
@@ -75,61 +66,61 @@ impl<State> Layout<State> {
     }
 }
 
-type AreaReaderFn<State> = Rc<dyn Fn(Area, &mut State) -> Node<State>>;
+type AreaReaderFn<'nodes, State> = Rc<dyn Fn(Area, &mut State) -> Node<'nodes, State>>;
 
-pub(crate) enum NodeValue<State> {
+pub(crate) enum NodeValue<'nodes, State> {
     Padding {
         amounts: Padding,
-        element: Box<NodeCache<State>>,
+        element: Box<NodeCache<'nodes, State>>,
     },
     Column {
-        elements: Vec<NodeCache<State>>,
+        elements: Vec<NodeCache<'nodes, State>>,
         spacing: f32,
         align: Option<YAlign>,
         off_axis_align: Option<XAlign>,
     },
     Row {
-        elements: Vec<NodeCache<State>>,
+        elements: Vec<NodeCache<'nodes, State>>,
         spacing: f32,
         align: Option<XAlign>,
         off_axis_align: Option<YAlign>,
     },
     Stack {
-        elements: Vec<NodeCache<State>>,
+        elements: Vec<NodeCache<'nodes, State>>,
         x_align: Option<XAlign>,
         y_align: Option<YAlign>,
     },
-    Group(Vec<NodeCache<State>>),
+    Group(Vec<NodeCache<'nodes, State>>),
     Offset {
         offset_x: f32,
         offset_y: f32,
-        element: Box<NodeCache<State>>,
+        element: Box<NodeCache<'nodes, State>>,
     },
     Draw(DrawableNode<State>),
     Explicit {
         options: Size<State>,
-        element: Box<NodeCache<State>>,
+        element: Box<NodeCache<'nodes, State>>,
     },
     Empty,
     Space,
     AreaReader {
-        read: AreaReaderFn<State>,
+        read: AreaReaderFn<'nodes, State>,
     },
     Coupled {
         over: bool,
-        element: Box<NodeCache<State>>,
-        coupled: Box<NodeCache<State>>,
+        element: Box<NodeCache<'nodes, State>>,
+        coupled: Box<NodeCache<'nodes, State>>,
     },
     Visibility {
         visible: bool,
-        element: Box<NodeCache<State>>,
+        element: Box<NodeCache<'nodes, State>>,
     },
     NodeTrait {
-        node: Box<dyn NodeTrait<State>>,
+        node: Box<dyn NodeTrait<'nodes, State> + 'nodes>,
     },
 }
 
-impl<State> NodeValue<State> {
+impl<'nodes, State> NodeValue<'nodes, State> {
     pub(crate) fn draw(&mut self, state: &mut State, contextual_visibility: bool) {
         match self {
             NodeValue::Draw(drawable) => drawable.draw(drawable.area, state, contextual_visibility),
@@ -419,8 +410,8 @@ pub(crate) enum Orientation {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn layout_axis<State>(
-    elements: &mut [NodeCache<State>],
+pub(crate) fn layout_axis<'nodes, State>(
+    elements: &mut [NodeCache<'nodes, State>],
     spacing: &f32,
     available_area: Area,
     orientation: Orientation,

@@ -4,17 +4,16 @@ use crate::{
     constraints::SizeConstraints,
     layout::NodeValue,
     models::{Area, XAlign, YAlign},
-    traits::NodeTrait,
 };
 
-pub(crate) struct NodeCache<State> {
-    pub(crate) kind: NodeValue<State>,
+pub(crate) struct NodeCache<'nodes, State> {
+    pub(crate) kind: NodeValue<'nodes, State>,
     cache_area: Option<Area>,
     cached_constraints: Option<SizeConstraints>,
 }
 
-impl<State> NodeCache<State> {
-    pub(crate) fn new(kind: NodeValue<State>) -> Self {
+impl<'nodes, State> NodeCache<'nodes, State> {
+    pub(crate) fn new(kind: NodeValue<'nodes, State>) -> Self {
         Self {
             kind,
             cache_area: None,
@@ -23,7 +22,7 @@ impl<State> NodeCache<State> {
     }
 }
 
-impl<State> Debug for NodeCache<State> {
+impl<'nodes, State> Debug for NodeCache<'nodes, State> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeCache")
             .field("kind", &self.kind)
@@ -33,8 +32,12 @@ impl<State> Debug for NodeCache<State> {
     }
 }
 
-impl<State> NodeTrait<State> for NodeCache<State> {
-    fn constraints(&mut self, available_area: Area, state: &mut State) -> Option<SizeConstraints> {
+impl<State> NodeCache<'_, State> {
+    pub(crate) fn constraints<'nodes, 'state>(
+        &'nodes mut self,
+        available_area: Area,
+        state: &'state mut State,
+    ) -> Option<SizeConstraints> {
         if let (Some(cache), Some(constraints)) = (self.cache_area, self.cached_constraints) {
             if cache == available_area {
                 return Some(constraints);
@@ -45,7 +48,7 @@ impl<State> NodeTrait<State> for NodeCache<State> {
         self.cached_constraints = constraints;
         constraints
     }
-    fn layout(
+    pub(crate) fn layout(
         &mut self,
         available_area: Area,
         contextual_x_align: Option<XAlign>,
@@ -59,7 +62,7 @@ impl<State> NodeTrait<State> for NodeCache<State> {
             state,
         );
     }
-    fn draw(&mut self, state: &mut State, contextual_visibility: bool) {
+    pub(crate) fn draw(&mut self, state: &mut State, contextual_visibility: bool) {
         self.kind.draw(state, contextual_visibility)
     }
 }

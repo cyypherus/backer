@@ -4,7 +4,7 @@ use crate::{
     models::*,
     node_cache::NodeCache,
     traits::{Drawable, ScopeCtx, ScopeCtxResult, Scoper},
-    Node,
+    Layout, Node,
 };
 use std::rc::Rc;
 
@@ -25,7 +25,7 @@ or pushing against other unconstrained nodes with equal force.
 /// Creates a vertical sequence of elements
 ///
 #[doc = container_doc!()]
-pub fn column<State>(elements: Vec<Node<State>>) -> Node<State> {
+pub fn column<State>(elements: Vec<Node<'_, State>>) -> Node<'_, State> {
     Node {
         inner: NodeValue::Column {
             elements: filter_empty(ungroup(elements)),
@@ -54,7 +54,7 @@ pub fn column<State>(elements: Vec<Node<State>>) -> Node<State> {
 ///     ),
 /// ]);
 /// ```
-pub fn group<State>(elements: Vec<Node<State>>) -> Node<State> {
+pub fn group<State>(elements: Vec<Node<State>>) -> Node<'_, State> {
     Node {
         inner: NodeValue::Group(filter_empty(ungroup(elements))),
     }
@@ -62,7 +62,7 @@ pub fn group<State>(elements: Vec<Node<State>>) -> Node<State> {
 /// Creates a vertical sequence of elements with the specified spacing between each element.
 ///
 #[doc = container_doc!()]
-pub fn column_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<State> {
+pub fn column_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<'_, State> {
     Node {
         inner: NodeValue::Column {
             elements: filter_empty(ungroup(elements)),
@@ -75,7 +75,7 @@ pub fn column_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<St
 /// Creates a horizontal sequence of elements
 ///
 #[doc = container_doc!()]
-pub fn row<State>(elements: Vec<Node<State>>) -> Node<State> {
+pub fn row<State>(elements: Vec<Node<State>>) -> Node<'_, State> {
     Node {
         inner: NodeValue::Row {
             elements: filter_empty(ungroup(elements)),
@@ -88,7 +88,7 @@ pub fn row<State>(elements: Vec<Node<State>>) -> Node<State> {
 /// Creates a horizontal sequence of elements with the specified spacing between each element.
 ///
 #[doc = container_doc!()]
-pub fn row_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<State> {
+pub fn row_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<'_, State> {
     Node {
         inner: NodeValue::Row {
             elements: filter_empty(ungroup(elements)),
@@ -101,7 +101,7 @@ pub fn row_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<State
 /// Creates a sequence of elements to be laid out on top of each other.
 ///
 #[doc = container_doc!()]
-pub fn stack<State>(elements: Vec<Node<State>>) -> Node<State> {
+pub fn stack<State>(elements: Vec<Node<State>>) -> Node<'_, State> {
     Node {
         inner: NodeValue::Stack {
             elements: filter_empty(ungroup(elements)),
@@ -128,7 +128,9 @@ pub fn stack<State>(elements: Vec<Node<State>>) -> Node<State> {
 ///  })
 ///}
 /// ```
-pub fn draw<State>(drawable_fn: impl Fn(Area, &mut State) + 'static) -> Node<State> {
+pub fn draw<'nodes, State>(
+    drawable_fn: impl Fn(Area, &mut State) + 'static,
+) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::Draw(DrawableNode {
             area: Area::default(),
@@ -140,7 +142,7 @@ pub fn draw<State>(drawable_fn: impl Fn(Area, &mut State) + 'static) -> Node<Sta
 /// (or the `TransitionDrawable` trait)
 ///
 /// See [`draw`]
-pub fn draw_object<State>(drawable: impl Drawable<State> + 'static) -> Node<State> {
+pub fn draw_object<'nodes, State>(drawable: impl Drawable<State> + 'static) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::Draw(DrawableNode {
             area: Area::default(),
@@ -153,14 +155,14 @@ pub fn draw_object<State>(drawable: impl Drawable<State> + 'static) -> Node<Stat
 ///
 /// To add spacing between each item in a row or column you can also use
 /// [`row_spaced`] & [`column_spaced`]
-pub fn space<State>() -> Node<State> {
+pub fn space<'nodes, State>() -> Node<'nodes, State> {
     Node {
         inner: NodeValue::Space,
     }
 }
 /// Nothing! This will not have any impact on layout - useful for conditionally
 /// adding elements to a layout in the case where nothing should be added.
-pub fn empty<State>() -> Node<State> {
+pub fn empty<'nodes, State>() -> Node<'nodes, State> {
     Node {
         inner: NodeValue::Empty,
     }
@@ -169,7 +171,9 @@ pub fn empty<State>() -> Node<State> {
 ///
 /// This node comes with caveats! Constraints within an area reader **cannot** expand the area reader itself.
 /// If it could - it would create cyclical dependency which may be impossible to resolve.
-pub fn area_reader<State>(func: impl Fn(Area, &mut State) -> Node<State> + 'static) -> Node<State> {
+pub fn area_reader<'nodes, State>(
+    func: impl Fn(Area, &mut State) -> Node<'nodes, State> + 'static,
+) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::AreaReader {
             read: Rc::new(func),
@@ -180,9 +184,9 @@ pub fn area_reader<State>(func: impl Fn(Area, &mut State) -> Node<State> + 'stat
 ///
 /// This node comes with caveats! Constraints within an area reader **cannot** expand the area reader itself.
 /// If it could - it would create cyclical dependency which may be impossible to resolve.
-pub fn area_reader_with<State>(
-    func: impl Fn(Area, &mut State) -> Node<State> + 'static,
-) -> Node<State> {
+pub fn area_reader_with<'nodes, State>(
+    func: impl Fn(Area, &mut State) -> Node<'nodes, State> + 'static,
+) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::AreaReader {
             read: Rc::new(func),
@@ -190,10 +194,20 @@ pub fn area_reader_with<State>(
     }
 }
 
-pub fn scoper<State: 'static, SubState: 'static>(
-    scope_fn: impl Fn(ScopeCtx<'_, SubState>, &mut State) -> ScopeCtxResult + 'static,
-    tree: impl Fn(&mut SubState) -> Node<SubState> + 'static,
-) -> Node<State> {
+pub fn scoper<
+    'state,
+    'nodes: 'state,
+    State: 'state + 'nodes,
+    SubState: 'nodes,
+    F,
+    SubLayout: Layout + 'static,
+>(
+    scope_fn: for<'fstate, 'fnodes> fn(
+        ScopeCtx<'fnodes, SubState, SubLayout>,
+        &'fstate mut State,
+    ) -> ScopeCtxResult,
+    tree: SubLayout,
+) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::NodeTrait {
             node: Box::new(Scoper::new(scope_fn, tree)),

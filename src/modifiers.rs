@@ -1,7 +1,7 @@
 use crate::{layout::NodeValue, models::*, node_cache::NodeCache, Node};
 use std::{ops::RangeBounds, rc::Rc};
 
-impl<State> Node<State> {
+impl<'nodes, State> Node<'nodes, State> {
     /// Constrains the node's height as a function of available width.
     ///
     /// Generally you should prefer size constraints, aspect ratio constraints or area readers over dynamic height.
@@ -28,9 +28,9 @@ impl<State> Node<State> {
     }
 }
 
-impl<State> Node<State> {
+impl<'nodes, State> Node<'nodes, State> {
     /// Adds padding to the node along the leading edge
-    pub fn pad_leading(self, amount: f32) -> Node<State> {
+    pub fn pad_leading(self, amount: f32) -> Node<'nodes, State> {
         Node {
             inner: NodeValue::Padding {
                 amounts: Padding {
@@ -44,7 +44,7 @@ impl<State> Node<State> {
         }
     }
     /// Adds horizontal padding to the node (leading & trailing)
-    pub fn pad_x(self, amount: f32) -> Node<State> {
+    pub fn pad_x(self, amount: f32) -> Node<'nodes, State> {
         Node {
             inner: NodeValue::Padding {
                 amounts: Padding {
@@ -58,7 +58,7 @@ impl<State> Node<State> {
         }
     }
     /// Adds padding to the node along the trailing edge
-    pub fn pad_trailing(self, amount: f32) -> Node<State> {
+    pub fn pad_trailing(self, amount: f32) -> Node<'nodes, State> {
         Node {
             inner: NodeValue::Padding {
                 amounts: Padding {
@@ -72,7 +72,7 @@ impl<State> Node<State> {
         }
     }
     /// Adds padding to the node along the top edge
-    pub fn pad_top(self, amount: f32) -> Node<State> {
+    pub fn pad_top(self, amount: f32) -> Node<'nodes, State> {
         Node {
             inner: NodeValue::Padding {
                 amounts: Padding {
@@ -87,7 +87,7 @@ impl<State> Node<State> {
     }
 
     /// Adds vertical padding to the node (top & bottom)
-    pub fn pad_y(self, amount: f32) -> Node<State> {
+    pub fn pad_y(self, amount: f32) -> Node<'nodes, State> {
         Node {
             inner: NodeValue::Padding {
                 amounts: Padding {
@@ -101,7 +101,7 @@ impl<State> Node<State> {
         }
     }
     /// Adds padding to the node along the bottom edge
-    pub fn pad_bottom(self, amount: f32) -> Node<State> {
+    pub fn pad_bottom(self, amount: f32) -> Node<'nodes, State> {
         Node {
             inner: NodeValue::Padding {
                 amounts: Padding {
@@ -115,7 +115,7 @@ impl<State> Node<State> {
         }
     }
     /// Adds padding to the node on all sides
-    pub fn pad(self, amount: f32) -> Node<State> {
+    pub fn pad(self, amount: f32) -> Node<'nodes, State> {
         Node {
             inner: NodeValue::Padding {
                 amounts: Padding {
@@ -131,7 +131,7 @@ impl<State> Node<State> {
     /// Offsets the node along the x axis.
     /// This is an absolute offset that simply shifts nodes away from their calculated position
     /// This won't impact layout besides child nodes also being offset
-    pub fn offset_x(self, amount: f32) -> Node<State> {
+    pub fn offset_x(self, amount: f32) -> Node<'nodes, State> {
         Node {
             inner: NodeValue::Offset {
                 offset_x: amount,
@@ -143,7 +143,7 @@ impl<State> Node<State> {
     /// Offsets the node along the y axis.
     /// This is an absolute offset that simply shifts nodes away from their calculated position
     /// This won't impact layout besides child nodes also being offset
-    pub fn offset_y(self, amount: f32) -> Node<State> {
+    pub fn offset_y(self, amount: f32) -> Node<'nodes, State> {
         Node {
             inner: NodeValue::Offset {
                 offset_x: 0.,
@@ -155,7 +155,7 @@ impl<State> Node<State> {
     /// Offsets the node along the x & y axis.
     /// This is an absolute offset that simply shifts nodes away from their calculated position
     /// This won't impact layout besides child nodes also being offset
-    pub fn offset(self, offset_x: f32, offset_y: f32) -> Node<State> {
+    pub fn offset(self, offset_x: f32, offset_y: f32) -> Node<'nodes, State> {
         Node {
             inner: NodeValue::Offset {
                 offset_x,
