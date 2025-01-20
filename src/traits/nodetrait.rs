@@ -18,20 +18,25 @@ pub(crate) trait NodeTrait<State>: Debug {
 }
 
 pub(crate) struct Scoper<
-    't,
-    T,
-    U,
-    Scope: Fn(&mut T) -> &mut U,
-    ScopedTree: Fn(&mut U) -> Node<'t, U>,
+    'nodes,
+    State,
+    ScopedState,
+    Scope: Fn(&mut State) -> &mut ScopedState,
+    ScopedTree: Fn(&mut ScopedState) -> Node<'nodes, ScopedState>,
 > {
     scope: Scope,
     tree: ScopedTree,
-    node: Option<Node<'t, U>>,
-    t: PhantomData<T>,
+    node: Option<Node<'nodes, ScopedState>>,
+    t: PhantomData<State>,
 }
 
-impl<'t, T, U, Scope: Fn(&mut T) -> &mut U, ScopedTree: Fn(&mut U) -> Node<'t, U>>
-    Scoper<'t, T, U, Scope, ScopedTree>
+impl<
+        'nodes,
+        State,
+        ScopedState,
+        Scope: Fn(&mut State) -> &mut ScopedState,
+        ScopedTree: Fn(&mut ScopedState) -> Node<'nodes, ScopedState>,
+    > Scoper<'nodes, State, ScopedState, Scope, ScopedTree>
 {
     pub(crate) fn new(scope: Scope, tree_fn: ScopedTree) -> Self {
         Self {
@@ -43,16 +48,26 @@ impl<'t, T, U, Scope: Fn(&mut T) -> &mut U, ScopedTree: Fn(&mut U) -> Node<'t, U
     }
 }
 
-impl<'t, T, U, Scope: Fn(&mut T) -> &mut U, ScopedTree: Fn(&mut U) -> Node<'t, U>> Debug
-    for Scoper<'t, T, U, Scope, ScopedTree>
+impl<
+        'nodes,
+        State,
+        ScopedState,
+        Scope: Fn(&mut State) -> &mut ScopedState,
+        ScopedTree: Fn(&mut ScopedState) -> Node<'nodes, ScopedState>,
+    > Debug for Scoper<'nodes, State, ScopedState, Scope, ScopedTree>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Kms")
     }
 }
 
-impl<'t, State, U, Scope: Fn(&mut State) -> &mut U, ScopedTree: Fn(&mut U) -> Node<'t, U>>
-    NodeTrait<State> for Scoper<'t, State, U, Scope, ScopedTree>
+impl<
+        'nodes,
+        State,
+        ScopedState,
+        Scope: Fn(&mut State) -> &mut ScopedState,
+        ScopedTree: Fn(&mut ScopedState) -> Node<'nodes, ScopedState>,
+    > NodeTrait<State> for Scoper<'nodes, State, ScopedState, Scope, ScopedTree>
 {
     fn constraints(&mut self, available_area: Area, state: &mut State) -> Option<SizeConstraints> {
         let substate = (self.scope)(state);
