@@ -181,7 +181,7 @@ pub fn area_reader<'nodes, State>(
 }
 
 pub fn scope<'t, T: 't, U: 't>(
-    scope: impl Fn(&mut T) -> &mut U + 'static,
+    scope: impl Fn(&mut T) -> &mut U + 't,
     tree: impl Fn(&mut U) -> Node<'t, U> + 't,
 ) -> Node<'t, T> {
     Node {
