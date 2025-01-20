@@ -287,7 +287,7 @@ impl Constraint {
 }
 
 impl SizeConstraints {
-    pub(crate) fn from_size<'a, State>(value: Size<State>, area: Area, state: &mut State) -> Self {
+    pub(crate) fn from_size<State>(value: Size<State>, area: Area, state: &mut State) -> Self {
         let mut initial = SizeConstraints {
             width: if value.width_min.is_some() || value.width_max.is_some() {
                 Constraint::new(value.width_min, value.width_max)

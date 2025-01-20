@@ -31,7 +31,7 @@
 //                     })
 //                 },
 //                 draw(|area, a: &mut A| {
-//                     Layout::new(|b: &mut B| {
+//                     Layout::new(|b: &mut B|
 //                         if b.test {
 //                             draw(|area, b: &mut B| {
 //                                 assert_eq!(area, Area::new(0., 0., 100., 100.));
@@ -90,9 +90,7 @@
 //             b: B,
 //             c: C,
 //         }
-//         fn layout(a: &mut A) -> Node<A> {
-//             stack(vec![path_b(a), path_c(a)])
-//         }
+
 //         fn path_b(_: &mut A) -> Node<A> {
 //             stack(vec![draw(|area, state: &mut A| {
 //                 Layout::new(|_state: &mut B| {
@@ -113,7 +111,10 @@
 //                 .draw(area, &mut state.c);
 //             })])
 //         }
-//         Layout::new(layout).draw(Area::new(0., 0., 100., 100.), &mut A { b: B, c: C });
+//         Layout {
+//             tree: stack(vec![path_b(a), path_c(a)]),
+//         }
+//         .draw(Area::new(0., 0., 100., 100.), &mut A { b: B, c: C });
 //     }
 //     #[test]
 //     fn test_scope_unwrap() {
@@ -144,7 +145,7 @@
 //         type State<'a> = (&'a mut A, &'a mut B);
 //         type SubState<'a> = (&'a mut B, &'a mut B);
 //         let mut state = (&mut A { b: Some(B) }, &mut B);
-//         fn layout<'a>(_state: &mut State) -> Node<State<'a>> {
+//         fn layout<'a>(_state: &mut State) -> Node<'a, State<'a>> {
 //             stack(vec![draw(|area, state: &mut State| {
 //                 if let (
 //                     A {

@@ -3,7 +3,7 @@ use crate::{
     traits::NodeTrait, Node,
 };
 use core::f32;
-use std::{fmt::Debug, rc::Rc};
+use std::fmt::Debug;
 
 /**
 The root object used to store & calculate a layout
@@ -41,18 +41,22 @@ fn my_layout_fn(state: &mut MyState) -> Node<MyState> {
 struct MyState {}
 ```
  */
-// pub struct Layout<State> {
-//     pub tree: for<'state> fn(&'state mut State) -> Node<'static, State>,
-// }
+pub struct Layout<'t, State> {
+    pub tree: Node<'t, State>,
+}
 
-pub trait Layout {
-    fn tree<'nodes, 'state, State>(&self, state: &'state mut State) -> Node<'nodes, State>;
+impl<'t, State> Layout<'t, State> {
+    /// Creates a new [`Layout<State>`].
+    pub fn new(tree: Node<'t, State>) -> Self {
+        Self { tree }
+    }
+}
 
+impl<State> Layout<'_, State> {
     /// Calculates layout and draws all draw nodes in the tree
-    fn draw<State>(&self, area: Area, state: &mut State) {
-        let mut layout = self.tree(state);
-        let constraints = layout.inner.constraints(area, state);
-        layout.inner.layout(
+    pub fn draw(&mut self, area: Area, state: &mut State) {
+        let constraints = self.tree.inner.constraints(area, state);
+        self.tree.inner.layout(
             area.constrained(
                 &constraints.unwrap_or_default(),
                 XAlign::Center,
@@ -62,11 +66,11 @@ pub trait Layout {
             None,
             state,
         );
-        layout.inner.draw(state, true);
+        self.tree.inner.draw(state, true);
     }
 }
 
-type AreaReaderFn<'nodes, State> = Rc<dyn Fn(Area, &mut State) -> Node<'nodes, State>>;
+type AreaReaderFn<'nodes, State> = Box<dyn Fn(Area, &mut State) -> Node<'nodes, State> + 'nodes>;
 
 pub(crate) enum NodeValue<'nodes, State> {
     Padding {
@@ -116,11 +120,11 @@ pub(crate) enum NodeValue<'nodes, State> {
         element: Box<NodeCache<'nodes, State>>,
     },
     NodeTrait {
-        node: Box<dyn NodeTrait<'nodes, State> + 'nodes>,
+        node: Box<dyn NodeTrait<State> + 'nodes>,
     },
 }
 
-impl<'nodes, State> NodeValue<'nodes, State> {
+impl<State> NodeValue<'_, State> {
     pub(crate) fn draw(&mut self, state: &mut State, contextual_visibility: bool) {
         match self {
             NodeValue::Draw(drawable) => drawable.draw(drawable.area, state, contextual_visibility),
@@ -410,8 +414,8 @@ pub(crate) enum Orientation {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn layout_axis<'nodes, State>(
-    elements: &mut [NodeCache<'nodes, State>],
+pub(crate) fn layout_axis<State>(
+    elements: &mut [NodeCache<'_, State>],
     spacing: &f32,
     available_area: Area,
     orientation: Orientation,

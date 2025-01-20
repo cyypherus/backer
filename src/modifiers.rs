@@ -1,7 +1,7 @@
 use crate::{layout::NodeValue, models::*, node_cache::NodeCache, Node};
 use std::{ops::RangeBounds, rc::Rc};
 
-impl<'nodes, State> Node<'nodes, State> {
+impl<State> Node<'_, State> {
     /// Constrains the node's height as a function of available width.
     ///
     /// Generally you should prefer size constraints, aspect ratio constraints or area readers over dynamic height.

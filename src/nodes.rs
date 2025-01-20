@@ -3,10 +3,9 @@ use crate::{
     layout::NodeValue,
     models::*,
     node_cache::NodeCache,
-    traits::{Drawable, ScopeCtx, ScopeCtxResult, Scoper},
-    Layout, Node,
+    traits::{Drawable, Scoper},
+    Node,
 };
-use std::rc::Rc;
 
 macro_rules! container_doc {
     () => {
@@ -176,41 +175,18 @@ pub fn area_reader<'nodes, State>(
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::AreaReader {
-            read: Rc::new(func),
-        },
-    }
-}
-/// Return nodes based on available area
-///
-/// This node comes with caveats! Constraints within an area reader **cannot** expand the area reader itself.
-/// If it could - it would create cyclical dependency which may be impossible to resolve.
-pub fn area_reader_with<'nodes, State>(
-    func: impl Fn(Area, &mut State) -> Node<'nodes, State> + 'static,
-) -> Node<'nodes, State> {
-    Node {
-        inner: NodeValue::AreaReader {
-            read: Rc::new(func),
+            read: Box::new(func),
         },
     }
 }
 
-pub fn scoper<
-    'state,
-    'nodes: 'state,
-    State: 'state + 'nodes,
-    SubState: 'nodes,
-    F,
-    SubLayout: Layout + 'static,
->(
-    scope_fn: for<'fstate, 'fnodes> fn(
-        ScopeCtx<'fnodes, SubState, SubLayout>,
-        &'fstate mut State,
-    ) -> ScopeCtxResult,
-    tree: SubLayout,
-) -> Node<'nodes, State> {
+pub fn scope<'t, T: 't, U: 't>(
+    scope: impl Fn(&mut T) -> &mut U + 'static,
+    tree: impl Fn(&mut U) -> Node<'t, U> + 't,
+) -> Node<'t, T> {
     Node {
         inner: NodeValue::NodeTrait {
-            node: Box::new(Scoper::new(scope_fn, tree)),
+            node: Box::new(Scoper::new(scope, tree)),
         },
     }
 }

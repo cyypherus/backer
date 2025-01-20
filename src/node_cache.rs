@@ -22,7 +22,7 @@ impl<'nodes, State> NodeCache<'nodes, State> {
     }
 }
 
-impl<'nodes, State> Debug for NodeCache<'nodes, State> {
+impl<State> Debug for NodeCache<'_, State> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeCache")
             .field("kind", &self.kind)
@@ -33,10 +33,10 @@ impl<'nodes, State> Debug for NodeCache<'nodes, State> {
 }
 
 impl<State> NodeCache<'_, State> {
-    pub(crate) fn constraints<'nodes, 'state>(
-        &'nodes mut self,
+    pub(crate) fn constraints(
+        &mut self,
         available_area: Area,
-        state: &'state mut State,
+        state: &mut State,
     ) -> Option<SizeConstraints> {
         if let (Some(cache), Some(constraints)) = (self.cache_area, self.cached_constraints) {
             if cache == available_area {

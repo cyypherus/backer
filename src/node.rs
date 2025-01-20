@@ -8,7 +8,7 @@ pub struct Node<'nodes, State> {
     pub(crate) inner: NodeValue<'nodes, State>,
 }
 
-impl<'nodes, State> Debug for Node<'nodes, State> {
+impl<State> Debug for Node<'_, State> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("NodeWith")
             .field("inner", &self.inner)
