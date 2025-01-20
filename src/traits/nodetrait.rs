@@ -55,16 +55,10 @@ impl<'t, State, U, Scope: Fn(&mut State) -> &mut U, ScopedTree: Fn(&mut U) -> No
     NodeTrait<State> for Scoper<'t, State, U, Scope, ScopedTree>
 {
     fn constraints(&mut self, available_area: Area, state: &mut State) -> Option<SizeConstraints> {
-        let constraints: Option<SizeConstraints>;
         let substate = (self.scope)(state);
-        if let Some(ref mut node) = self.node {
-            constraints = node.inner.constraints(available_area, substate);
-        } else {
-            let mut laid_out = (self.tree)(substate);
-            constraints = laid_out.inner.constraints(available_area, substate);
-            self.node = Some(laid_out);
-        };
-        constraints
+        let node = self.node.get_or_insert((self.tree)(substate));
+        let substate = (self.scope)(state);
+        node.inner.constraints(available_area, substate)
     }
 
     fn layout(
@@ -75,34 +69,21 @@ impl<'t, State, U, Scope: Fn(&mut State) -> &mut U, ScopedTree: Fn(&mut U) -> No
         state: &mut State,
     ) {
         let substate = (self.scope)(state);
-        if let Some(ref mut node) = self.node {
-            node.inner.layout(
-                available_area,
-                contextual_x_align,
-                contextual_y_align,
-                substate,
-            );
-        } else {
-            let mut laid_out = (self.tree)(substate);
-            laid_out.inner.layout(
-                available_area,
-                contextual_x_align,
-                contextual_y_align,
-                substate,
-            );
-            self.node = Some(laid_out);
-        }
+        let node = self.node.get_or_insert((self.tree)(substate));
+        let substate = (self.scope)(state);
+        node.inner.layout(
+            available_area,
+            contextual_x_align,
+            contextual_y_align,
+            substate,
+        );
     }
 
     fn draw(&mut self, state: &mut State, contextual_visibility: bool) {
         let substate = (self.scope)(state);
-        if let Some(ref mut node) = self.node {
-            node.inner.draw(substate, contextual_visibility);
-        } else {
-            let mut laid_out = (self.tree)(substate);
-            laid_out.inner.draw(substate, contextual_visibility);
-            self.node = Some(laid_out);
-        }
+        let node = self.node.get_or_insert((self.tree)(substate));
+        node.inner.draw(substate, contextual_visibility);
+
         // let ScopeCtxResult {
         //     value: ResultValue::Void,
         // } = (self.scope)(
