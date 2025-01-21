@@ -79,6 +79,10 @@ impl<State> fmt::Debug for NodeValue<'_, State> {
                 .field("element", &element)
                 .field("visible", visible)
                 .finish(),
+            NodeValue::Dynamic { computed, .. } => f
+                .debug_struct("Dynamic")
+                .field("computed", computed)
+                .finish(),
         }
     }
 }

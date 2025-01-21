@@ -180,6 +180,17 @@ pub fn area_reader<'nodes, State>(
     }
 }
 
+pub fn dynamic<'nodes, State>(
+    func: impl Fn(&mut State) -> Node<'nodes, State> + 'static,
+) -> Node<'nodes, State> {
+    Node {
+        inner: NodeValue::Dynamic {
+            node: Box::new(func),
+            computed: None,
+        },
+    }
+}
+
 pub fn scope<'t, T: 't, U: 't>(
     scope: impl Fn(&mut T) -> U + 't,
     embed: impl Fn(&mut T, U) + 't,

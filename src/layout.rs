@@ -71,6 +71,7 @@ impl<State> Layout<'_, State> {
 }
 
 type AreaReaderFn<'nodes, State> = Box<dyn Fn(Area, &mut State) -> Node<'nodes, State> + 'nodes>;
+type DynamicNodeFn<'nodes, State> = Box<dyn Fn(&mut State) -> Node<'nodes, State> + 'nodes>;
 
 pub(crate) enum NodeValue<'nodes, State> {
     Padding {
@@ -122,6 +123,10 @@ pub(crate) enum NodeValue<'nodes, State> {
     NodeTrait {
         node: Box<dyn NodeTrait<State> + 'nodes>,
     },
+    Dynamic {
+        node: DynamicNodeFn<'nodes, State>,
+        computed: Option<Box<NodeCache<'nodes, State>>>,
+    },
 }
 
 impl<State> NodeValue<'_, State> {
@@ -164,6 +169,9 @@ impl<State> NodeValue<'_, State> {
             Self::NodeTrait { node } => {
                 node.draw(state, contextual_visibility);
             }
+            NodeValue::Dynamic { node, computed } => computed
+                .get_or_insert(Box::new(NodeCache::new(node(state).inner)))
+                .draw(state, contextual_visibility),
             NodeValue::Group(_) | NodeValue::Empty | NodeValue::AreaReader { .. } => {
                 unreachable!()
             }
@@ -267,7 +275,8 @@ impl<State> NodeValue<'_, State> {
             | NodeValue::AreaReader { .. }
             | NodeValue::Coupled { .. }
             | NodeValue::Visibility { .. }
-            | NodeValue::NodeTrait { .. } => {
+            | NodeValue::NodeTrait { .. }
+            | NodeValue::Dynamic { .. } => {
                 vec![available_area]
             }
             NodeValue::Group(_) | NodeValue::Empty => unreachable!(),
@@ -346,13 +355,23 @@ impl<State> NodeValue<'_, State> {
                     state,
                 );
             }
+            NodeValue::Dynamic { node, computed } => {
+                computed
+                    .get_or_insert(Box::new(NodeCache::new(node(state).inner)))
+                    .layout(
+                        available_area,
+                        contextual_x_align,
+                        contextual_y_align,
+                        state,
+                    );
+            }
             NodeValue::Group(_) | NodeValue::Empty => unreachable!(),
         }
     }
 }
 
 impl Area {
-    fn constrained(
+    pub(crate) fn constrained(
         self,
         constraints: &SizeConstraints,
         contextual_x_align: XAlign,

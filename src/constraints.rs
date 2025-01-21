@@ -1,6 +1,7 @@
 use crate::{
     layout::NodeValue,
     models::{Area, Size, XAlign, YAlign},
+    node_cache::NodeCache,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -178,6 +179,9 @@ impl<'nodes, State> NodeValue<'nodes, State> {
                 }
             }
             NodeValue::NodeTrait { node } => node.constraints(available_area, state),
+            NodeValue::Dynamic { node, computed } => computed
+                .get_or_insert(Box::new(NodeCache::new(node(state).inner)))
+                .constraints(available_area, state),
             NodeValue::Empty | NodeValue::Group(_) => unreachable!(),
         }
     }
