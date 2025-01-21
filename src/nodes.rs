@@ -181,12 +181,13 @@ pub fn area_reader<'nodes, State>(
 }
 
 pub fn scope<'t, T: 't, U: 't>(
-    scope: impl Fn(&mut T) -> &mut U + 't,
+    scope: impl Fn(&mut T) -> U + 't,
+    embed: impl Fn(&mut T, U) + 't,
     tree: impl Fn(&mut U) -> Node<'t, U> + 't,
 ) -> Node<'t, T> {
     Node {
         inner: NodeValue::NodeTrait {
-            node: Box::new(Scoper::new(scope, tree)),
+            node: Box::new(Scoper::new(scope, embed, tree)),
         },
     }
 }

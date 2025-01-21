@@ -21,10 +21,12 @@ pub(crate) struct Scoper<
     'nodes,
     State,
     ScopedState,
-    Scope: Fn(&mut State) -> &mut ScopedState,
+    Scope: Fn(&mut State) -> ScopedState,
+    Embed: Fn(&mut State, ScopedState),
     ScopedTree: Fn(&mut ScopedState) -> Node<'nodes, ScopedState>,
 > {
     scope: Scope,
+    embed: Embed,
     tree: ScopedTree,
     node: Option<Node<'nodes, ScopedState>>,
     t: PhantomData<State>,
@@ -34,13 +36,15 @@ impl<
         'nodes,
         State,
         ScopedState,
-        Scope: Fn(&mut State) -> &mut ScopedState,
+        Scope: Fn(&mut State) -> ScopedState,
+        Embed: Fn(&mut State, ScopedState),
         ScopedTree: Fn(&mut ScopedState) -> Node<'nodes, ScopedState>,
-    > Scoper<'nodes, State, ScopedState, Scope, ScopedTree>
+    > Scoper<'nodes, State, ScopedState, Scope, Embed, ScopedTree>
 {
-    pub(crate) fn new(scope: Scope, tree_fn: ScopedTree) -> Self {
+    pub(crate) fn new(scope: Scope, embed: Embed, tree_fn: ScopedTree) -> Self {
         Self {
             scope,
+            embed,
             tree: tree_fn,
             node: None,
             t: PhantomData,
@@ -52,9 +56,10 @@ impl<
         'nodes,
         State,
         ScopedState,
-        Scope: Fn(&mut State) -> &mut ScopedState,
+        Scope: Fn(&mut State) -> ScopedState,
+        Embed: Fn(&mut State, ScopedState),
         ScopedTree: Fn(&mut ScopedState) -> Node<'nodes, ScopedState>,
-    > Debug for Scoper<'nodes, State, ScopedState, Scope, ScopedTree>
+    > Debug for Scoper<'nodes, State, ScopedState, Scope, Embed, ScopedTree>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Kms")
@@ -65,15 +70,17 @@ impl<
         'nodes,
         State,
         ScopedState,
-        Scope: Fn(&mut State) -> &mut ScopedState,
+        Scope: Fn(&mut State) -> ScopedState,
+        Embed: Fn(&mut State, ScopedState),
         ScopedTree: Fn(&mut ScopedState) -> Node<'nodes, ScopedState>,
-    > NodeTrait<State> for Scoper<'nodes, State, ScopedState, Scope, ScopedTree>
+    > NodeTrait<State> for Scoper<'nodes, State, ScopedState, Scope, Embed, ScopedTree>
 {
     fn constraints(&mut self, available_area: Area, state: &mut State) -> Option<SizeConstraints> {
-        let substate = (self.scope)(state);
-        let node = self.node.get_or_insert((self.tree)(substate));
-        let substate = (self.scope)(state);
-        node.inner.constraints(available_area, substate)
+        let mut substate = (self.scope)(state);
+        let node = self.node.get_or_insert((self.tree)(&mut substate));
+        let result = node.inner.constraints(available_area, &mut substate);
+        (self.embed)(state, substate);
+        result
     }
 
     fn layout(
@@ -83,78 +90,21 @@ impl<
         contextual_y_align: Option<YAlign>,
         state: &mut State,
     ) {
-        let substate = (self.scope)(state);
-        let node = self.node.get_or_insert((self.tree)(substate));
-        let substate = (self.scope)(state);
+        let mut substate = (self.scope)(state);
+        let node = self.node.get_or_insert((self.tree)(&mut substate));
         node.inner.layout(
             available_area,
             contextual_x_align,
             contextual_y_align,
-            substate,
+            &mut substate,
         );
+        (self.embed)(state, substate);
     }
 
     fn draw(&mut self, state: &mut State, contextual_visibility: bool) {
-        let substate = (self.scope)(state);
-        let node = self.node.get_or_insert((self.tree)(substate));
-        node.inner.draw(substate, contextual_visibility);
-
-        // let ScopeCtxResult {
-        //     value: ResultValue::Void,
-        // } = (self.scope)(
-        //     ScopeCtx {
-        //         layout: &mut self.layout,
-        //         node: &mut self.n,
-        //         area: Area::zero(),
-        //         contextual_x_align: None,
-        //         contextual_y_align: None,
-        //         contextual_visibility,
-        //         with_scoped: move |_available_area: Area,
-        //                            _contextual_x_align: Option<XAlign>,
-        //                            _contextual_y_align: Option<YAlign>,
-        //                            contextual_visibility: bool,
-        //                            layout: &mut Layout<SubState>,
-        //                            node: &mut Option<Node<SubState>>,
-        //                            sc: &mut SubState| {
-        //             if let Some(node) = node {
-        //                 node.inner.draw(sc, contextual_visibility);
-        //             } else {
-        //                 let mut laid_out = (layout.tree)(sc);
-        //                 laid_out.inner.draw(sc, contextual_visibility);
-        //                 *node = Some(laid_out);
-        //             }
-        //             ResultValue::Void
-        //         },
-        //     },
-        //     state,
-        // )
-        // else {
-        //     unreachable!()
-        // };
+        let mut substate = (self.scope)(state);
+        let node = self.node.get_or_insert((self.tree)(&mut substate));
+        node.inner.draw(&mut substate, contextual_visibility);
+        (self.embed)(state, substate);
     }
 }
-// #[cfg(test)]
-// mod test {
-//     use crate::{models::Area, nodes::*, traits::nodetrait::ScopeCtx};
-//     #[test]
-//     fn test_thing() {
-//         struct A {
-//             b: B,
-//         }
-//         struct B;
-
-//         let mut node = row(vec![scoper(
-//             |ctx: ScopeCtx<B>, s: &mut A| {
-//                 let scoped = &mut s.b;
-//                 ctx.with_scoped(scoped)
-//             },
-//             |_b: &mut B| space().height(100.),
-//         )]);
-
-//         // let mut node = space().width(100.);
-//         let mut state = A { b: B };
-//         let c = node
-//             .inner
-//             .constraints(Area::new(0., 0., 100., 100.), &mut state);
-//     }
-// }
