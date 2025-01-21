@@ -141,7 +141,9 @@ pub fn draw<'nodes, State>(
 /// (or the `TransitionDrawable` trait)
 ///
 /// See [`draw`]
-pub fn draw_object<'nodes, State>(drawable: impl Drawable<State> + 'static) -> Node<'nodes, State> {
+pub fn draw_object<'nodes, State>(
+    drawable: impl Drawable<'nodes, State> + 'nodes,
+) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::Draw(DrawableNode {
             area: Area::default(),
@@ -180,12 +182,12 @@ pub fn area_reader<'nodes, State>(
     }
 }
 
-pub fn dynamic<'nodes, State>(
-    func: impl Fn(&mut State) -> Node<'nodes, State> + 'static,
+pub fn dynamic<'nodes, State: 'nodes>(
+    func: fn(&'_ mut State) -> Node<'nodes, State>,
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::Dynamic {
-            node: Box::new(func),
+            node: func,
             computed: None,
         },
     }

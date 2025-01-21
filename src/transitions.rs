@@ -15,7 +15,7 @@ macro_rules! id {
     }};
 }
 
-impl<State: TransitionState, T: TransitionDrawable<State>> Drawable<State> for T {
+impl<'nodes, State: TransitionState, T: TransitionDrawable<State>> Drawable<'nodes, State> for T {
     fn draw(&mut self, area: Area, state: &mut State, visible: bool) {
         let now = Instant::now();
         let mut hasher = DefaultHasher::new();

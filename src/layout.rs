@@ -71,7 +71,7 @@ impl<State> Layout<'_, State> {
 }
 
 type AreaReaderFn<'nodes, State> = Box<dyn Fn(Area, &mut State) -> Node<'nodes, State> + 'nodes>;
-type DynamicNodeFn<'nodes, State> = Box<dyn Fn(&mut State) -> Node<'nodes, State> + 'nodes>;
+// type DynamicNodeFn<'nodes, State> = Box<dyn Fn(&mut State) -> Node<'nodes, State> + 'nodes>;
 
 pub(crate) enum NodeValue<'nodes, State> {
     Padding {
@@ -101,7 +101,7 @@ pub(crate) enum NodeValue<'nodes, State> {
         offset_y: f32,
         element: Box<NodeCache<'nodes, State>>,
     },
-    Draw(DrawableNode<State>),
+    Draw(DrawableNode<'nodes, State>),
     Explicit {
         options: Size<State>,
         element: Box<NodeCache<'nodes, State>>,
@@ -124,7 +124,7 @@ pub(crate) enum NodeValue<'nodes, State> {
         node: Box<dyn NodeTrait<State> + 'nodes>,
     },
     Dynamic {
-        node: DynamicNodeFn<'nodes, State>,
+        node: fn(&mut State) -> Node<'nodes, State>,
         computed: Option<Box<NodeCache<'nodes, State>>>,
     },
 }
