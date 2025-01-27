@@ -8,8 +8,8 @@ use crate::{
 
 pub(crate) struct NodeCache<'nodes, State> {
     pub(crate) kind: NodeValue<'nodes, State>,
-    cache_area: Option<Area>,
-    cached_constraints: Option<SizeConstraints>,
+    pub(crate) cache_area: Option<Area>,
+    pub(crate) cached_constraints: Option<SizeConstraints>,
 }
 
 impl<'nodes, State> NodeCache<'nodes, State> {

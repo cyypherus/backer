@@ -124,7 +124,7 @@ pub(crate) enum NodeValue<'nodes, State> {
         node: Box<dyn NodeTrait<State> + 'nodes>,
     },
     Dynamic {
-        node: fn(&mut State) -> Node<'nodes, State>,
+        node: Box<dyn Fn(&mut State) -> Node<'nodes, State> + 'nodes>,
         computed: Option<Box<NodeCache<'nodes, State>>>,
     },
 }
@@ -170,7 +170,8 @@ impl<State> NodeValue<'_, State> {
                 node.draw(state, contextual_visibility);
             }
             NodeValue::Dynamic { node, computed } => computed
-                .get_or_insert(Box::new(NodeCache::new(node(state).inner)))
+                .as_mut()
+                .unwrap()
                 .draw(state, contextual_visibility),
             NodeValue::Group(_) | NodeValue::Empty | NodeValue::AreaReader { .. } => {
                 unreachable!()

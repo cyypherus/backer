@@ -183,11 +183,11 @@ pub fn area_reader<'nodes, State>(
 }
 
 pub fn dynamic<'nodes, State: 'nodes>(
-    func: fn(&'_ mut State) -> Node<'nodes, State>,
+    func: impl Fn(&'_ mut State) -> Node<'nodes, State> + 'nodes,
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::Dynamic {
-            node: func,
+            node: Box::new(func),
             computed: None,
         },
     }

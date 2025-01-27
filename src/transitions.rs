@@ -2,6 +2,7 @@ use crate::{constraints::SizeConstraints, models::Area, traits::Drawable};
 use lilt::Animated;
 pub use lilt::Easing;
 use std::{
+    cell::RefMut,
     collections::HashMap,
     hash::{DefaultHasher, Hash, Hasher},
     time::Instant,
@@ -21,7 +22,7 @@ impl<'nodes, State: TransitionState, T: TransitionDrawable<State>> Drawable<'nod
         let mut hasher = DefaultHasher::new();
         self.id().hash(&mut hasher);
         let hsh = hasher.finish();
-        let mut bank = state.bank().clone();
+        let mut bank = state.get_bank();
         let mut anim = bank.animations.remove(&hsh).unwrap_or(AnimArea {
             visible: Animated::new(visible)
                 .duration(self.duration())
@@ -63,7 +64,7 @@ impl<'nodes, State: TransitionState, T: TransitionDrawable<State>> Drawable<'nod
             )
         }
         bank.animations.insert(hsh, anim);
-        *state.bank() = bank;
+        state.set_bank(bank);
     }
     fn constraints(
         &mut self,
@@ -96,7 +97,8 @@ pub trait TransitionDrawable<State: TransitionState> {
 /// Implements storage for animation state
 pub trait TransitionState {
     /// Returns mutable access to a stored AnimationBank where animation state is stored
-    fn bank(&mut self) -> &mut AnimationBank;
+    fn get_bank(&self) -> AnimationBank;
+    fn set_bank(&mut self, bank: AnimationBank);
 }
 #[derive(Debug, Clone)]
 struct AnimArea {

@@ -182,6 +182,7 @@ impl<'nodes, State> NodeValue<'nodes, State> {
             NodeValue::Dynamic { node, computed } => computed
                 .get_or_insert(Box::new(NodeCache::new(node(state).inner)))
                 .constraints(available_area, state),
+
             NodeValue::Empty | NodeValue::Group(_) => unreachable!(),
         }
     }
