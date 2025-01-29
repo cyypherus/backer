@@ -113,4 +113,10 @@ layout.draw(available_area, &mut my_state);
 
 The crate is currently usable but new! Breaking changes may be relatively frequent as the crate matures.
 
+This repo uses `cargo insta` to snapshot test the public API.
+If your PR changes the public API, one of the checks will fail by default.
+If the changes to the public API were intentional you can update the snapshot by running:
+
+`INSTA_UPDATE=always && cargo test --features test-api`
+
 Contributions are always welcome 🤗
