@@ -119,4 +119,27 @@ mod tests {
         layout.draw(Area::new(0., 0., 100., 100.), &mut state);
         assert!(!state.b.as_ref().unwrap().test);
     }
+
+    #[test]
+    fn test_scope_inv() {
+        struct B;
+        struct A {
+            b: B,
+        }
+        type One<'a> = (&'a mut A, &'a mut A);
+        type Two<'a> = (&'a mut B, &'a mut A);
+
+        let mut one = A { b: B };
+        let mut oneone = A { b: B };
+        Layout::new(stack(vec![scope_owned(
+            |a: &mut One| (&mut a.0.b, a.1),
+            |a: &mut One, b: Two| {},
+            |_: &mut Two| {
+                draw(|area, _state: &mut Two| {
+                    assert_eq!(area, Area::new(0., 0., 100., 100.));
+                })
+            },
+        )]))
+        .draw(Area::new(0., 0., 100., 100.), &mut (&mut one, &mut oneone));
+    }
 }

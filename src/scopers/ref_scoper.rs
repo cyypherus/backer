@@ -2,11 +2,11 @@ use crate::{
     constraints::SizeConstraints,
     models::{Area, XAlign, YAlign},
     traits::NodeTrait,
-    Node,
+    Layout, Node,
 };
 use std::fmt::Debug;
 
-pub(crate) struct RefScoper<'nodes, ScopedState, Scope, ScopedTree> {
+pub(crate) struct RefScoper<'nodes, ScopedState, WithScoped, Scope, ScopedTree> {
     scope: Scope,
     tree: ScopedTree,
     node: Option<Node<'nodes, ScopedState>>,
@@ -32,9 +32,10 @@ impl<
         'nodes,
         State,
         ScopedState,
-        Scope: Fn(&mut State) -> &mut ScopedState,
+        WithScoped: Fn(&mut ScopedState) -> ScopeCtxResult,
+        Scope: Fn(WithScoped, &mut State) -> ScopeCtxResult,
         ScopedTree: Fn(&mut ScopedState) -> Node<'nodes, ScopedState>,
-    > NodeTrait<State> for RefScoper<'nodes, ScopedState, Scope, ScopedTree>
+    > NodeTrait<State> for RefScoper<'nodes, ScopedState, WithScoped, Scope, ScopedTree>
 {
     fn constraints(&mut self, available_area: Area, state: &mut State) -> Option<SizeConstraints> {
         let substate = (self.scope)(state);
@@ -64,4 +65,47 @@ impl<
         let node = self.node.get_or_insert((self.tree)(substate));
         node.inner.draw(substate, contextual_visibility);
     }
+}
+
+pub struct ScopeCtx<'a, SubState> {
+    layout: &'a mut Layout<'a, SubState>,
+    node: &'a mut Option<Node<'a, SubState>>,
+    area: Area,
+    contextual_x_align: Option<XAlign>,
+    contextual_y_align: Option<YAlign>,
+    contextual_visibility: bool,
+    with_scoped: fn(
+        area: Area,
+        contextual_x_align: Option<XAlign>,
+        contextual_y_align: Option<YAlign>,
+        contextual_visibility: bool,
+        &mut Layout<SubState>,
+        &mut Option<Node<SubState>>,
+        &mut SubState,
+    ) -> ResultValue,
+}
+
+impl<'a, SubState> ScopeCtx<'a, SubState> {
+    pub fn with_scoped(self, scoped: &mut SubState) -> ScopeCtxResult {
+        ScopeCtxResult {
+            value: (self.with_scoped)(
+                self.area,
+                self.contextual_x_align,
+                self.contextual_y_align,
+                self.contextual_visibility,
+                self.layout,
+                self.node,
+                scoped,
+            ),
+        }
+    }
+}
+
+pub struct ScopeCtxResult {
+    value: ResultValue,
+}
+
+enum ResultValue {
+    Void,
+    Constraints(Option<SizeConstraints>),
 }
