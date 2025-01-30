@@ -3,36 +3,47 @@ name = "backer"
 version = "0.11.1"
 edition = "2021"
 description = "A library for straight-forward UI layout."
-repository = "https://github.com/ejjonny/backer"
+repository = "https://github.com/cyypherus/backer"
 license = "MIT"
 keywords = ["UI", "layout"]
-authors = ["ejjonny"]
+authors = ["cyypherus"]
 
 [lib]
 crate-type = ["lib"]
 
 [features]
-# default = []
-default = ["transitions"]
-transitions = ["dep:lilt"]
+test-api = []
+macroquad-examples = ["macroquad"]
+egui-examples = ["egui", "eframe", "egui_extras"]
+
+required-features = ["macroquad-examples"]
 
 # [[example]]
 # name = "macroquad-example"
 # path = "examples/macroquad-example/src/main.rs"
+required-features = ["egui-examples"]
 
 # [[example]]
 # name = "egui-example"
 # path = "examples/egui-example/src/main.rs"
-
+required-features = ["egui-examples"]
 # [[example]]
 # name = "egui-case-study"
 # path = "examples/egui-case-study/src/main.rs"
 
 [dev-dependencies]
-macroquad = "0.4.13"
-egui = "0.28.1"
-eframe = "0.28.1"
-egui_extras = { version = "0.28.1", features = ["default", "image"] }
+insta = "1.42.1"
+public-api = "0.43.0"
+rustdoc-json = "0.9.4"
+rustup-toolchain = "0.1.9"
 
 [dependencies]
-lilt = { version = "0.7.0", optional = true }
+# Example dependencies - dev dependencies can't currently be optional,
+# but examples are behind the examples features
+macroquad = { version = "0.4.13", optional = true }
+egui = { version = "0.28.1", optional = true }
+eframe = { version = "0.28.1", optional = true }
+egui_extras = { version = "0.28.1", features = [
+    "default",
+    "image",
+], optional = true }

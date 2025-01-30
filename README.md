@@ -1,12 +1,12 @@
 # Backer
 
-![rust](https://github.com/ejjonny/backer/actions/workflows/rust.yml/badge.svg)
+![rust](https://github.com/cyypherus/backer/actions/workflows/rust.yml/badge.svg)
 [![crates.io](https://img.shields.io/crates/v/backer.svg)](https://crates.io/crates/backer)
 [![downloads](https://img.shields.io/crates/d/backer.svg)](https://crates.io/crates/backer)
-[![license](https://img.shields.io/crates/l/backer.svg)](https://github.com/ejjonny/backer/blob/main/LICENSE)
+[![license](https://img.shields.io/crates/l/backer.svg)](https://github.com/cyypherus/backer/blob/main/LICENSE)
 
 A library for straight-forward UI layout.
-
+ 
 Dependency free & framework-agnostic. Backer can be used in an index-based layout approach or with inline drawing code.
 
 _This library **only** implements layout & would be most useful along with a GUI library that can do GUI things (like [macroquad](https://github.com/not-fl3/macroquad) or [egui](https://github.com/emilk/egui))._
@@ -23,9 +23,9 @@ This project intends to be a flexible layout tool & not much else.
 
 ## Preview
 
-Check out the [demo site](https://ejjonny.github.io/backer/): a mock page showcasing layout capabilities in a realistic interface. Built with [egui](https://github.com/emilk/egui)!
+Check out the [demo site](https://cyypherus.github.io/backer/): a mock page showcasing layout capabilities in a realistic interface. Built with [egui](https://github.com/emilk/egui)!
 
-[<img src="https://github.com/user-attachments/assets/71c2e83c-67e0-46e9-9bb8-d3bc5926c973">](https://ejjonny.github.io/backer/)
+[<img src="https://github.com/user-attachments/assets/71c2e83c-67e0-46e9-9bb8-d3bc5926c973">](https://cyypherus.github.io/backer/)
 
 Backer relies on simple rules that can compose to create complex, flexible layouts.
 
@@ -112,5 +112,11 @@ layout.draw(available_area, &mut my_state);
 ## Status
 
 The crate is currently usable but new! Breaking changes may be relatively frequent as the crate matures.
+
+This repo uses `cargo insta` to snapshot test the public API.
+If your PR changes the public API, one of the checks will fail by default.
+If the changes to the public API were intentional you can update the snapshot by running:
+
+`INSTA_UPDATE=always && cargo test --features test-api`
 
 Contributions are always welcome 🤗

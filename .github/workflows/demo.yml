@@ -24,7 +24,7 @@ jobs:
         run: |
           set -euxo pipefail
 
-          trunk build --release --public-url https://ejjonny.github.io/backer/
+          trunk build --release --public-url https://cyypherus.github.io/backer/
 
       - name: Upload artifact
         id: upload_artifact
