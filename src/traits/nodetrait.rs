@@ -21,7 +21,7 @@ pub(crate) struct OwnedScoper<
     'nodes,
     State,
     ScopedState,
-    Scope: for<'s> Fn(&'s mut State) -> ScopedState,
+    Scope: Fn(&mut State) -> ScopedState,
     Embed: Fn(&mut State, ScopedState),
     ScopedTree: Fn(&mut ScopedState) -> Node<'nodes, ScopedState>,
 > {
