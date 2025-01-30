@@ -71,15 +71,12 @@ impl Constraint {
     }
 }
 
-impl<'nodes, State> NodeValue<'nodes, State> {
-    pub(crate) fn constraints<'n>(
-        &'n mut self,
+impl<State> NodeValue<'_, State> {
+    pub(crate) fn constraints(
+        &mut self,
         available_area: Area,
         state: &mut State,
-    ) -> Option<SizeConstraints>
-    where
-        'nodes: 'n,
-    {
+    ) -> Option<SizeConstraints> {
         let contextual_aligns = self.contextual_aligns();
         let allocations = self.allocate_area(
             available_area,

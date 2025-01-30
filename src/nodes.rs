@@ -3,7 +3,8 @@ use crate::{
     layout::NodeValue,
     models::*,
     node_cache::NodeCache,
-    traits::{Drawable, OptionScoper, OwnedScoper, RefScoper},
+    traits::{Drawable, OwnedScoper},
+    // traits:: { OptionScoper, RefScoper}
     Node,
 };
 
@@ -191,7 +192,7 @@ pub fn dynamic<'nodes, State: 'nodes>(
     }
 }
 
-pub fn scope_owned<'t, T: 't, U: 't>(
+pub fn scope_owned<'t, T, U: 't>(
     scope: impl Fn(&mut T) -> U + 't,
     embed: impl Fn(&mut T, U) + 't,
     tree: impl Fn(&mut U) -> Node<'t, U> + 't,
@@ -203,28 +204,28 @@ pub fn scope_owned<'t, T: 't, U: 't>(
     }
 }
 
-pub fn scope_option<'t, T: 't, U: 't>(
-    scope: impl Fn(&mut T) -> Option<U> + 't,
-    embed: impl Fn(&mut T, U) + 't,
-    tree: impl Fn(&mut U) -> Node<'t, U> + 't,
-) -> Node<'t, T> {
-    Node {
-        inner: NodeValue::NodeTrait {
-            node: Box::new(OptionScoper::new(scope, embed, tree)),
-        },
-    }
-}
+// pub fn scope_option<'t, T: 't, U: 't>(
+//     scope: impl Fn(&mut T) -> Option<U> + 't,
+//     embed: impl Fn(&mut T, U) + 't,
+//     tree: impl Fn(&mut U) -> Node<'t, U> + 't,
+// ) -> Node<'t, T> {
+//     Node {
+//         inner: NodeValue::NodeTrait {
+//             node: Box::new(OptionScoper::new(scope, embed, tree)),
+//         },
+//     }
+// }
 
-pub fn scope_ref<'t, T: 't, U: 't>(
-    scope: impl Fn(&mut T) -> &mut U + 't,
-    tree: impl Fn(&mut U) -> Node<'t, U> + 't,
-) -> Node<'t, T> {
-    Node {
-        inner: NodeValue::NodeTrait {
-            node: Box::new(RefScoper::new(scope, tree)),
-        },
-    }
-}
+// pub fn scope_ref<'t, T: 't, U: 't>(
+//     scope: impl Fn(&mut T) -> &mut U + 't,
+//     tree: impl Fn(&mut U) -> Node<'t, U> + 't,
+// ) -> Node<'t, T> {
+//     Node {
+//         inner: NodeValue::NodeTrait {
+//             node: Box::new(RefScoper::new(scope, tree)),
+//         },
+//     }
+// }
 
 fn ungroup<State>(elements: Vec<Node<State>>) -> Vec<NodeCache<State>> {
     elements
