@@ -249,7 +249,7 @@ impl<'nodes, State> Node<'nodes, State> {
     /// use backer::models::*;
     /// use backer::nodes::*;
     ///
-    /// row::<(), ()>(vec![
+    /// row::<()>(vec![
     ///     draw(|a, _| {
     ///         assert_eq!(a, Area::new(60., 0., 10., 100.));
     ///     })
@@ -382,7 +382,6 @@ impl<'nodes, State> Node<'nodes, State> {
         }
     }
     /// When used alongside a `TransitionDrawable` object, this interpolates transition for this node & it's children or in other words animated removal / addition.
-    #[cfg(feature = "transitions")]
     pub fn visible(self, visibility: bool) -> Self {
         Node {
             inner: NodeValue::Visibility {

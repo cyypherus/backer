@@ -16,28 +16,29 @@ use backer::*;
 use backer::models::*;
 use backer::nodes::*;
 
-let layout = Layout::new(my_layout_fn);
-
 // UI libraries generally will expose methods to get the available screen size
 // In a real implementation this should use the real screen size!
 let available_area = Area {
-        x: 0.,
-        y: 0.,
-        width: 100.,
-        height: 100.,
-    };
+    x: 0.,
+    y: 0.,
+    width: 100.,
+    height: 100.,
+};
+
 let mut my_state = MyState {};
 
-let layout = Layout::new(my_layout_fn);
+let mut layout = Layout::new(
+    dynamic(|state: &mut MyState| {
+        // Your layout here
+        row(vec![
+            space(),
+        ])
+    })
+);
+
 // Perform layout & draw all of your drawable nodes.
 layout.draw(available_area, &mut my_state);
 
-fn my_layout_fn(state: &mut MyState) -> Node<MyState> {
-    // Your layout here
-    row(vec![
-        space(),
-    ])
-}
 struct MyState {}
 ```
  */
@@ -71,7 +72,7 @@ impl<State> Layout<'_, State> {
 }
 
 type AreaReaderFn<'nodes, State> = Box<dyn Fn(Area, &mut State) -> Node<'nodes, State> + 'nodes>;
-// type DynamicNodeFn<'nodes, State> = Box<dyn Fn(&mut State) -> Node<'nodes, State> + 'nodes>;
+type DynamicNodeFn<'nodes, State> = Box<dyn Fn(&mut State) -> Node<'nodes, State> + 'nodes>;
 
 pub(crate) enum NodeValue<'nodes, State> {
     Padding {
@@ -124,7 +125,7 @@ pub(crate) enum NodeValue<'nodes, State> {
         node: Box<dyn NodeTrait<State> + 'nodes>,
     },
     Dynamic {
-        node: Box<dyn Fn(&mut State) -> Node<'nodes, State> + 'nodes>,
+        node: DynamicNodeFn<'nodes, State>,
         computed: Option<Box<NodeCache<'nodes, State>>>,
     },
 }
@@ -169,7 +170,7 @@ impl<State> NodeValue<'_, State> {
             Self::NodeTrait { node } => {
                 node.draw(state, contextual_visibility);
             }
-            NodeValue::Dynamic { node, computed } => computed
+            NodeValue::Dynamic { computed, .. } => computed
                 .as_mut()
                 .unwrap()
                 .draw(state, contextual_visibility),
@@ -271,11 +272,13 @@ impl<State> NodeValue<'_, State> {
                 width: available_area.width,
                 height: available_area.height,
             }],
+            NodeValue::Visibility { .. } => {
+                vec![available_area]
+            }
             NodeValue::Draw(_)
             | NodeValue::Space
             | NodeValue::AreaReader { .. }
             | NodeValue::Coupled { .. }
-            | NodeValue::Visibility { .. }
             | NodeValue::NodeTrait { .. }
             | NodeValue::Dynamic { .. } => {
                 vec![available_area]
@@ -357,14 +360,14 @@ impl<State> NodeValue<'_, State> {
                 );
             }
             NodeValue::Dynamic { node, computed } => {
-                computed
-                    .get_or_insert(Box::new(NodeCache::new(node(state).inner)))
-                    .layout(
-                        available_area,
-                        contextual_x_align,
-                        contextual_y_align,
-                        state,
-                    );
+                let mut node = NodeCache::new(node(state).inner);
+                node.layout(
+                    available_area,
+                    contextual_x_align,
+                    contextual_y_align,
+                    state,
+                );
+                *computed = Some(Box::new(node))
             }
             NodeValue::Group(_) | NodeValue::Empty => unreachable!(),
         }
