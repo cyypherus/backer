@@ -92,7 +92,9 @@ mod tests {
 
     #[test]
     fn test_scope_unwrap() {
-        struct B;
+        struct B {
+            test: bool,
+        }
         struct A {
             b: Option<B>,
         }
@@ -101,12 +103,20 @@ mod tests {
                 |a: &mut A| a.b.take(),
                 |a: &mut A, b: B| a.b = Some(b),
                 |_| {
-                    draw(|area, _state: &mut B| {
+                    draw(|area, state: &mut B| {
+                        state.test = !state.test;
                         assert_eq!(area, Area::new(0., 0., 100., 100.));
                     })
                 },
             )])
         });
-        Layout::new(layout).draw(Area::new(0., 0., 100., 100.), &mut A { b: Some(B) });
+        let mut state = A {
+            b: Some(B { test: false }),
+        };
+        let mut layout = Layout::new(layout);
+        layout.draw(Area::new(0., 0., 100., 100.), &mut state);
+        assert!(state.b.as_ref().unwrap().test);
+        layout.draw(Area::new(0., 0., 100., 100.), &mut state);
+        assert!(!state.b.as_ref().unwrap().test);
     }
 }
