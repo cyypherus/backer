@@ -27,10 +27,10 @@ pub use constraints::SizeConstraints;
 pub use layout::Layout;
 pub use node::Node;
 
-#[cfg(feature = "transitions")]
+#[cfg(feature = "unstable-transitions")]
 pub use lilt::Easing;
 
-#[cfg(feature = "transitions")]
+#[cfg(feature = "unstable-transitions")]
 /// Models & traits for interpolated layout
 pub mod transitions;
 

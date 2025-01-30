@@ -13,7 +13,7 @@ crate-type = ["lib"]
 
 [features]
 test-api = []
-transitions = []
+unstable-transitions = []
 macroquad-examples = ["macroquad"]
 egui-examples = ["egui", "eframe", "egui_extras"]
 
