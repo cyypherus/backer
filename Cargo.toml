@@ -13,23 +13,26 @@ crate-type = ["lib"]
 
 [features]
 test-api = []
+transitions = []
 macroquad-examples = ["macroquad"]
 egui-examples = ["egui", "eframe", "egui_extras"]
 
 required-features = ["macroquad-examples"]
 
-# [[example]]
-# name = "macroquad-example"
-# path = "examples/macroquad-example/src/main.rs"
+[[example]]
+name = "macroquad-example"
+path = "examples/macroquad-example/src/main.rs"
 required-features = ["egui-examples"]
 
-# [[example]]
-# name = "egui-example"
-# path = "examples/egui-example/src/main.rs"
+[[example]]
+name = "egui-example"
+path = "examples/egui-example/src/main.rs"
 required-features = ["egui-examples"]
-# [[example]]
-# name = "egui-case-study"
-# path = "examples/egui-case-study/src/main.rs"
+
+[[example]]
+name = "egui-case-study"
+path = "examples/egui-case-study/src/main.rs"
+required-features = ["egui-examples"]
 
 [dev-dependencies]
 insta = "1.42.1"
