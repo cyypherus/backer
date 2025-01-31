@@ -44,14 +44,20 @@ impl Constraint {
         self.lower
     }
     pub(crate) fn set_lower(&mut self, value: Option<f32>) {
-        assert!(Self::check_constraints(value, self.upper));
+        assert!(
+            Self::check_constraints(value, self.upper),
+            "Invalid constraint: {value:?}, self: {self:?}"
+        );
         self.lower = value;
     }
     pub(crate) fn get_upper(&self) -> Option<f32> {
         self.upper
     }
     pub(crate) fn set_upper(&mut self, value: Option<f32>) {
-        assert!(Self::check_constraints(self.lower, value));
+        assert!(
+            Self::check_constraints(self.lower, value),
+            "Invalid constraint: {value:?}, self: {self:?}"
+        );
         self.upper = value;
     }
     pub(crate) fn clamp(&self, value: f32) -> f32 {
@@ -316,6 +322,12 @@ impl SizeConstraints {
             let result = Some(initial.width.clamp(dynamic(area.height, state)));
             initial.width.set_lower(result);
             initial.width.set_upper(result);
+        }
+        if let Some(aspect) = initial.aspect {
+            let clamped_width = initial.width.clamp((area.height * aspect).min(area.width));
+            initial.width.set_lower(Some(clamped_width));
+            let clamped_height = initial.height.clamp((area.width / aspect).min(area.height));
+            initial.height.set_lower(Some(clamped_height));
         }
         initial
     }

@@ -22,22 +22,26 @@ fn main() -> eframe::Result {
 }
 
 fn my_layout_fn<'n>() -> Node<'n, Ui> {
+    // column_spaced(
+    //     10.,
+    //     vec![
+    //         draw_a(ui),
+    //         row_spaced(
+    //             10.,
+    //             vec![
+    //                 draw_b(ui).width_range(200.0..),
+    //                 column_spaced(10., vec![draw_a(ui), draw_b(ui), draw_c(ui)]),
+    //             ],
+    //         ),
+    //         draw_c(ui),
+    //     ],
+    // )
+    // .pad(10.)
+    // })
     dynamic(|ui| {
-        column_spaced(
-            10.,
-            vec![
-                draw_a(ui),
-                row_spaced(
-                    10.,
-                    vec![
-                        draw_b(ui).width_range(200.0..),
-                        column_spaced(10., vec![draw_a(ui), draw_b(ui), draw_c(ui)]),
-                    ],
-                ),
-                draw_c(ui),
-            ],
-        )
-        .pad(10.)
+        row(vec![draw_a(ui).aspect(1.), draw_b(ui).width(50.)])
+            .attach_under(draw_c(ui))
+            .pad_x(100.)
     })
 }
 
