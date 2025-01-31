@@ -1,9 +1,10 @@
 use std::fmt::Debug;
 
 use crate::{
+    constraints::SizeConstraints,
     models::{Area, XAlign, YAlign},
     traits::NodeTrait,
-    Node, SizeConstraints,
+    Node,
 };
 
 pub(crate) struct Scoper<'n, SubState, ScopeStateFn> {
@@ -11,6 +12,8 @@ pub(crate) struct Scoper<'n, SubState, ScopeStateFn> {
     pub(crate) node: Node<'n, SubState>,
 }
 
+/// Anonymous result to return from the closure passed to `nodes::scope`
+/// See `nodes::scope`
 pub struct ScopeCtxResult {
     value: ResultValue,
 }
@@ -19,6 +22,7 @@ enum ResultValue {
     Void,
     Constraints(Option<SizeConstraints>),
 }
+
 impl<SubState, ScopeStateFn> Debug for Scoper<'_, SubState, ScopeStateFn> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Scoper")
@@ -37,8 +41,9 @@ type WithScopedFnPointer<SubState> = fn(
     &mut SubState,
 ) -> ResultValue;
 
-pub struct ScopeCtx<'a, 'n, SubState> {
-    node: &'a mut Node<'n, SubState>,
+/// Contextual state for scoping, see `nodes::scope`
+pub struct ScopeCtx<'a, 'nodes, SubState> {
+    node: &'a mut Node<'nodes, SubState>,
     area: Area,
     contextual_x_align: Option<XAlign>,
     contextual_y_align: Option<YAlign>,
@@ -47,6 +52,7 @@ pub struct ScopeCtx<'a, 'n, SubState> {
 }
 
 impl<SubState> ScopeCtx<'_, '_, SubState> {
+    /// Takes the subset of state being scoped to, returns an anonymous result to be returned from the closure passed into `nodes::scope`
     pub fn with_scoped(self, scoped: &mut SubState) -> ScopeCtxResult {
         ScopeCtxResult {
             value: (self.with_scoped)(
@@ -59,6 +65,8 @@ impl<SubState> ScopeCtx<'_, '_, SubState> {
             ),
         }
     }
+    /// Used when scoping to a state that is potentially "invalid", such as when scoping to an `Option` in a way that will unwrap the state for the child nodes
+    /// Returns an anonymous result to be returned from the closure passed into `nodes::scope`
     pub fn empty(self) -> ScopeCtxResult {
         ScopeCtxResult {
             value: ResultValue::Void,
@@ -66,9 +74,10 @@ impl<SubState> ScopeCtx<'_, '_, SubState> {
     }
 }
 
-impl<'n, State, SubState, ScopeStateFn> NodeTrait<State> for Scoper<'n, SubState, ScopeStateFn>
+impl<'nodes, State, SubState, ScopeStateFn> NodeTrait<State>
+    for Scoper<'nodes, SubState, ScopeStateFn>
 where
-    ScopeStateFn: Fn(ScopeCtx<'_, 'n, SubState>, &mut State) -> ScopeCtxResult,
+    ScopeStateFn: Fn(ScopeCtx<'_, 'nodes, SubState>, &mut State) -> ScopeCtxResult,
 {
     fn constraints(&mut self, available_area: Area, state: &mut State) -> Option<SizeConstraints> {
         let ScopeCtxResult {

@@ -1,4 +1,4 @@
-// #![warn(missing_docs)]
+#![warn(missing_docs)]
 
 /*!
 A library for straight-forward UI layout.
@@ -24,7 +24,6 @@ mod scoper;
 mod subtree;
 mod tests;
 
-pub use constraints::SizeConstraints;
 pub use layout::Layout;
 pub use node::Node;
 pub use scoper::{ScopeCtx, ScopeCtxResult};

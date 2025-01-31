@@ -43,7 +43,7 @@ struct MyState {}
 ```
  */
 pub struct Layout<'t, State> {
-    pub tree: Node<'t, State>,
+    tree: Node<'t, State>,
 }
 
 impl<'t, State> Layout<'t, State> {

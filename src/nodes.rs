@@ -167,7 +167,7 @@ pub fn empty<'nodes, State>() -> Node<'nodes, State> {
         inner: NodeValue::Empty,
     }
 }
-/// Return nodes based on available area
+/// Returns nodes based on available area
 ///
 /// This node comes with caveats! Constraints within an area reader **cannot** expand the area reader itself.
 /// If it could - it would create cyclical dependency which may be impossible to resolve.
@@ -180,7 +180,7 @@ pub fn area_reader<'nodes, State>(
         },
     }
 }
-
+/// Returns a dynamic set of nodes based on state
 pub fn dynamic<'nodes, State: 'nodes>(
     func: impl Fn(&'_ mut State) -> Node<'nodes, State> + 'nodes,
 ) -> Node<'nodes, State> {
@@ -191,11 +191,40 @@ pub fn dynamic<'nodes, State: 'nodes>(
         },
     }
 }
-
-pub fn scope<'t, State: 't, Scoped: 't>(
-    scope: impl Fn(ScopeCtx<'_, '_, Scoped>, &mut State) -> ScopeCtxResult + 't,
-    node: Node<'t, Scoped>,
-) -> Node<'t, State> {
+/// Scopes state to some derived subset for all children of this node
+///
+///```rust
+/// use backer::*;
+/// use backer::models::*;
+/// use backer::nodes::*;
+///
+/// struct A {
+///     b: Option<bool>,
+/// }
+/// let layout = dynamic(|_: &mut A| {
+///     stack(vec![
+///         scope(
+///             // Explicit types are often necessary.
+///             // bool is the type of the subset in this case
+///             |ctx: ScopeCtx<bool>, a: &mut A| {
+///                 // This closure transforms state into the desired subset.
+///                 // The desired subset is passed to ctx.with_scoped(...)
+///                 // or the entire hierarchy can be skipped with ctx.empty()
+///                 let Some(ref mut b) = a.b else {
+///                     return ctx.empty();
+///                 };
+///                 ctx.with_scoped(b)
+///             },
+///             // These nodes now have direct access to only the boolean
+///             draw(|_, b: &mut bool| *b = !*b),
+///         ),
+///     ])
+/// });
+///```
+pub fn scope<'nodes, State, Scoped: 'nodes>(
+    scope: impl Fn(ScopeCtx<'_, '_, Scoped>, &mut State) -> ScopeCtxResult + 'nodes,
+    node: Node<'nodes, Scoped>,
+) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::NodeTrait {
             node: Box::new(Scoper {

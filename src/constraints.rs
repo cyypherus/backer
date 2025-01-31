@@ -5,7 +5,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct SizeConstraints {
+pub(crate) struct SizeConstraints {
     pub(crate) width: Constraint,
     pub(crate) height: Constraint,
     pub(crate) aspect: Option<f32>,
