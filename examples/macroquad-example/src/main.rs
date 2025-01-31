@@ -1,6 +1,5 @@
 use backer::models::*;
 use backer::nodes::*;
-use backer::traits::Scopable;
 use backer::Layout;
 use backer::Node;
 use macroquad::prelude::*;
@@ -41,24 +40,17 @@ async fn main() {
 
 const BTN_SIZE: f32 = 50.;
 fn layout_for_highlight(ctx: &mut State) -> Node<State> {
-    struct HighlightScoper;
-    impl Scopable<State, HighlightedCase> for HighlightScoper {
-        fn scope<Result>(
-            scoping: &mut State,
-            f: impl FnOnce(&mut HighlightedCase) -> Result,
-        ) -> Result {
-            f(&mut scoping.highlight)
-        }
-    }
     let highlight = ctx.highlight;
     row_spaced(
         10.,
         vec![
-            if highlight == HighlightedCase::RelAbsSequence || highlight == HighlightedCase::None {
-                scope::<_, _, HighlightScoper>(|highlight| rel_abs_seq(*highlight))
-            } else {
-                empty()
-            },
+            draw(|area, state: &mut State| {
+                Layout::new(|state: &mut HighlightedCase| rel_abs_seq(*state))
+                    .draw(area, &mut state.highlight);
+            })
+            .visible(
+                highlight == HighlightedCase::RelAbsSequence || highlight == HighlightedCase::None,
+            ),
             if highlight == HighlightedCase::AlignmentOffset || highlight == HighlightedCase::None {
                 column_spaced(
                     10.,
@@ -134,7 +126,7 @@ fn rel_abs_seq(_highlight: HighlightedCase) -> Node<HighlightedCase> {
 
 fn text<U>(string: &'static str, font_size: f32, color: Color) -> Node<U> {
     let dimensions = measure_text(string, None, font_size as u16, 1.0);
-    draw(move |area: Area, _| {
+    draw(move |area: Area, _: &mut U| {
         draw_text(
             string,
             area.x + ((area.width - dimensions.width) * 0.5),
@@ -148,7 +140,7 @@ fn text<U>(string: &'static str, font_size: f32, color: Color) -> Node<U> {
 }
 
 fn rect<U>(color: Color) -> Node<U> {
-    draw(move |area: Area, _| {
+    draw(move |area: Area, _: &mut U| {
         draw_rectangle(area.x, area.y, area.width, area.height, color);
     })
 }
@@ -157,7 +149,7 @@ fn button<U, Action>(label: &'static str, action: Action) -> Node<U>
 where
     Action: Fn(&mut U) + 'static,
 {
-    draw(move |area: Area, ctx| {
+    draw(move |area: Area, ctx: &mut U| {
         if widgets::Button::new(label)
             .size(vec2(area.width, area.height))
             .position(vec2(area.x, area.y))

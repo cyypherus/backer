@@ -4,17 +4,16 @@ use crate::{
     constraints::SizeConstraints,
     layout::NodeValue,
     models::{Area, XAlign, YAlign},
-    traits::NodeTrait,
 };
 
-pub(crate) struct NodeCache<State, Ctx> {
-    pub(crate) kind: NodeValue<State, Ctx>,
-    cache_area: Option<Area>,
-    cached_constraints: Option<SizeConstraints>,
+pub(crate) struct NodeCache<'nodes, State> {
+    pub(crate) kind: NodeValue<'nodes, State>,
+    pub(crate) cache_area: Option<Area>,
+    pub(crate) cached_constraints: Option<SizeConstraints>,
 }
 
-impl<State, Ctx> NodeCache<State, Ctx> {
-    pub(crate) fn new(kind: NodeValue<State, Ctx>) -> Self {
+impl<'nodes, State> NodeCache<'nodes, State> {
+    pub(crate) fn new(kind: NodeValue<'nodes, State>) -> Self {
         Self {
             kind,
             cache_area: None,
@@ -23,7 +22,7 @@ impl<State, Ctx> NodeCache<State, Ctx> {
     }
 }
 
-impl<State, Ctx> Debug for NodeCache<State, Ctx> {
+impl<State> Debug for NodeCache<'_, State> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeCache")
             .field("kind", &self.kind)
@@ -33,40 +32,37 @@ impl<State, Ctx> Debug for NodeCache<State, Ctx> {
     }
 }
 
-impl<State, Ctx> NodeTrait<State, Ctx> for NodeCache<State, Ctx> {
-    fn constraints(
+impl<State> NodeCache<'_, State> {
+    pub(crate) fn constraints(
         &mut self,
         available_area: Area,
         state: &mut State,
-        ctx: &mut Ctx,
-    ) -> SizeConstraints {
+    ) -> Option<SizeConstraints> {
         if let (Some(cache), Some(constraints)) = (self.cache_area, self.cached_constraints) {
             if cache == available_area {
-                return constraints;
+                return Some(constraints);
             }
         }
-        let constraints = self.kind.constraints(available_area, state, ctx);
+        let constraints = self.kind.constraints(available_area, state);
         self.cache_area = Some(available_area);
-        self.cached_constraints = Some(constraints);
+        self.cached_constraints = constraints;
         constraints
     }
-    fn layout(
+    pub(crate) fn layout(
         &mut self,
         available_area: Area,
         contextual_x_align: Option<XAlign>,
         contextual_y_align: Option<YAlign>,
         state: &mut State,
-        ctx: &mut Ctx,
     ) {
         self.kind.layout(
             available_area,
             contextual_x_align,
             contextual_y_align,
             state,
-            ctx,
-        )
+        );
     }
-    fn draw(&mut self, state: &mut State, ctx: &mut Ctx) {
-        self.kind.draw(state, ctx)
+    pub(crate) fn draw(&mut self, state: &mut State, contextual_visibility: bool) {
+        self.kind.draw(state, contextual_visibility)
     }
 }

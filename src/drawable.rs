@@ -1,23 +1,36 @@
-use crate::models::Area;
-use std::{fmt, rc::Rc};
+use crate::{models::Area, traits::Drawable};
+use std::fmt;
 
-type DrawFn<State, Ctx> = Rc<dyn Fn(Area, &'_ mut State, &'_ mut Ctx)>;
+type DrawFn<'nodes, State> = Box<dyn Fn(Area, &mut State) + 'nodes>;
 
-#[derive(Clone)]
-pub(crate) struct Drawable<State, Ctx> {
-    pub(crate) area: Area,
-    pub(crate) draw: DrawFn<State, Ctx>,
+pub(crate) enum SomeDrawable<'nodes, State> {
+    Fn(DrawFn<'nodes, State>),
+    Object(Box<dyn Drawable<'nodes, State> + 'nodes>),
 }
 
-impl<State, Ctx> Drawable<State, Ctx> {
-    pub(crate) fn draw(&self, area: Area, a: &mut State, b: &mut Ctx) {
-        if area.width > 0. && area.height > 0. {
-            (self.draw)(area, a, b);
+impl<State> SomeDrawable<'_, State> {
+    fn draw(&mut self, area: Area, state: &mut State, visible: bool) {
+        match self {
+            SomeDrawable::Fn(closure) => closure(area, state),
+            SomeDrawable::Object(object) => object.draw(area, state, visible),
         }
     }
 }
 
-impl<State, Ctx> fmt::Debug for Drawable<State, Ctx> {
+pub(crate) struct DrawableNode<'nodes, State> {
+    pub(crate) area: Area,
+    pub(crate) drawable: SomeDrawable<'nodes, State>,
+}
+
+impl<State> DrawableNode<'_, State> {
+    pub(crate) fn draw(&mut self, area: Area, state: &mut State, contextual_visibility: bool) {
+        if area.width >= 0. && area.height >= 0. {
+            self.drawable.draw(area, state, contextual_visibility);
+        }
+    }
+}
+
+impl<State> fmt::Debug for DrawableNode<'_, State> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Drawable")
             .field("area", &self.area)

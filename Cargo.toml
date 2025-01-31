@@ -16,6 +16,8 @@ test-api = []
 macroquad-examples = ["macroquad"]
 egui-examples = ["egui", "eframe", "egui_extras"]
 
+required-features = ["macroquad-examples"]
+
 [[example]]
 name = "macroquad-example"
 path = "examples/macroquad-example/src/main.rs"

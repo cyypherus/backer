@@ -20,12 +20,13 @@ mod layout;
 mod modifiers;
 mod node;
 mod node_cache;
+mod scoper;
 mod subtree;
 mod tests;
 
 pub use layout::Layout;
 pub use node::Node;
-pub use node::NodeWith;
+pub use scoper::{ScopeCtx, ScopeCtxResult};
 
 /// Traits for layout definitions
 pub mod traits;

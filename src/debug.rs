@@ -1,7 +1,7 @@
 use crate::layout::NodeValue;
 use std::fmt;
 
-impl<State, Ctx> fmt::Debug for NodeValue<State, Ctx> {
+impl<State> fmt::Debug for NodeValue<'_, State> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             NodeValue::Padding { amounts, element } => f
@@ -63,9 +63,6 @@ impl<State, Ctx> fmt::Debug for NodeValue<State, Ctx> {
             NodeValue::Space => write!(f, "Space"),
             NodeValue::Empty => write!(f, "Empty"),
             NodeValue::AreaReader { .. } => write!(f, "WidthReader"),
-            NodeValue::Scope { scoped } => {
-                f.debug_struct("Scope").field("scoped", &scoped).finish()
-            }
             NodeValue::Coupled {
                 element,
                 coupled,
@@ -75,6 +72,16 @@ impl<State, Ctx> fmt::Debug for NodeValue<State, Ctx> {
                 .field("element", &element)
                 .field("coupled", coupled)
                 .field("over", over)
+                .finish(),
+            NodeValue::NodeTrait { .. } => f.debug_struct("NodeTrait").finish(),
+            NodeValue::Visibility { visible, element } => f
+                .debug_struct("Visibility")
+                .field("element", &element)
+                .field("visible", visible)
+                .finish(),
+            NodeValue::Dynamic { computed, .. } => f
+                .debug_struct("Dynamic")
+                .field("computed", computed)
                 .finish(),
         }
     }
