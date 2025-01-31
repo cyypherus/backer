@@ -36,7 +36,7 @@ impl eframe::App for TemplateApp {
             ctx.set_zoom_factor(zoom_factor);
         }
         egui::CentralPanel::default().show(ctx, |ui| {
-            let layout = Layout::new(my_layout_fn);
+            let mut layout = Layout::new(my_layout_fn());
             let viewport = ctx.input(|i| i.screen_rect());
             let available_area = area_from(viewport);
             let mut state = State {
@@ -56,29 +56,31 @@ const DEMO_HINT: Color32 = Color32::from_rgb(35, 35, 38);
 const DEMO_FG: Color32 = Color32::from_rgb(250, 250, 255);
 const DEMO_FG_SECONDARY: Color32 = Color32::from_rgb(180, 180, 183);
 
-fn my_layout_fn<'a>(state: &mut State<'_>) -> Node<State<'a>> {
-    stack(vec![
-        rect(Color32::TRANSPARENT, DEMO_BG, 0.),
-        row(vec![
-            row_divider(DEMO_GRAY).width(1.),
-            column(vec![
-                header(state),
-                col_divider(DEMO_GRAY).height(1.),
-                main_view(state),
-                col_divider(DEMO_GRAY).height(1.),
-                footer(state),
-            ]),
+fn my_layout_fn<'a>() -> Node<'a, State<'a>> {
+    dynamic(|state| {
+        stack(vec![
+            rect(Color32::TRANSPARENT, DEMO_BG, 0.),
+            row(vec![
+                row_divider(DEMO_GRAY).width(1.),
+                column(vec![
+                    header(state),
+                    col_divider(DEMO_GRAY).height(1.),
+                    main_view(state),
+                    col_divider(DEMO_GRAY).height(1.),
+                    footer(state),
+                ]),
+            ])
+            .align(Align::Top),
+            if *state.sidebar {
+                side_bar(state)
+            } else {
+                empty()
+            },
         ])
-        .align(Align::Top),
-        if *state.sidebar {
-            side_bar(state)
-        } else {
-            empty()
-        },
-    ])
+    })
 }
 
-fn footer<'a>(state: &mut State<'_>) -> Node<State<'a>> {
+fn footer<'a>(state: &mut State<'_>) -> Node<'a, State<'a>> {
     row_spaced(
         10.,
         vec![
@@ -105,7 +107,7 @@ fn footer<'a>(state: &mut State<'_>) -> Node<State<'a>> {
     .height(40.)
 }
 
-fn main_view<'a>(state: &mut State<'_>) -> Node<State<'a>> {
+fn main_view<'a>(state: &mut State<'_>) -> Node<'a, State<'a>> {
     let profile_blurb = "Your public profile URL can be shared with anyone and allows them to immediately see your bases and activity in Backer.";
     let pic_blurb = "Upload a profile picture of yourself or the character you always wanted to be. Your avatar will be displayed all over the Backer world.";
     let info_blurb = "Tell the world about yourself. Information you add will be visible only in your profile, not for all users.";
@@ -298,7 +300,7 @@ fn main_view<'a>(state: &mut State<'_>) -> Node<State<'a>> {
     .pad(20.)])
 }
 
-fn side_bar<'a>(state: &mut State<'_>) -> Node<State<'a>> {
+fn side_bar<'a>(state: &mut State<'_>) -> Node<'a, State<'a>> {
     stack(vec![
         rect(Color32::TRANSPARENT, DEMO_BG, 0.),
         column_spaced(
@@ -331,7 +333,7 @@ fn side_bar<'a>(state: &mut State<'_>) -> Node<State<'a>> {
     .width(200.)
 }
 
-fn header<'a>(state: &mut State<'_>) -> Node<State<'a>> {
+fn header<'a>(state: &mut State<'_>) -> Node<'a, State<'a>> {
     row_spaced(
         10.,
         vec![
@@ -366,7 +368,7 @@ fn header<'a>(state: &mut State<'_>) -> Node<State<'a>> {
     .height(80.)
 }
 
-fn menu_button<'a>(_ui: &mut State<'_>) -> Node<State<'a>> {
+fn menu_button<'a>(_ui: &mut State<'_>) -> Node<'a, State<'a>> {
     draw(move |area, ui: &mut State<'_>| {
         if ui
             .ui
@@ -385,7 +387,7 @@ fn menu_button<'a>(_ui: &mut State<'_>) -> Node<State<'a>> {
     .height(30.)
 }
 
-fn icon<'a>(image: impl Into<ImageSource<'static>> + 'static) -> Node<State<'a>> {
+fn icon<'a>(image: impl Into<ImageSource<'static>> + 'static) -> Node<'a, State<'a>> {
     let image = Image::new(image).tint(Color32::WHITE);
     draw(move |area, ui: &mut State<'_>| {
         ui.ui.put(rect_from(area), image.clone());
@@ -396,7 +398,7 @@ fn label<'a, S: AsRef<str> + 'static + Clone + Copy>(
     state: &mut State<'_>,
     text: S,
     size: f32,
-) -> Node<State<'a>> {
+) -> Node<'a, State<'a>> {
     label_common(state, text, size, false, Color32::WHITE)
 }
 
@@ -404,7 +406,7 @@ fn fit_label<'a, S: AsRef<str> + 'static + Clone + Copy>(
     state: &mut State<'_>,
     text: S,
     size: f32,
-) -> Node<State<'a>> {
+) -> Node<'a, State<'a>> {
     label_common(state, text, size, true, Color32::WHITE)
 }
 
@@ -413,7 +415,7 @@ fn fit_label_color<'a, S: AsRef<str> + 'static + Clone + Copy>(
     text: S,
     size: f32,
     color: Color32,
-) -> Node<State<'a>> {
+) -> Node<'a, State<'a>> {
     label_common(state, text, size, true, color)
 }
 
@@ -422,7 +424,7 @@ fn label_color<'a, S: AsRef<str> + 'static + Clone + Copy>(
     text: S,
     size: f32,
     color: Color32,
-) -> Node<State<'a>> {
+) -> Node<'a, State<'a>> {
     label_common(state, text, size, false, color)
 }
 
@@ -432,7 +434,7 @@ fn label_common<'a, S: AsRef<str> + 'static + Clone + Copy>(
     size: f32,
     fit_width: bool,
     color: Color32,
-) -> Node<State<'a>> {
+) -> Node<'a, State<'a>> {
     fn layout_job(
         font_size: f32,
         width: f32,
@@ -502,7 +504,7 @@ fn label_common<'a, S: AsRef<str> + 'static + Clone + Copy>(
     }
 }
 
-fn col_divider<'a>(color: Color32) -> Node<State<'a>> {
+fn col_divider<'a>(color: Color32) -> Node<'a, State<'a>> {
     draw(move |area, ui: &mut State<'_>| {
         ui.ui.painter().line_segment(
             [
@@ -514,7 +516,7 @@ fn col_divider<'a>(color: Color32) -> Node<State<'a>> {
     })
 }
 
-fn row_divider<'a>(color: Color32) -> Node<State<'a>> {
+fn row_divider<'a>(color: Color32) -> Node<'a, State<'a>> {
     draw(move |area, ui: &mut State<'_>| {
         ui.ui.painter().line_segment(
             [
@@ -526,7 +528,7 @@ fn row_divider<'a>(color: Color32) -> Node<State<'a>> {
     })
 }
 
-fn rect<'a>(stroke: Color32, fill: Color32, rounding: f32) -> Node<State<'a>> {
+fn rect<'a>(stroke: Color32, fill: Color32, rounding: f32) -> Node<'a, State<'a>> {
     draw(move |area, ui: &mut State<'_>| {
         ui.ui
             .painter()
@@ -535,7 +537,7 @@ fn rect<'a>(stroke: Color32, fill: Color32, rounding: f32) -> Node<State<'a>> {
     })
 }
 
-fn rect_stroke<'a>(color: Color32) -> Node<State<'a>> {
+fn rect_stroke<'a>(color: Color32) -> Node<'a, State<'a>> {
     draw(move |area, ui: &mut State<'_>| {
         ui.ui
             .painter()
