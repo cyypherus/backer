@@ -28,13 +28,6 @@ pub use layout::Layout;
 pub use node::Node;
 pub use scoper::{ScopeCtx, ScopeCtxResult};
 
-#[cfg(feature = "unstable-transitions")]
-pub use lilt::Easing;
-
-#[cfg(feature = "unstable-transitions")]
-/// Models & traits for interpolated layout
-pub mod transitions;
-
 /// Traits for layout definitions
 pub mod traits;
 
