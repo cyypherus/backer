@@ -17,19 +17,18 @@ mod constraints;
 mod debug;
 mod drawable;
 mod layout;
+pub use layout::Layout;
 mod modifiers;
 mod node;
+pub use node::Node;
 mod node_cache;
 mod scoper;
+pub use scoper::{ScopeCtx, ScopeCtxResult};
 mod subtree;
 mod tests;
-
-pub use layout::Layout;
-pub use node::Node;
-pub use scoper::{ScopeCtx, ScopeCtxResult};
-
 /// Traits for layout definitions
-pub mod traits;
+mod traits;
+pub use traits::Drawable;
 
 /// Structs involved in layout definitions
 pub mod models;
