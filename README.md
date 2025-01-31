@@ -1,3 +1,4 @@
+<div align="center">
 # Backer
 
 ![rust](https://github.com/cyypherus/backer/actions/workflows/rust.yml/badge.svg)
@@ -6,7 +7,9 @@
 [![license](https://img.shields.io/crates/l/backer.svg)](https://github.com/cyypherus/backer/blob/main/LICENSE)
 
 A library for straight-forward UI layout.
- 
+
+</div>
+
 Dependency free & framework-agnostic. Backer can be used in an index-based layout approach or with inline drawing code.
 
 _This library **only** implements layout & would be most useful along with a GUI library that can do GUI things (like [macroquad](https://github.com/not-fl3/macroquad) or [egui](https://github.com/emilk/egui))._
