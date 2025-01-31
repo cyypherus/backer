@@ -12,6 +12,7 @@ authors = ["cyypherus"]
 crate-type = ["lib"]
 
 [features]
+default = []
 test-api = []
 macroquad-examples = ["macroquad"]
 egui-examples = ["egui", "eframe", "egui_extras"]

@@ -75,23 +75,23 @@ fn my_layout_fn(state: &mut MyState) -> Node<MyState> { todo!() }
 For reuse, you can construct your drawable in a function
 
 ```rust
-fn my_drawable(state: &mut MyState) -> Node<MyState> {
-  draw(move |area: Area, state: &mut MyState| {
-    // The `area` parameter is the space alotted for your view after layout is calculated
-    // The `state` parameter is *your* mutable state that you pass when you call layout.
-    // This closure should draw UI based on the alotted area or update state so that drawing can be performed later.
-  })
+fn my_drawable<'a>(state: &'_ mut MyState) -> Node<'a, MyState> {
+    draw(move |area: Area, state: &mut MyState| {
+        // The `area` parameter is the space alotted for your view after layout is calculated
+        // The `state` parameter is *your* mutable state that you pass when you call layout.
+        // This closure should draw UI based on the alotted area or update state so that drawing can be performed later.
+    })
 }
 ```
 
 ## 3. Combine nodes to define & customize your layout
 
 ```rust
-fn my_layout_fn(state: &mut MyState) -> Node<MyState> {
-  row(vec![
-      my_drawable(state)
-  ])
-}
+let mut layout = Layout::new(dynamic(|state| {
+    row(vec![
+        my_drawable(state),
+    ])
+}));
 ```
 
 ## 4. Draw your layout
@@ -100,14 +100,13 @@ fn my_layout_fn(state: &mut MyState) -> Node<MyState> {
 // UI libraries generally will expose methods to get the available screen size
 // In a real implementation this should use the real screen size!
 let available_area = Area {
-        x: todo!(),
-        y: todo!(),
-        width: todo!(),
-        height: todo!().
-    };
-let mut my_state = MyState::new();
+    x: todo!(),
+    y: todo!(),
+    width: todo!(),
+    height: todo!(),
+};
+let mut my_state = MyState;
 
-let layout = Layout::new(my_layout_fn);
 // Perform layout & draw all of your drawable nodes.
 layout.draw(available_area, &mut my_state);
 ```
