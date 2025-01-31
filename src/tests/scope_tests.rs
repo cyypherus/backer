@@ -113,7 +113,7 @@ mod tests {
                         };
                         ctx.with_scoped(b)
                     },
-                    space(),
+                    draw(|_, b: &mut B| b.test = !b.test),
                 ),
             ])
         });
@@ -127,7 +127,7 @@ mod tests {
         assert!(!state.b.as_ref().unwrap().test);
     }
 
-    // No can do
+    // No can do buddy
     // #[test]
     // fn test_scope_inv() {
     //     struct B;

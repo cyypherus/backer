@@ -27,6 +27,7 @@ mod tests;
 pub use constraints::SizeConstraints;
 pub use layout::Layout;
 pub use node::Node;
+pub use scoper::{ScopeCtx, ScopeCtxResult};
 
 #[cfg(feature = "unstable-transitions")]
 pub use lilt::Easing;
