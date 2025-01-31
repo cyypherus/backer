@@ -5,7 +5,7 @@ type DrawFn<'nodes, State> = Box<dyn Fn(Area, &mut State) + 'nodes>;
 
 pub(crate) enum SomeDrawable<'nodes, State> {
     Fn(DrawFn<'nodes, State>),
-    Object(Box<dyn Drawable<'nodes, State> + 'nodes>),
+    Object(Box<dyn Drawable<State> + 'nodes>),
 }
 
 impl<State> SomeDrawable<'_, State> {
