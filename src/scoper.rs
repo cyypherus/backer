@@ -59,6 +59,11 @@ impl<SubState> ScopeCtx<'_, '_, SubState> {
             ),
         }
     }
+    pub fn empty(self) -> ScopeCtxResult {
+        ScopeCtxResult {
+            value: ResultValue::Void,
+        }
+    }
 }
 
 impl<'n, State, SubState, ScopeStateFn> NodeTrait<State> for Scoper<'n, SubState, ScopeStateFn>
@@ -87,7 +92,7 @@ where
             state,
         )
         else {
-            unreachable!()
+            return None;
         };
         constraints
     }
@@ -122,7 +127,7 @@ where
             state,
         )
         else {
-            unreachable!()
+            return;
         };
     }
 
@@ -149,7 +154,7 @@ where
             state,
         )
         else {
-            unreachable!()
+            return;
         };
     }
 }
