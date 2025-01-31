@@ -22,7 +22,7 @@ required-features = ["macroquad-examples"]
 [[example]]
 name = "macroquad-example"
 path = "examples/macroquad-example/src/main.rs"
-required-features = ["egui-examples"]
+required-features = ["macroquad-examples"]
 
 [[example]]
 name = "egui-example"
