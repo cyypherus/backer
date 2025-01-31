@@ -1,4 +1,6 @@
+
 <div align="center">
+
 # Backer
 
 ![rust](https://github.com/cyypherus/backer/actions/workflows/rust.yml/badge.svg)
@@ -6,7 +8,7 @@
 [![downloads](https://img.shields.io/crates/d/backer.svg)](https://crates.io/crates/backer)
 [![license](https://img.shields.io/crates/l/backer.svg)](https://github.com/cyypherus/backer/blob/main/LICENSE)
 
-A library for straight-forward UI layout.
+**A library for straight-forward UI layout.**
 
 </div>
 
