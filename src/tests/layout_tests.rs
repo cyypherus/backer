@@ -650,4 +650,23 @@ mod tests {
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
     }
+    #[test]
+    fn test_compressed_aspect_ratio() {
+        Layout::new({
+            row(vec![
+                draw(|a, _: &mut ()| {
+                    assert_eq!(a, Area::new(-25., 0., 100., 100.));
+                })
+                .aspect(1.),
+                draw(|a, _: &mut ()| {
+                    assert_eq!(a, Area::new(75., 0., 50., 100.));
+                })
+                .width(50.),
+            ])
+            .attach_under(draw(|a, _: &mut ()| {
+                assert_eq!(a, Area::new(-25., 0., 150., 100.));
+            }))
+        })
+        .draw(Area::new(0., 0., 100., 100.), &mut ());
+    }
 }

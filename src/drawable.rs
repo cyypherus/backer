@@ -11,7 +11,11 @@ pub(crate) enum SomeDrawable<'nodes, State> {
 impl<State> SomeDrawable<'_, State> {
     fn draw(&mut self, area: Area, state: &mut State, visible: bool) {
         match self {
-            SomeDrawable::Fn(closure) => closure(area, state),
+            SomeDrawable::Fn(closure) => {
+                if visible {
+                    closure(area, state)
+                }
+            }
             SomeDrawable::Object(object) => object.draw(area, state, visible),
         }
     }

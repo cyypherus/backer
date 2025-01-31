@@ -138,14 +138,14 @@ fn main_view<'a>(state: &mut State<'_>) -> Node<'a, State<'a>> {
                                         vec![
                                             label_color(
                                                 state,
-                                                "ejjonny.io/backer/username",
+                                                "cyypherus.io/backer/username",
                                                 12.,
                                                 DEMO_FG_SECONDARY,
                                             ),
                                             icon(include_image!("../assets/copy.svg")).aspect(1.),
                                         ],
                                     )
-                                    .pad(3.),
+                                    .pad(5.),
                                 ])
                                 .height(25.),
                                 row_spaced(
@@ -163,10 +163,11 @@ fn main_view<'a>(state: &mut State<'_>) -> Node<'a, State<'a>> {
                                                         "Share",
                                                         12.,
                                                         DEMO_FG_SECONDARY,
-                                                    ),
+                                                    )
+                                                    .pad_trailing(5.),
                                                 ],
                                             )
-                                            .pad(3.),
+                                            .pad(5.),
                                         ])
                                         .height(25.),
                                         stack(vec![
@@ -181,10 +182,11 @@ fn main_view<'a>(state: &mut State<'_>) -> Node<'a, State<'a>> {
                                                         "View location",
                                                         12.,
                                                         DEMO_FG_SECONDARY,
-                                                    ),
+                                                    )
+                                                    .pad_trailing(5.),
                                                 ],
                                             )
-                                            .pad(3.),
+                                            .pad(5.),
                                         ])
                                         .height(25.),
                                     ],
@@ -263,7 +265,7 @@ fn main_view<'a>(state: &mut State<'_>) -> Node<'a, State<'a>> {
                             ],
                         )
                         .align_contents(Align::Leading)
-                        .width_range((80.0)..),
+                        .width_range((85.0)..),
                         column_spaced(
                             5.,
                             vec![
