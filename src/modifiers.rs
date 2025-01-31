@@ -381,7 +381,10 @@ impl<'nodes, State> Node<'nodes, State> {
             },
         }
     }
-    /// When used alongside a `TransitionDrawable` object, this interpolates transition for this node & it's children or in other words animated removal / addition.
+    /// Controls contextual visibility for this node & it's children.
+    ///
+    /// Can be used alongside `traits::drawable::Drawable::draw(...visible: bool)`
+    /// to customize visibility-based behavior
     pub fn visible(self, visibility: bool) -> Self {
         Node {
             inner: NodeValue::Visibility {
