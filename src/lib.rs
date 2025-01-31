@@ -26,9 +26,9 @@ mod scoper;
 pub use scoper::{ScopeCtx, ScopeCtxResult};
 mod subtree;
 mod tests;
+
 /// Traits for layout definitions
-mod traits;
-pub use traits::Drawable;
+pub mod traits;
 
 /// Structs involved in layout definitions
 pub mod models;
