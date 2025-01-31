@@ -26,39 +26,6 @@ _This library **only** implements layout & would be most useful along with a GUI
 
 This project intends to be a flexible layout tool & not much else.
 
-## Preview
-
-Check out the [demo site](https://cyypherus.github.io/backer/): a mock page showcasing layout capabilities in a realistic interface. Built with [egui](https://github.com/emilk/egui)!
-
-[<img src="https://github.com/user-attachments/assets/71c2e83c-67e0-46e9-9bb8-d3bc5926c973">](https://cyypherus.github.io/backer/)
-
-Backer relies on simple rules that can compose to create complex, flexible layouts.
-
-![stretched](https://github.com/user-attachments/assets/81fd3e70-a504-49c7-92b6-f4c6b05a5371)
-
-<details>
-<summary>See some code</summary>
-
-```rust
-    column_spaced(
-        10.,
-        vec![
-            draw_a(ui),
-            row_spaced(
-                10.,
-                vec![
-                    draw_b(ui).width(180.).align(Align::Leading),
-                    column_spaced(10., vec![draw_a(ui), draw_b(ui), draw_c(ui)]),
-                ],
-            ),
-            draw_c(ui),
-        ],
-    )
-    .pad(10.)
-```
-
-</details>
-
 # Quick Start
 
 ## 1. Create a `Layout` struct with your layout function.
@@ -113,14 +80,48 @@ let mut my_state = MyState;
 layout.draw(available_area, &mut my_state);
 ```
 
+## Preview
+
+Check out the [demo site](https://cyypherus.github.io/backer/): a mock page showcasing layout capabilities in a realistic interface. Built with [egui](https://github.com/emilk/egui)!
+
+[<img src="https://github.com/user-attachments/assets/71c2e83c-67e0-46e9-9bb8-d3bc5926c973">](https://cyypherus.github.io/backer/)
+
+Backer relies on simple rules that can compose to create complex, flexible layouts.
+
+![stretched](https://github.com/user-attachments/assets/81fd3e70-a504-49c7-92b6-f4c6b05a5371)
+
+<details>
+<summary>See some code</summary>
+
+```rust
+    column_spaced(
+        10.,
+        vec![
+            draw_a(ui),
+            row_spaced(
+                10.,
+                vec![
+                    draw_b(ui).width(180.).align(Align::Leading),
+                    column_spaced(10., vec![draw_a(ui), draw_b(ui), draw_c(ui)]),
+                ],
+            ),
+            draw_c(ui),
+        ],
+    )
+    .pad(10.)
+```
+
+</details>
+
 ## Status
 
 The crate is currently usable but new! Breaking changes may be relatively frequent as the crate matures.
 
-This repo uses `cargo insta` to snapshot test the public API.
-If your PR changes the public API, one of the checks will fail by default.
-If the changes to the public API were intentional you can update the snapshot by running:
-
-`INSTA_UPDATE=always && cargo test --features test-api`
+> [!NOTE]
+> This repo uses `cargo insta` to snapshot test the public API.
+> If your PR changes the public API, one of the checks will fail by default.
+> If the changes to the public API were intentional you can update the snapshot by running:
+>
+> `INSTA_UPDATE=always && cargo test --features test-api`
 
 Contributions are always welcome 🤗
