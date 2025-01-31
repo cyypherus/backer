@@ -53,9 +53,9 @@ impl<'t, State> Layout<'t, State> {
     }
 }
 
-impl<State> Layout<'_, State> {
+impl<'nodes, State> Layout<'nodes, State> {
     /// Calculates layout and draws all draw nodes in the tree
-    pub fn draw(&mut self, area: Area, state: &mut State) {
+    pub fn draw(&'nodes mut self, area: Area, state: &mut State) {
         let constraints = self.tree.inner.constraints(area, state);
         self.tree.inner.layout(
             area.constrained(

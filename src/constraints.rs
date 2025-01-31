@@ -71,9 +71,9 @@ impl Constraint {
     }
 }
 
-impl<State> NodeValue<'_, State> {
+impl<'nodes, State> NodeValue<'nodes, State> {
     pub(crate) fn constraints(
-        &mut self,
+        &'nodes mut self,
         available_area: Area,
         state: &mut State,
     ) -> Option<SizeConstraints> {
