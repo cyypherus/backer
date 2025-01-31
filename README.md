@@ -117,6 +117,8 @@ Backer relies on simple rules that can compose to create complex, flexible layou
 
 The crate is currently usable but new! Breaking changes may be relatively frequent as the crate matures.
 
+## Contributing
+
 > [!NOTE]
 > This repo uses `cargo insta` to snapshot test the public API.
 > If your PR changes the public API, one of the checks will fail by default.
