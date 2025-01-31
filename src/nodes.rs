@@ -179,7 +179,7 @@ pub fn area_reader<'nodes, State>(
     }
 }
 /// Returns a dynamic set of nodes based on state
-pub fn dynamic<'nodes, State: 'nodes>(
+pub fn dynamic<'nodes, State>(
     func: impl Fn(&'_ mut State) -> Node<'nodes, State> + 'nodes,
 ) -> Node<'nodes, State> {
     Node {
