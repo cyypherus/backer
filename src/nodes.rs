@@ -3,7 +3,7 @@ use crate::{
     layout::NodeValue,
     models::*,
     node_cache::NodeCache,
-    scopers::{ScopeCtx, ScopeCtxResult, Scoper},
+    scoper::{ScopeCtx, ScopeCtxResult, Scoper},
     traits::Drawable,
     Node,
 };

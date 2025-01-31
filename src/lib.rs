@@ -20,7 +20,7 @@ mod layout;
 mod modifiers;
 mod node;
 mod node_cache;
-mod scopers;
+mod scoper;
 mod subtree;
 mod tests;
 
