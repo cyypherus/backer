@@ -42,13 +42,13 @@ layout.draw(available_area, &mut my_state);
 struct MyState {}
 ```
  */
-pub struct Layout<'t, State> {
-    tree: Node<'t, State>,
+pub struct Layout<'nodes, State> {
+    tree: Node<'nodes, State>,
 }
 
-impl<'t, State> Layout<'t, State> {
+impl<'nodes, State> Layout<'nodes, State> {
     /// Creates a new [`Layout<State>`].
-    pub fn new(tree: Node<'t, State>) -> Self {
+    pub fn new(tree: Node<'nodes, State>) -> Self {
         Self { tree }
     }
 }
