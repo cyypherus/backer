@@ -4,7 +4,6 @@ mod tests {
     use crate::layout::*;
     use crate::models::*;
     use crate::nodes::*;
-    use crate::scoper;
     use crate::scoper::ScopeCtx;
 
     #[test]
