@@ -96,7 +96,7 @@ impl eframe::App for MyApp {
           let mut area = area_from(scroll_rect);
           area.y = -area.y;
           area.width = viewport.width();
-          Layout::new(|state: &mut State| {
+          Layout::new(dynamic(|state: &mut State| {
             column_spaced(
               10.,
               vec![
@@ -198,7 +198,7 @@ impl eframe::App for MyApp {
             .align_contents(Align::Top)
             .pad(10.)
             .align(Align::Top)
-          })
+          }))
           .draw(area, &mut state);
         });
       } else {
@@ -266,7 +266,7 @@ impl eframe::App for MyApp {
   }
 }
 
-fn draw_label<'a>(ui: &'_ mut Ui, text: RichText) -> Node<State<'a>> {
+fn draw_label<'a>(ui: &'_ mut Ui, text: RichText) -> Node<'a, State<'a>> {
   let label = egui::Label::new(text.clone());
   let galley = label.layout_in_ui(ui).1.rect;
   let text_area = area_from(galley);
