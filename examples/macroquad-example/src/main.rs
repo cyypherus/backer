@@ -2,7 +2,6 @@ use backer::models::*;
 use backer::nodes::*;
 use backer::Layout;
 use backer::Node;
-use backer::ScopeCtx;
 use macroquad::prelude::*;
 use macroquad::ui::root_ui;
 use macroquad::ui::widgets;
@@ -50,9 +49,7 @@ fn layout_for_highlight<'n>() -> Node<'n, State> {
                     || highlight == HighlightedCase::None
                 {
                     scope(
-                        |ctx: ScopeCtx<HighlightedCase>, state: &mut State| {
-                            ctx.with_scoped(&mut state.highlight)
-                        },
+                        |state: &mut State| &mut state.highlight,
                         rel_abs_seq(highlight),
                     )
                 } else {
