@@ -197,22 +197,13 @@ pub fn dynamic<'nodes, State>(
 /// use backer::nodes::*;
 ///
 /// struct A {
-///     b: Option<bool>,
+///     b: bool,
 /// }
 /// let layout = dynamic(|_: &mut A| {
 ///     stack(vec![
 ///         scope(
-///             // Explicit types are often necessary.
-///             // bool is the type of the subset in this case
-///             |ctx: ScopeCtx<bool>, a: &mut A| {
-///                 // This closure transforms state into the desired subset.
-///                 // The desired subset is passed to ctx.with_scoped(...)
-///                 // or the entire hierarchy can be skipped with ctx.empty()
-///                 let Some(ref mut b) = a.b else {
-///                     return ctx.empty();
-///                 };
-///                 ctx.with_scoped(b)
-///             },
+///             // This closure selects which state to scope to
+///             |a: &mut A| &mut a.b,
 ///             // These nodes now have direct access to only the boolean
 ///             draw(|_, b: &mut bool| *b = !*b),
 ///         ),
