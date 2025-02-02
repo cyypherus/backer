@@ -110,7 +110,7 @@ pub fn backer::nodes::group<State>(elements: alloc::vec::Vec<backer::Node<'_, St
 pub fn backer::nodes::row<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
 pub fn backer::nodes::row_spaced<State>(spacing: f32, elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
 pub fn backer::nodes::scope<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> &mut Scoped + 'nodes, node: backer::Node<'nodes, Scoped>) -> backer::Node<'nodes, State>
-pub fn backer::nodes::scope_owned<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> Scoped + 'nodes, node: backer::Node<'nodes, Scoped>) -> backer::Node<'nodes, State>
+pub fn backer::nodes::scope_owned<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> Scoped + 'nodes, embed: impl core::ops::function::Fn(&mut State, Scoped) + 'nodes, node: backer::Node<'nodes, Scoped>) -> backer::Node<'nodes, State>
 pub fn backer::nodes::scope_unwrap<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> &mut core::option::Option<Scoped> + 'nodes, node: backer::Node<'nodes, Scoped>) -> backer::Node<'nodes, State>
 pub fn backer::nodes::space<'nodes, State>() -> backer::Node<'nodes, State>
 pub fn backer::nodes::stack<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
