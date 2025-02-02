@@ -3,7 +3,7 @@ use crate::{
     layout::NodeValue,
     models::*,
     node_cache::NodeCache,
-    scoper::{ScopeCtx, ScopeCtxResult, Scoper},
+    scoper::{OptionScoper, OwnedScoper, Scoper},
     traits::Drawable,
     Node,
 };
@@ -220,15 +220,36 @@ pub fn dynamic<'nodes, State>(
 /// });
 ///```
 pub fn scope<'nodes, State, Scoped: 'nodes>(
-    scope: impl Fn(ScopeCtx<'_, '_, Scoped>, &mut State) -> ScopeCtxResult + 'nodes,
+    scope: impl Fn(&mut State) -> &mut Scoped + 'nodes,
     node: Node<'nodes, Scoped>,
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::NodeTrait {
-            node: Box::new(Scoper {
-                scope_fn: scope,
-                node,
-            }),
+            node: Box::new(Scoper { scope, node }),
+        },
+    }
+}
+/// Scopes state to some derived *optional* subset which is unwrapped for all children of this node
+/// See `nodes::scope`
+pub fn scope_unwrap<'nodes, State, Scoped: 'nodes>(
+    scope: impl Fn(&mut State) -> &mut Option<Scoped> + 'nodes,
+    node: Node<'nodes, Scoped>,
+) -> Node<'nodes, State> {
+    Node {
+        inner: NodeValue::NodeTrait {
+            node: Box::new(OptionScoper { scope, node }),
+        },
+    }
+}
+/// Scopes state to some owned derivative for all children of this node
+/// See `nodes::scope`
+pub fn scope_owned<'nodes, State, Scoped: 'nodes>(
+    scope: impl Fn(&mut State) -> Scoped + 'nodes,
+    node: Node<'nodes, Scoped>,
+) -> Node<'nodes, State> {
+    Node {
+        inner: NodeValue::NodeTrait {
+            node: Box::new(OwnedScoper { scope, node }),
         },
     }
 }
