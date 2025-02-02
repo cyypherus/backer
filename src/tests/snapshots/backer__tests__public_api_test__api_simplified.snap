@@ -32,16 +32,20 @@ pub fn backer::nodes::area_reader<'nodes, State>(func: impl core::ops::function:
 pub fn backer::nodes::column<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
 pub fn backer::nodes::column_spaced<State>(spacing: f32, elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
 pub fn backer::nodes::draw<'nodes, State>(drawable_fn: impl core::ops::function::Fn(backer::models::Area, &mut State) + 'static) -> backer::Node<'nodes, State>
-pub fn backer::nodes::draw_object<'nodes, State>(drawable: impl backer::traits::drawable::Drawable<'nodes, State> + 'nodes) -> backer::Node<'nodes, State>
-pub fn backer::nodes::dynamic<'nodes, State: 'nodes>(func: impl core::ops::function::Fn(&mut State) -> backer::Node<'nodes, State> + 'nodes) -> backer::Node<'nodes, State>
+pub fn backer::nodes::draw_object<'nodes, State>(drawable: impl backer::traits::Drawable<State> + 'nodes) -> backer::Node<'nodes, State>
+pub fn backer::nodes::dynamic<'nodes, State>(func: impl core::ops::function::Fn(&mut State) -> backer::Node<'nodes, State> + 'nodes) -> backer::Node<'nodes, State>
 pub fn backer::nodes::empty<'nodes, State>() -> backer::Node<'nodes, State>
 pub fn backer::nodes::group<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
 pub fn backer::nodes::row<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
 pub fn backer::nodes::row_spaced<State>(spacing: f32, elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
-pub fn backer::nodes::scope<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(backer::ScopeCtx<'_, '_, Scoped>, &mut State) -> backer::ScopeCtxResult + 'nodes, node: backer::Node<'nodes, Scoped>) -> backer::Node<'nodes, State>
+pub fn backer::nodes::scope<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> &mut Scoped + 'nodes, node: backer::Node<'nodes, Scoped>) -> backer::Node<'nodes, State>
+pub fn backer::nodes::scope_owned<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> Scoped + 'nodes, node: backer::Node<'nodes, Scoped>) -> backer::Node<'nodes, State>
+pub fn backer::nodes::scope_unwrap<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> &mut core::option::Option<Scoped> + 'nodes, node: backer::Node<'nodes, Scoped>) -> backer::Node<'nodes, State>
 pub fn backer::nodes::space<'nodes, State>() -> backer::Node<'nodes, State>
 pub fn backer::nodes::stack<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
 pub mod backer::traits
+pub trait backer::traits::Drawable<State>
+pub fn backer::traits::Drawable::draw(&mut self, area: backer::models::Area, state: &mut State, visible: bool)
 pub struct backer::Layout<'nodes, State>
 impl<'nodes, State> backer::Layout<'nodes, State>
 pub fn backer::Layout<'nodes, State>::new(tree: backer::Node<'nodes, State>) -> Self
@@ -77,8 +81,3 @@ pub fn backer::Node<'_, State>::dynamic_height(self, f: impl core::ops::function
 pub fn backer::Node<'_, State>::dynamic_width(self, f: impl core::ops::function::Fn(f32, &mut State) -> f32 + 'static) -> Self
 impl<State> core::fmt::Debug for backer::Node<'_, State>
 pub fn backer::Node<'_, State>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub struct backer::ScopeCtx<'a, 'nodes, SubState>
-impl<SubState> backer::ScopeCtx<'_, '_, SubState>
-pub fn backer::ScopeCtx<'_, '_, SubState>::empty(self) -> backer::ScopeCtxResult
-pub fn backer::ScopeCtx<'_, '_, SubState>::with_scoped(self, scoped: &mut SubState) -> backer::ScopeCtxResult
-pub struct backer::ScopeCtxResult
