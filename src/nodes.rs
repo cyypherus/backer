@@ -233,14 +233,18 @@ pub fn scope_unwrap<'nodes, State, Scoped: 'nodes>(
     }
 }
 /// Scopes state to some owned derivative for all children of this node
+/// once the child nodes have operated on state, embed is then called.
+///
+/// The scope & embed functions are generally called multiple times in a single `draw` call, use them sparingly
 /// See `nodes::scope`
 pub fn scope_owned<'nodes, State, Scoped: 'nodes>(
     scope: impl Fn(&mut State) -> Scoped + 'nodes,
+    embed: impl Fn(&mut State, Scoped) + 'nodes,
     node: Node<'nodes, Scoped>,
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::NodeTrait {
-            node: Box::new(OwnedScoper { scope, node }),
+            node: Box::new(OwnedScoper { scope, embed, node }),
         },
     }
 }

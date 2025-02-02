@@ -101,12 +101,13 @@ where
     }
 }
 
-pub(crate) struct OwnedScoper<'nodes, ScopedState, Scope> {
+pub(crate) struct OwnedScoper<'nodes, ScopedState, Scope, Embed> {
     pub(crate) scope: Scope,
+    pub(crate) embed: Embed,
     pub(crate) node: Node<'nodes, ScopedState>,
 }
 
-impl<ScopedState, Scope> Debug for OwnedScoper<'_, ScopedState, Scope> {
+impl<ScopedState, Scope, Embed> Debug for OwnedScoper<'_, ScopedState, Scope, Embed> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OwnedScoper")
             .field("scope", &"<function>")
@@ -115,13 +116,17 @@ impl<ScopedState, Scope> Debug for OwnedScoper<'_, ScopedState, Scope> {
     }
 }
 
-impl<State, ScopedState, Scope> NodeTrait<State> for OwnedScoper<'_, ScopedState, Scope>
+impl<State, ScopedState, Scope, Embed> NodeTrait<State>
+    for OwnedScoper<'_, ScopedState, Scope, Embed>
 where
     Scope: Fn(&mut State) -> ScopedState,
+    Embed: Fn(&mut State, ScopedState),
 {
     fn constraints(&mut self, available_area: Area, state: &mut State) -> Option<SizeConstraints> {
         let mut substate = (self.scope)(state);
-        self.node.inner.constraints(available_area, &mut substate)
+        let result = self.node.inner.constraints(available_area, &mut substate);
+        (self.embed)(state, substate);
+        result
     }
 
     fn layout(
@@ -138,10 +143,12 @@ where
             contextual_y_align,
             &mut substate,
         );
+        (self.embed)(state, substate);
     }
 
     fn draw(&mut self, state: &mut State, contextual_visibility: bool) {
         let mut substate = (self.scope)(state);
         self.node.inner.draw(&mut substate, contextual_visibility);
+        (self.embed)(state, substate);
     }
 }
