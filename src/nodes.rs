@@ -146,14 +146,11 @@ pub fn draw<'nodes, State>(
 /// (or the `TransitionDrawable` trait)
 ///
 /// See [`draw`]
-pub fn draw_object<'nodes, State, D>(drawable: impl Into<D>) -> Node<'nodes, State>
-where
-    D: Drawable<State> + 'nodes,
-{
+pub fn draw_object<'nodes, State>(drawable: impl Drawable<State> + 'nodes) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::Draw(DrawableNode {
             area: Area::default(),
-            drawable: SomeDrawable::Object(Box::new(drawable.into())),
+            drawable: SomeDrawable::Object(Box::new(drawable)),
         }),
     }
 }

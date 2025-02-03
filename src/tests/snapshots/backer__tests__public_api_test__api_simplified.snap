@@ -32,7 +32,7 @@ pub fn backer::nodes::area_reader<'nodes, State>(func: impl core::ops::function:
 pub fn backer::nodes::column<'n, State>(elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
 pub fn backer::nodes::column_spaced<'n, State>(spacing: f32, elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
 pub fn backer::nodes::draw<'nodes, State>(drawable_fn: impl core::ops::function::Fn(backer::models::Area, &mut State) + 'static) -> backer::Node<'nodes, State>
-pub fn backer::nodes::draw_object<'nodes, State, D>(drawable: impl core::convert::Into<D>) -> backer::Node<'nodes, State> where D: backer::traits::Drawable<State> + 'nodes
+pub fn backer::nodes::draw_object<'nodes, State>(drawable: impl backer::traits::Drawable<State> + 'nodes) -> backer::Node<'nodes, State>
 pub fn backer::nodes::dynamic<'nodes, State>(func: impl core::ops::function::Fn(&mut State) -> backer::Node<'nodes, State> + 'nodes) -> backer::Node<'nodes, State>
 pub fn backer::nodes::empty<'nodes, State>() -> backer::Node<'nodes, State>
 pub fn backer::nodes::group<'n, State>(elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
