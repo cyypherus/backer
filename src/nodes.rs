@@ -25,10 +25,10 @@ or pushing against other unconstrained nodes with equal force.
 /// Creates a vertical sequence of elements
 ///
 #[doc = container_doc!()]
-pub fn column<State>(elements: Vec<Node<'_, State>>) -> Node<'_, State> {
+pub fn column<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, State> {
     Node {
         inner: NodeValue::Column {
-            elements: filter_empty(ungroup(elements)),
+            elements: filter_empty(ungroup(convert_into(elements))),
             spacing: 0.,
             align: None,
             off_axis_align: None,
@@ -53,18 +53,21 @@ pub fn column<State>(elements: Vec<Node<'_, State>>) -> Node<'_, State> {
 ///     ),
 /// ]);
 /// ```
-pub fn group<State>(elements: Vec<Node<State>>) -> Node<'_, State> {
+pub fn group<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, State> {
     Node {
-        inner: NodeValue::Group(filter_empty(ungroup(elements))),
+        inner: NodeValue::Group(filter_empty(ungroup(convert_into(elements)))),
     }
 }
 /// Creates a vertical sequence of elements with the specified spacing between each element.
 ///
 #[doc = container_doc!()]
-pub fn column_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<'_, State> {
+pub fn column_spaced<'n, State>(
+    spacing: f32,
+    elements: Vec<impl Into<Node<'n, State>>>,
+) -> Node<'n, State> {
     Node {
         inner: NodeValue::Column {
-            elements: filter_empty(ungroup(elements)),
+            elements: filter_empty(ungroup(convert_into(elements))),
             spacing,
             align: None,
             off_axis_align: None,
@@ -74,10 +77,10 @@ pub fn column_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<'_
 /// Creates a horizontal sequence of elements
 ///
 #[doc = container_doc!()]
-pub fn row<State>(elements: Vec<Node<State>>) -> Node<'_, State> {
+pub fn row<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, State> {
     Node {
         inner: NodeValue::Row {
-            elements: filter_empty(ungroup(elements)),
+            elements: filter_empty(ungroup(convert_into(elements))),
             spacing: 0.,
             align: None,
             off_axis_align: None,
@@ -87,10 +90,13 @@ pub fn row<State>(elements: Vec<Node<State>>) -> Node<'_, State> {
 /// Creates a horizontal sequence of elements with the specified spacing between each element.
 ///
 #[doc = container_doc!()]
-pub fn row_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<'_, State> {
+pub fn row_spaced<'n, State>(
+    spacing: f32,
+    elements: Vec<impl Into<Node<'n, State>>>,
+) -> Node<'n, State> {
     Node {
         inner: NodeValue::Row {
-            elements: filter_empty(ungroup(elements)),
+            elements: filter_empty(ungroup(convert_into(elements))),
             spacing,
             align: None,
             off_axis_align: None,
@@ -100,10 +106,10 @@ pub fn row_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<'_, S
 /// Creates a sequence of elements to be laid out on top of each other.
 ///
 #[doc = container_doc!()]
-pub fn stack<State>(elements: Vec<Node<State>>) -> Node<'_, State> {
+pub fn stack<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, State> {
     Node {
         inner: NodeValue::Stack {
-            elements: filter_empty(ungroup(elements)),
+            elements: filter_empty(ungroup(convert_into(elements))),
             x_align: None,
             y_align: None,
         },
@@ -140,11 +146,14 @@ pub fn draw<'nodes, State>(
 /// (or the `TransitionDrawable` trait)
 ///
 /// See [`draw`]
-pub fn draw_object<'nodes, State>(drawable: impl Drawable<State> + 'nodes) -> Node<'nodes, State> {
+pub fn draw_object<'nodes, State, D>(drawable: impl Into<D>) -> Node<'nodes, State>
+where
+    D: Drawable<State> + 'nodes,
+{
     Node {
         inner: NodeValue::Draw(DrawableNode {
             area: Area::default(),
-            drawable: SomeDrawable::Object(Box::new(drawable)),
+            drawable: SomeDrawable::Object(Box::new(drawable.into())),
         }),
     }
 }
@@ -212,11 +221,14 @@ pub fn dynamic<'nodes, State>(
 ///```
 pub fn scope<'nodes, State, Scoped: 'nodes>(
     scope: impl Fn(&mut State) -> &mut Scoped + 'nodes,
-    node: Node<'nodes, Scoped>,
+    node: impl Into<Node<'nodes, Scoped>>,
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::NodeTrait {
-            node: Box::new(Scoper { scope, node }),
+            node: Box::new(Scoper {
+                scope,
+                node: node.into(),
+            }),
         },
     }
 }
@@ -224,11 +236,14 @@ pub fn scope<'nodes, State, Scoped: 'nodes>(
 /// See `nodes::scope`
 pub fn scope_unwrap<'nodes, State, Scoped: 'nodes>(
     scope: impl Fn(&mut State) -> &mut Option<Scoped> + 'nodes,
-    node: Node<'nodes, Scoped>,
+    node: impl Into<Node<'nodes, Scoped>>,
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::NodeTrait {
-            node: Box::new(OptionScoper { scope, node }),
+            node: Box::new(OptionScoper {
+                scope,
+                node: node.into(),
+            }),
         },
     }
 }
@@ -240,13 +255,21 @@ pub fn scope_unwrap<'nodes, State, Scoped: 'nodes>(
 pub fn scope_owned<'nodes, State, Scoped: 'nodes>(
     scope: impl Fn(&mut State) -> Scoped + 'nodes,
     embed: impl Fn(&mut State, Scoped) + 'nodes,
-    node: Node<'nodes, Scoped>,
+    node: impl Into<Node<'nodes, Scoped>>,
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::NodeTrait {
-            node: Box::new(OwnedScoper { scope, embed, node }),
+            node: Box::new(OwnedScoper {
+                scope,
+                embed,
+                node: node.into(),
+            }),
         },
     }
+}
+
+fn convert_into<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Vec<Node<'n, State>> {
+    elements.into_iter().map(|e| e.into()).collect()
 }
 
 fn ungroup<State>(elements: Vec<Node<State>>) -> Vec<NodeCache<State>> {
