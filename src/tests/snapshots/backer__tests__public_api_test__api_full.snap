@@ -100,20 +100,20 @@ impl<T> core::convert::From<T> for backer::models::Area
 pub fn backer::models::Area::from(t: T) -> T
 pub mod backer::nodes
 pub fn backer::nodes::area_reader<'nodes, State>(func: impl core::ops::function::Fn(backer::models::Area, &mut State) -> backer::Node<'nodes, State> + 'static) -> backer::Node<'nodes, State>
-pub fn backer::nodes::column<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
-pub fn backer::nodes::column_spaced<State>(spacing: f32, elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
+pub fn backer::nodes::column<'n, State>(elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
+pub fn backer::nodes::column_spaced<'n, State>(spacing: f32, elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
 pub fn backer::nodes::draw<'nodes, State>(drawable_fn: impl core::ops::function::Fn(backer::models::Area, &mut State) + 'static) -> backer::Node<'nodes, State>
-pub fn backer::nodes::draw_object<'nodes, State>(drawable: impl backer::traits::Drawable<State> + 'nodes) -> backer::Node<'nodes, State>
+pub fn backer::nodes::draw_object<'nodes, State, D>(drawable: impl core::convert::Into<D>) -> backer::Node<'nodes, State> where D: backer::traits::Drawable<State> + 'nodes
 pub fn backer::nodes::dynamic<'nodes, State>(func: impl core::ops::function::Fn(&mut State) -> backer::Node<'nodes, State> + 'nodes) -> backer::Node<'nodes, State>
 pub fn backer::nodes::empty<'nodes, State>() -> backer::Node<'nodes, State>
-pub fn backer::nodes::group<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
-pub fn backer::nodes::row<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
-pub fn backer::nodes::row_spaced<State>(spacing: f32, elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
-pub fn backer::nodes::scope<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> &mut Scoped + 'nodes, node: backer::Node<'nodes, Scoped>) -> backer::Node<'nodes, State>
-pub fn backer::nodes::scope_owned<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> Scoped + 'nodes, embed: impl core::ops::function::Fn(&mut State, Scoped) + 'nodes, node: backer::Node<'nodes, Scoped>) -> backer::Node<'nodes, State>
-pub fn backer::nodes::scope_unwrap<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> &mut core::option::Option<Scoped> + 'nodes, node: backer::Node<'nodes, Scoped>) -> backer::Node<'nodes, State>
+pub fn backer::nodes::group<'n, State>(elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
+pub fn backer::nodes::row<'n, State>(elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
+pub fn backer::nodes::row_spaced<'n, State>(spacing: f32, elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
+pub fn backer::nodes::scope<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> &mut Scoped + 'nodes, node: impl core::convert::Into<backer::Node<'nodes, Scoped>>) -> backer::Node<'nodes, State>
+pub fn backer::nodes::scope_owned<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> Scoped + 'nodes, embed: impl core::ops::function::Fn(&mut State, Scoped) + 'nodes, node: impl core::convert::Into<backer::Node<'nodes, Scoped>>) -> backer::Node<'nodes, State>
+pub fn backer::nodes::scope_unwrap<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> &mut core::option::Option<Scoped> + 'nodes, node: impl core::convert::Into<backer::Node<'nodes, Scoped>>) -> backer::Node<'nodes, State>
 pub fn backer::nodes::space<'nodes, State>() -> backer::Node<'nodes, State>
-pub fn backer::nodes::stack<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
+pub fn backer::nodes::stack<'n, State>(elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
 pub mod backer::traits
 pub trait backer::traits::Drawable<State>
 pub fn backer::traits::Drawable::draw(&mut self, area: backer::models::Area, state: &mut State, visible: bool)
