@@ -275,10 +275,15 @@ impl<State> NodeValue<'_, State> {
             NodeValue::Visibility { .. } => {
                 vec![available_area]
             }
+            NodeValue::Coupled { element, .. } => element.kind.allocate_area(
+                available_area,
+                contextual_x_align,
+                contextual_y_align,
+                state,
+            ),
             NodeValue::Draw(_)
             | NodeValue::Space
             | NodeValue::AreaReader { .. }
-            | NodeValue::Coupled { .. }
             | NodeValue::NodeTrait { .. }
             | NodeValue::Dynamic { .. } => {
                 vec![available_area]
