@@ -669,4 +669,22 @@ mod tests {
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
     }
+    #[test]
+    fn test_dynamic_attached() {
+        Layout::new({
+            row(vec![
+                space(),
+                draw(|a, _: &mut ()| {
+                    assert_eq!(a, Area::new(25., 25., 25., 50.));
+                })
+                .attach_under(draw(|a, _: &mut ()| {
+                    assert_eq!(a, Area::new(25., 25., 25., 50.));
+                }))
+                .dynamic_height(|h, _| h * 2.),
+                space(),
+                space(),
+            ])
+        })
+        .draw(Area::new(0., 0., 100., 100.), &mut ());
+    }
 }
