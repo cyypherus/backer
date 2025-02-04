@@ -100,20 +100,22 @@ impl<T> core::convert::From<T> for backer::models::Area
 pub fn backer::models::Area::from(t: T) -> T
 pub mod backer::nodes
 pub fn backer::nodes::area_reader<'nodes, State>(func: impl core::ops::function::Fn(backer::models::Area, &mut State) -> backer::Node<'nodes, State> + 'static) -> backer::Node<'nodes, State>
-pub fn backer::nodes::column<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
-pub fn backer::nodes::column_spaced<State>(spacing: f32, elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
+pub fn backer::nodes::column<'n, State>(elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
+pub fn backer::nodes::column_spaced<'n, State>(spacing: f32, elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
 pub fn backer::nodes::draw<'nodes, State>(drawable_fn: impl core::ops::function::Fn(backer::models::Area, &mut State) + 'static) -> backer::Node<'nodes, State>
-pub fn backer::nodes::draw_object<'nodes, State>(drawable: impl backer::traits::Drawable<'nodes, State> + 'nodes) -> backer::Node<'nodes, State>
-pub fn backer::nodes::dynamic<'nodes, State: 'nodes>(func: impl core::ops::function::Fn(&mut State) -> backer::Node<'nodes, State> + 'nodes) -> backer::Node<'nodes, State>
+pub fn backer::nodes::draw_object<'nodes, State>(drawable: impl backer::traits::Drawable<State> + 'nodes) -> backer::Node<'nodes, State>
+pub fn backer::nodes::dynamic<'nodes, State>(func: impl core::ops::function::Fn(&mut State) -> backer::Node<'nodes, State> + 'nodes) -> backer::Node<'nodes, State>
 pub fn backer::nodes::empty<'nodes, State>() -> backer::Node<'nodes, State>
-pub fn backer::nodes::group<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
-pub fn backer::nodes::row<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
-pub fn backer::nodes::row_spaced<State>(spacing: f32, elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
-pub fn backer::nodes::scope<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(backer::ScopeCtx<'_, '_, Scoped>, &mut State) -> backer::ScopeCtxResult + 'nodes, node: backer::Node<'nodes, Scoped>) -> backer::Node<'nodes, State>
+pub fn backer::nodes::group<'n, State>(elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
+pub fn backer::nodes::row<'n, State>(elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
+pub fn backer::nodes::row_spaced<'n, State>(spacing: f32, elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
+pub fn backer::nodes::scope<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> &mut Scoped + 'nodes, node: impl core::convert::Into<backer::Node<'nodes, Scoped>>) -> backer::Node<'nodes, State>
+pub fn backer::nodes::scope_owned<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> Scoped + 'nodes, embed: impl core::ops::function::Fn(&mut State, Scoped) + 'nodes, node: impl core::convert::Into<backer::Node<'nodes, Scoped>>) -> backer::Node<'nodes, State>
+pub fn backer::nodes::scope_unwrap<'nodes, State, Scoped: 'nodes>(scope: impl core::ops::function::Fn(&mut State) -> &mut core::option::Option<Scoped> + 'nodes, node: impl core::convert::Into<backer::Node<'nodes, Scoped>>) -> backer::Node<'nodes, State>
 pub fn backer::nodes::space<'nodes, State>() -> backer::Node<'nodes, State>
-pub fn backer::nodes::stack<State>(elements: alloc::vec::Vec<backer::Node<'_, State>>) -> backer::Node<'_, State>
+pub fn backer::nodes::stack<'n, State>(elements: alloc::vec::Vec<impl core::convert::Into<backer::Node<'n, State>>>) -> backer::Node<'n, State>
 pub mod backer::traits
-pub trait backer::traits::Drawable<'nodes, State>
+pub trait backer::traits::Drawable<State>
 pub fn backer::traits::Drawable::draw(&mut self, area: backer::models::Area, state: &mut State, visible: bool)
 pub struct backer::Layout<'nodes, State>
 impl<'nodes, State> backer::Layout<'nodes, State>
@@ -194,52 +196,3 @@ impl<T> core::borrow::BorrowMut<T> for backer::Node<'nodes, State> where T: ?cor
 pub fn backer::Node<'nodes, State>::borrow_mut(&mut self) -> &mut T
 impl<T> core::convert::From<T> for backer::Node<'nodes, State>
 pub fn backer::Node<'nodes, State>::from(t: T) -> T
-pub struct backer::ScopeCtx<'a, 'nodes, SubState>
-impl<SubState> backer::ScopeCtx<'_, '_, SubState>
-pub fn backer::ScopeCtx<'_, '_, SubState>::empty(self) -> backer::ScopeCtxResult
-pub fn backer::ScopeCtx<'_, '_, SubState>::with_scoped(self, scoped: &mut SubState) -> backer::ScopeCtxResult
-impl<'a, 'nodes, SubState> core::marker::Freeze for backer::ScopeCtx<'a, 'nodes, SubState>
-impl<'a, 'nodes, SubState> !core::marker::Send for backer::ScopeCtx<'a, 'nodes, SubState>
-impl<'a, 'nodes, SubState> !core::marker::Sync for backer::ScopeCtx<'a, 'nodes, SubState>
-impl<'a, 'nodes, SubState> core::marker::Unpin for backer::ScopeCtx<'a, 'nodes, SubState>
-impl<'a, 'nodes, SubState> !core::panic::unwind_safe::RefUnwindSafe for backer::ScopeCtx<'a, 'nodes, SubState>
-impl<'a, 'nodes, SubState> !core::panic::unwind_safe::UnwindSafe for backer::ScopeCtx<'a, 'nodes, SubState>
-impl<T, U> core::convert::Into<U> for backer::ScopeCtx<'a, 'nodes, SubState> where U: core::convert::From<T>
-pub fn backer::ScopeCtx<'a, 'nodes, SubState>::into(self) -> U
-impl<T, U> core::convert::TryFrom<U> for backer::ScopeCtx<'a, 'nodes, SubState> where U: core::convert::Into<T>
-pub type backer::ScopeCtx<'a, 'nodes, SubState>::Error = core::convert::Infallible
-pub fn backer::ScopeCtx<'a, 'nodes, SubState>::try_from(value: U) -> core::result::Result<T, <T as core::convert::TryFrom<U>>::Error>
-impl<T, U> core::convert::TryInto<U> for backer::ScopeCtx<'a, 'nodes, SubState> where U: core::convert::TryFrom<T>
-pub type backer::ScopeCtx<'a, 'nodes, SubState>::Error = <U as core::convert::TryFrom<T>>::Error
-pub fn backer::ScopeCtx<'a, 'nodes, SubState>::try_into(self) -> core::result::Result<U, <U as core::convert::TryFrom<T>>::Error>
-impl<T> core::any::Any for backer::ScopeCtx<'a, 'nodes, SubState> where T: 'static + ?core::marker::Sized
-pub fn backer::ScopeCtx<'a, 'nodes, SubState>::type_id(&self) -> core::any::TypeId
-impl<T> core::borrow::Borrow<T> for backer::ScopeCtx<'a, 'nodes, SubState> where T: ?core::marker::Sized
-pub fn backer::ScopeCtx<'a, 'nodes, SubState>::borrow(&self) -> &T
-impl<T> core::borrow::BorrowMut<T> for backer::ScopeCtx<'a, 'nodes, SubState> where T: ?core::marker::Sized
-pub fn backer::ScopeCtx<'a, 'nodes, SubState>::borrow_mut(&mut self) -> &mut T
-impl<T> core::convert::From<T> for backer::ScopeCtx<'a, 'nodes, SubState>
-pub fn backer::ScopeCtx<'a, 'nodes, SubState>::from(t: T) -> T
-pub struct backer::ScopeCtxResult
-impl core::marker::Freeze for backer::ScopeCtxResult
-impl core::marker::Send for backer::ScopeCtxResult
-impl core::marker::Sync for backer::ScopeCtxResult
-impl core::marker::Unpin for backer::ScopeCtxResult
-impl core::panic::unwind_safe::RefUnwindSafe for backer::ScopeCtxResult
-impl core::panic::unwind_safe::UnwindSafe for backer::ScopeCtxResult
-impl<T, U> core::convert::Into<U> for backer::ScopeCtxResult where U: core::convert::From<T>
-pub fn backer::ScopeCtxResult::into(self) -> U
-impl<T, U> core::convert::TryFrom<U> for backer::ScopeCtxResult where U: core::convert::Into<T>
-pub type backer::ScopeCtxResult::Error = core::convert::Infallible
-pub fn backer::ScopeCtxResult::try_from(value: U) -> core::result::Result<T, <T as core::convert::TryFrom<U>>::Error>
-impl<T, U> core::convert::TryInto<U> for backer::ScopeCtxResult where U: core::convert::TryFrom<T>
-pub type backer::ScopeCtxResult::Error = <U as core::convert::TryFrom<T>>::Error
-pub fn backer::ScopeCtxResult::try_into(self) -> core::result::Result<U, <U as core::convert::TryFrom<T>>::Error>
-impl<T> core::any::Any for backer::ScopeCtxResult where T: 'static + ?core::marker::Sized
-pub fn backer::ScopeCtxResult::type_id(&self) -> core::any::TypeId
-impl<T> core::borrow::Borrow<T> for backer::ScopeCtxResult where T: ?core::marker::Sized
-pub fn backer::ScopeCtxResult::borrow(&self) -> &T
-impl<T> core::borrow::BorrowMut<T> for backer::ScopeCtxResult where T: ?core::marker::Sized
-pub fn backer::ScopeCtxResult::borrow_mut(&mut self) -> &mut T
-impl<T> core::convert::From<T> for backer::ScopeCtxResult
-pub fn backer::ScopeCtxResult::from(t: T) -> T

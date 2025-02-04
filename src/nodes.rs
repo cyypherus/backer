@@ -3,7 +3,7 @@ use crate::{
     layout::NodeValue,
     models::*,
     node_cache::NodeCache,
-    scoper::{ScopeCtx, ScopeCtxResult, Scoper},
+    scoper::{OptionScoper, OwnedScoper, Scoper},
     traits::Drawable,
     Node,
 };
@@ -25,10 +25,10 @@ or pushing against other unconstrained nodes with equal force.
 /// Creates a vertical sequence of elements
 ///
 #[doc = container_doc!()]
-pub fn column<State>(elements: Vec<Node<'_, State>>) -> Node<'_, State> {
+pub fn column<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, State> {
     Node {
         inner: NodeValue::Column {
-            elements: filter_empty(ungroup(elements)),
+            elements: filter_empty(ungroup(convert_into(elements))),
             spacing: 0.,
             align: None,
             off_axis_align: None,
@@ -53,18 +53,21 @@ pub fn column<State>(elements: Vec<Node<'_, State>>) -> Node<'_, State> {
 ///     ),
 /// ]);
 /// ```
-pub fn group<State>(elements: Vec<Node<State>>) -> Node<'_, State> {
+pub fn group<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, State> {
     Node {
-        inner: NodeValue::Group(filter_empty(ungroup(elements))),
+        inner: NodeValue::Group(filter_empty(ungroup(convert_into(elements)))),
     }
 }
 /// Creates a vertical sequence of elements with the specified spacing between each element.
 ///
 #[doc = container_doc!()]
-pub fn column_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<'_, State> {
+pub fn column_spaced<'n, State>(
+    spacing: f32,
+    elements: Vec<impl Into<Node<'n, State>>>,
+) -> Node<'n, State> {
     Node {
         inner: NodeValue::Column {
-            elements: filter_empty(ungroup(elements)),
+            elements: filter_empty(ungroup(convert_into(elements))),
             spacing,
             align: None,
             off_axis_align: None,
@@ -74,10 +77,10 @@ pub fn column_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<'_
 /// Creates a horizontal sequence of elements
 ///
 #[doc = container_doc!()]
-pub fn row<State>(elements: Vec<Node<State>>) -> Node<'_, State> {
+pub fn row<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, State> {
     Node {
         inner: NodeValue::Row {
-            elements: filter_empty(ungroup(elements)),
+            elements: filter_empty(ungroup(convert_into(elements))),
             spacing: 0.,
             align: None,
             off_axis_align: None,
@@ -87,10 +90,13 @@ pub fn row<State>(elements: Vec<Node<State>>) -> Node<'_, State> {
 /// Creates a horizontal sequence of elements with the specified spacing between each element.
 ///
 #[doc = container_doc!()]
-pub fn row_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<'_, State> {
+pub fn row_spaced<'n, State>(
+    spacing: f32,
+    elements: Vec<impl Into<Node<'n, State>>>,
+) -> Node<'n, State> {
     Node {
         inner: NodeValue::Row {
-            elements: filter_empty(ungroup(elements)),
+            elements: filter_empty(ungroup(convert_into(elements))),
             spacing,
             align: None,
             off_axis_align: None,
@@ -100,10 +106,10 @@ pub fn row_spaced<State>(spacing: f32, elements: Vec<Node<State>>) -> Node<'_, S
 /// Creates a sequence of elements to be laid out on top of each other.
 ///
 #[doc = container_doc!()]
-pub fn stack<State>(elements: Vec<Node<State>>) -> Node<'_, State> {
+pub fn stack<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, State> {
     Node {
         inner: NodeValue::Stack {
-            elements: filter_empty(ungroup(elements)),
+            elements: filter_empty(ungroup(convert_into(elements))),
             x_align: None,
             y_align: None,
         },
@@ -197,22 +203,13 @@ pub fn dynamic<'nodes, State>(
 /// use backer::nodes::*;
 ///
 /// struct A {
-///     b: Option<bool>,
+///     b: bool,
 /// }
 /// let layout = dynamic(|_: &mut A| {
 ///     stack(vec![
 ///         scope(
-///             // Explicit types are often necessary.
-///             // bool is the type of the subset in this case
-///             |ctx: ScopeCtx<bool>, a: &mut A| {
-///                 // This closure transforms state into the desired subset.
-///                 // The desired subset is passed to ctx.with_scoped(...)
-///                 // or the entire hierarchy can be skipped with ctx.empty()
-///                 let Some(ref mut b) = a.b else {
-///                     return ctx.empty();
-///                 };
-///                 ctx.with_scoped(b)
-///             },
+///             // This closure selects which state to scope to
+///             |a: &mut A| &mut a.b,
 ///             // These nodes now have direct access to only the boolean
 ///             draw(|_, b: &mut bool| *b = !*b),
 ///         ),
@@ -220,17 +217,56 @@ pub fn dynamic<'nodes, State>(
 /// });
 ///```
 pub fn scope<'nodes, State, Scoped: 'nodes>(
-    scope: impl Fn(ScopeCtx<'_, '_, Scoped>, &mut State) -> ScopeCtxResult + 'nodes,
-    node: Node<'nodes, Scoped>,
+    scope: impl Fn(&mut State) -> &mut Scoped + 'nodes,
+    node: impl Into<Node<'nodes, Scoped>>,
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::NodeTrait {
             node: Box::new(Scoper {
-                scope_fn: scope,
-                node,
+                scope,
+                node: node.into(),
             }),
         },
     }
+}
+/// Scopes state to some derived *optional* subset which is unwrapped for all children of this node
+/// See `nodes::scope`
+pub fn scope_unwrap<'nodes, State, Scoped: 'nodes>(
+    scope: impl Fn(&mut State) -> &mut Option<Scoped> + 'nodes,
+    node: impl Into<Node<'nodes, Scoped>>,
+) -> Node<'nodes, State> {
+    Node {
+        inner: NodeValue::NodeTrait {
+            node: Box::new(OptionScoper {
+                scope,
+                node: node.into(),
+            }),
+        },
+    }
+}
+/// Scopes state to some owned derivative for all children of this node
+/// once the child nodes have operated on state, embed is then called.
+///
+/// The scope & embed functions are generally called multiple times in a single `draw` call, use them sparingly
+/// See `nodes::scope`
+pub fn scope_owned<'nodes, State, Scoped: 'nodes>(
+    scope: impl Fn(&mut State) -> Scoped + 'nodes,
+    embed: impl Fn(&mut State, Scoped) + 'nodes,
+    node: impl Into<Node<'nodes, Scoped>>,
+) -> Node<'nodes, State> {
+    Node {
+        inner: NodeValue::NodeTrait {
+            node: Box::new(OwnedScoper {
+                scope,
+                embed,
+                node: node.into(),
+            }),
+        },
+    }
+}
+
+fn convert_into<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Vec<Node<'n, State>> {
+    elements.into_iter().map(|e| e.into()).collect()
 }
 
 fn ungroup<State>(elements: Vec<Node<State>>) -> Vec<NodeCache<State>> {

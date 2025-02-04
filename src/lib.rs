@@ -23,7 +23,6 @@ mod node;
 pub use node::Node;
 mod node_cache;
 mod scoper;
-pub use scoper::{ScopeCtx, ScopeCtxResult};
 mod subtree;
 mod tests;
 

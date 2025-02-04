@@ -1,10 +1,8 @@
 #[cfg(test)]
 mod tests {
-
     use crate::layout::*;
     use crate::models::*;
     use crate::nodes::*;
-    use crate::scoper::ScopeCtx;
 
     #[test]
     fn test_scope() {
@@ -37,7 +35,7 @@ mod tests {
                     }
                 },
                 scope(
-                    |ctx: ScopeCtx<B>, a: &mut A| ctx.with_scoped(&mut a.b),
+                    |a: &mut A| &mut a.b,
                     dynamic(|b: &mut B| {
                         if b.test {
                             draw(|area, b: &mut B| {
@@ -73,19 +71,13 @@ mod tests {
         }
         Layout::new(stack(vec![
             scope(
-                |ctx: ScopeCtx<B>, a: &mut A| {
-                    //>
-                    ctx.with_scoped(&mut a.b)
-                },
+                |a: &mut A| &mut a.b,
                 draw(|area, _state: &mut B| {
                     assert_eq!(area, Area::new(0., 0., 100., 100.));
                 }),
             ),
             scope(
-                |ctx: ScopeCtx<C>, a: &mut A| {
-                    //>
-                    ctx.with_scoped(&mut a.c)
-                },
+                |a: &mut A| &mut a.c,
                 draw(|area, _state: &mut C| {
                     assert_eq!(area, Area::new(0., 0., 100., 100.));
                 }),
@@ -105,16 +97,7 @@ mod tests {
         let layout = dynamic(|_: &mut A| {
             stack(vec![
                 //>
-                scope(
-                    |ctx: ScopeCtx<B>, a: &mut A| {
-                        //>
-                        let Some(ref mut b) = a.b else {
-                            return ctx.empty();
-                        };
-                        ctx.with_scoped(b)
-                    },
-                    draw(|_, b: &mut B| b.test = !b.test),
-                ),
+                scope_unwrap(|a: &mut A| &mut a.b, draw(|_, b: &mut B| b.test = !b.test)),
             ])
         });
         let mut state = A {
@@ -141,10 +124,10 @@ mod tests {
     //     let mut oneone = A { b: B };
     //     Layout::new(stack(vec![
     //         //>
-    //         scope(
-    //             |ctx: ScopeCtx<Two>, a: &mut One| {
+    //         scope_owned(
+    //             |a: &mut One| {
     //                 //>
-    //                 ctx.with_scoped(&mut (&mut a.0.b, a.1))
+    //                 (&mut a.0.b, a.1.borrow_mut())
     //             },
     //             space(),
     //         ),
