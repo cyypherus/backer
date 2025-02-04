@@ -275,16 +275,11 @@ impl<State> NodeValue<'_, State> {
             NodeValue::Visibility { .. } => {
                 vec![available_area]
             }
-            NodeValue::Coupled { element, .. } => element.kind.allocate_area(
-                available_area,
-                contextual_x_align,
-                contextual_y_align,
-                state,
-            ),
             NodeValue::Draw(_)
             | NodeValue::Space
             | NodeValue::AreaReader { .. }
             | NodeValue::NodeTrait { .. }
+            | NodeValue::Coupled { .. }
             | NodeValue::Dynamic { .. } => {
                 vec![available_area]
             }
@@ -351,7 +346,18 @@ impl<State> NodeValue<'_, State> {
                 element, coupled, ..
             } => {
                 element.layout(allocated[0], None, None, state);
-                coupled.layout(allocated[0], None, None, state);
+                coupled.layout(
+                    available_area.constrained(
+                        &element
+                            .constraints(available_area, state)
+                            .unwrap_or_default(),
+                        contextual_x_align.unwrap_or(XAlign::Center),
+                        contextual_y_align.unwrap_or(YAlign::Center),
+                    ),
+                    None,
+                    None,
+                    state,
+                );
             }
             NodeValue::Visibility { element, .. } => {
                 element.layout(allocated[0], None, None, state);

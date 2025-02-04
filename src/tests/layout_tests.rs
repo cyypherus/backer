@@ -615,9 +615,12 @@ mod tests {
             .width_range(20.0..)
             .pad(0.)
             .attach_under(draw(|a, _: &mut ()| {
-                assert_eq!(a, Area::new(45., 0., 10., 100.));
+                assert_eq!(a, Area::new(40., 0., 20., 100.));
             }))
             .width_range(..10.)
+            .attach_under(draw(|a, _: &mut ()| {
+                assert_eq!(a, Area::new(45., 0., 10., 100.));
+            }))
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
     }
