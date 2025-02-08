@@ -195,6 +195,21 @@ pub fn dynamic<'nodes, State>(
         },
     }
 }
+
+pub fn intermediate<'nodes, State>(
+    before: impl Fn(&mut State, Area) + 'nodes,
+    after: impl Fn(&mut State, Area) + 'nodes,
+    node: impl Into<Node<'nodes, State>>,
+) -> Node<'nodes, State> {
+    Node {
+        inner: NodeValue::Intermediate {
+            before: Box::new(before),
+            after: Box::new(after),
+            element: Box::new(NodeCache::new(node.into().inner)),
+        },
+    }
+}
+
 /// Scopes state to some derived subset for all children of this node
 ///
 ///```rust

@@ -170,10 +170,8 @@ impl<State> NodeValue<'_, State> {
                     SizeConstraints::from_size(options.clone(), allocations[0], state)
                         .combine_explicit_with_child(child_constraints)
                 }),
-            NodeValue::Offset { element, .. } => element.constraints(allocations[0], state),
             NodeValue::Draw(_) => Some(SizeConstraints::default()),
             NodeValue::Space | NodeValue::AreaReader { .. } => Some(SizeConstraints::default()),
-            NodeValue::Coupled { element, .. } => element.constraints(allocations[0], state),
             NodeValue::Visibility { visible, element } => {
                 if *visible {
                     element.constraints(allocations[0], state)
@@ -185,7 +183,9 @@ impl<State> NodeValue<'_, State> {
             NodeValue::Dynamic { node, computed } => computed
                 .get_or_insert(Box::new(NodeCache::new(node(state).inner)))
                 .constraints(available_area, state),
-
+            NodeValue::Offset { element, .. }
+            | NodeValue::Intermediate { element, .. }
+            | NodeValue::Coupled { element, .. } => element.constraints(allocations[0], state),
             NodeValue::Empty | NodeValue::Group(_) => unreachable!(),
         }
     }

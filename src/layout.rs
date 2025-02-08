@@ -73,6 +73,7 @@ impl<State> Layout<'_, State> {
 
 type AreaReaderFn<'nodes, State> = Box<dyn Fn(Area, &mut State) -> Node<'nodes, State> + 'nodes>;
 type DynamicNodeFn<'nodes, State> = Box<dyn Fn(&mut State) -> Node<'nodes, State> + 'nodes>;
+type IntermediateFn<'nodes, State> = Box<dyn Fn(&mut State, Area) + 'nodes>;
 
 pub(crate) enum NodeValue<'nodes, State> {
     Padding {
@@ -128,6 +129,11 @@ pub(crate) enum NodeValue<'nodes, State> {
         node: DynamicNodeFn<'nodes, State>,
         computed: Option<Box<NodeCache<'nodes, State>>>,
     },
+    Intermediate {
+        before: IntermediateFn<'nodes, State>,
+        after: IntermediateFn<'nodes, State>,
+        element: Box<NodeCache<'nodes, State>>,
+    },
 }
 
 impl<State> NodeValue<'_, State> {
@@ -174,6 +180,15 @@ impl<State> NodeValue<'_, State> {
                 .as_mut()
                 .unwrap()
                 .draw(state, contextual_visibility),
+            NodeValue::Intermediate {
+                before,
+                after,
+                element,
+            } => {
+                before(state, element.cache_area.unwrap());
+                element.draw(state, contextual_visibility);
+                after(state, element.cache_area.unwrap());
+            }
             NodeValue::Group(_) | NodeValue::Empty | NodeValue::AreaReader { .. } => {
                 unreachable!()
             }
@@ -280,7 +295,8 @@ impl<State> NodeValue<'_, State> {
             | NodeValue::AreaReader { .. }
             | NodeValue::NodeTrait { .. }
             | NodeValue::Coupled { .. }
-            | NodeValue::Dynamic { .. } => {
+            | NodeValue::Dynamic { .. }
+            | NodeValue::Intermediate { .. } => {
                 vec![available_area]
             }
             NodeValue::Group(_) | NodeValue::Empty => unreachable!(),
@@ -326,11 +342,6 @@ impl<State> NodeValue<'_, State> {
                     .iter_mut()
                     .zip(allocated)
                     .for_each(|(el, allocation)| el.layout(allocation, None, None, state));
-            }
-            NodeValue::Padding { element, .. }
-            | NodeValue::Explicit { element, .. }
-            | NodeValue::Offset { element, .. } => {
-                element.layout(allocated[0], None, None, state);
             }
             NodeValue::Draw(drawable) => {
                 drawable.area = allocated[0];
@@ -379,6 +390,12 @@ impl<State> NodeValue<'_, State> {
                     state,
                 );
                 *computed = Some(Box::new(node))
+            }
+            NodeValue::Padding { element, .. }
+            | NodeValue::Explicit { element, .. }
+            | NodeValue::Offset { element, .. }
+            | NodeValue::Intermediate { element, .. } => {
+                element.layout(allocated[0], None, None, state);
             }
             NodeValue::Group(_) | NodeValue::Empty => unreachable!(),
         }
