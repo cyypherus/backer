@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+
     use crate::layout::*;
     use crate::models::*;
     use crate::nodes::*;
@@ -374,21 +375,21 @@ mod tests {
             draw(|a, _: &mut ()| {
                 assert_eq!(a, Area::new(0., 0., 100., 100.));
             })
-            .aspect(1.)
+            .aspect(1., AspectMode::Fill)
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
         Layout::new({
             draw(|a, _: &mut ()| {
                 assert_eq!(a, Area::new(25., 0., 50., 100.));
             })
-            .aspect(0.5)
+            .aspect(0.5, AspectMode::Fill)
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
         Layout::new({
             draw(|a, _: &mut ()| {
                 assert_eq!(a, Area::new(0., 0., 50., 100.));
             })
-            .aspect(0.5)
+            .aspect(0.5, AspectMode::Fill)
             .align(Align::Leading)
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
@@ -396,7 +397,7 @@ mod tests {
             draw(|a, _: &mut ()| {
                 assert_eq!(a, Area::new(50., 0., 50., 100.));
             })
-            .aspect(0.5)
+            .aspect(0.5, AspectMode::Fill)
             .align(Align::Trailing)
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
@@ -405,14 +406,14 @@ mod tests {
             draw(|a, _: &mut ()| {
                 assert_eq!(a, Area::new(0., 25., 100., 50.));
             })
-            .aspect(2.)
+            .aspect(2., AspectMode::Fill)
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
         Layout::new({
             draw(|a, _: &mut ()| {
                 assert_eq!(a, Area::new(0., 0., 100., 50.));
             })
-            .aspect(2.)
+            .aspect(2., AspectMode::Fill)
             .align(Align::Top)
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
@@ -420,7 +421,7 @@ mod tests {
             draw(|a, _: &mut ()| {
                 assert_eq!(a, Area::new(0., 50., 100., 50.));
             })
-            .aspect(2.)
+            .aspect(2., AspectMode::Fill)
             .align(Align::Bottom)
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
@@ -431,21 +432,21 @@ mod tests {
             row(vec![draw(|a, _: &mut ()| {
                 assert_eq!(a, Area::new(0., 0., 100., 100.));
             })
-            .aspect(1.)])
+            .aspect(1., AspectMode::Fill)])
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
         Layout::new({
             stack(vec![draw(|a, _: &mut ()| {
                 assert_eq!(a, Area::new(25., 0., 50., 100.));
             })
-            .aspect(0.5)])
+            .aspect(0.5, AspectMode::Fill)])
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
         Layout::new({
             column(vec![draw(|a, _: &mut ()| {
                 assert_eq!(a, Area::new(0., -50., 100., 200.));
             })
-            .aspect(0.5)
+            .aspect(0.5, AspectMode::Fill)
             .align(Align::Leading)])
             .expand()
         })
@@ -454,7 +455,7 @@ mod tests {
             stack(vec![draw(|a, _: &mut ()| {
                 assert_eq!(a, Area::new(50., 0., 50., 100.));
             })
-            .aspect(0.5)
+            .aspect(0.5, AspectMode::Fill)
             .align(Align::Trailing)])
             .expand()
         })
@@ -518,7 +519,7 @@ mod tests {
             draw(|a, _: &mut ()| {
                 assert_eq!(a, Area::new(25., 0., 50., 100.));
             })
-            .aspect(0.5)
+            .aspect(0.5, AspectMode::Fill)
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
         Layout::new({
@@ -531,7 +532,7 @@ mod tests {
                 // 30., 10, 40., 80.
                 assert_eq!(a, Area::new(30., 10., 40., 80.));
             })
-            .aspect(0.5)
+            .aspect(0.5, AspectMode::Fill)
             .pad(10.)])
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
@@ -545,7 +546,60 @@ mod tests {
                 assert_eq!(a, Area::new(35., 10., 30., 80.));
             })
             .pad(10.)
-            .aspect(0.5)])
+            .aspect(0.5, AspectMode::Fit)])
+        })
+        .draw(Area::new(0., 0., 100., 100.), &mut ());
+    }
+    #[test]
+    fn test_aspect_ratio_fit() {
+        Layout::new({
+            column(vec![
+                draw(|a, _: &mut ()| {
+                    assert_eq!(a, Area::new(0., 0., 100., 50.));
+                }),
+                draw(|a, _: &mut ()| {
+                    assert_eq!(a, Area::new(25., 50., 50., 50.));
+                })
+                .aspect(1., AspectMode::Fit),
+            ])
+        })
+        .draw(Area::new(0., 0., 100., 100.), &mut ());
+        Layout::new({
+            column(vec![
+                draw(|a, _: &mut ()| {
+                    assert_eq!(a, Area::new(25., 0., 50., 50.));
+                })
+                .aspect(1., AspectMode::Fit),
+                draw(|a, _: &mut ()| {
+                    assert_eq!(a, Area::new(25., 50., 50., 50.));
+                })
+                .aspect(1., AspectMode::Fit),
+            ])
+        })
+        .draw(Area::new(0., 0., 100., 100.), &mut ());
+        Layout::new({
+            row(vec![
+                draw(|a, _: &mut ()| {
+                    assert_eq!(a, Area::new(0., 0., 50., 100.));
+                }),
+                draw(|a, _: &mut ()| {
+                    assert_eq!(a, Area::new(50., 25., 50., 50.));
+                })
+                .aspect(1., AspectMode::Fit),
+            ])
+        })
+        .draw(Area::new(0., 0., 100., 100.), &mut ());
+        Layout::new({
+            row(vec![
+                draw(|a, _: &mut ()| {
+                    assert_eq!(a, Area::new(0., 25., 50., 50.));
+                })
+                .aspect(1., AspectMode::Fit),
+                draw(|a, _: &mut ()| {
+                    assert_eq!(a, Area::new(50., 25., 50., 50.));
+                })
+                .aspect(1., AspectMode::Fit),
+            ])
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());
     }
@@ -581,7 +635,7 @@ mod tests {
                         assert_eq!(a, Area::new(45., 0., 10., 20.));
                     })
                     .width(10.)
-                    .aspect(0.5),
+                    .aspect(0.5, AspectMode::Fill),
                     draw(|a, _: &mut ()| {
                         assert_eq!(a, Area::new(0., 30., 100., 70.));
                     }),
@@ -660,7 +714,7 @@ mod tests {
                 draw(|a, _: &mut ()| {
                     assert_eq!(a, Area::new(-25., 0., 100., 100.));
                 })
-                .aspect(1.),
+                .aspect(1., AspectMode::Fill),
                 draw(|a, _: &mut ()| {
                     assert_eq!(a, Area::new(75., 0., 50., 100.));
                 })

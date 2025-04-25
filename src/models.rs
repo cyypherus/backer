@@ -125,11 +125,17 @@ pub(crate) struct Size<State> {
     pub(crate) height_max: Option<f32>,
     pub(crate) x_align: Option<XAlign>,
     pub(crate) y_align: Option<YAlign>,
-    pub(crate) aspect: Option<f32>,
+    pub(crate) aspect: Option<(f32, AspectMode)>,
     pub(crate) dynamic_height: DimensionFn<State>,
     pub(crate) dynamic_width: DimensionFn<State>,
     pub(crate) expand_x: bool,
     pub(crate) expand_y: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AspectMode {
+    Fit,
+    Fill,
 }
 
 impl<State> Clone for Size<State> {

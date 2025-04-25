@@ -418,7 +418,7 @@ impl Area {
             (Some(lower), None) => self.height.max(lower),
             (Some(lower), Some(upper)) => self.height.clamp(lower, upper.max(lower)),
         };
-        if let Some(aspect) = constraints.aspect {
+        if let Some((aspect, _)) = constraints.aspect {
             width = (height * aspect).min(width);
             height = (width / aspect).min(height);
         }
@@ -488,18 +488,23 @@ pub(crate) fn layout_axis<State>(
             let mut lower = constraint.get_lower();
             let mut upper = constraint.get_upper();
 
-            if let Some(aspect) = size_constraint.aspect {
-                match orientation {
-                    Orientation::Horizontal => {
-                        let value = size_constraint.height.clamping(available_area.height) * aspect;
-                        lower = Some(value);
-                        upper = Some(value);
-                    }
-                    Orientation::Vertical => {
-                        let value = size_constraint.width.clamping(available_area.width) / aspect;
-                        lower = Some(value);
-                        upper = Some(value);
-                    }
+            if let Some((aspect, mode)) = size_constraint.aspect {
+                match mode {
+                    AspectMode::Fill => match orientation {
+                        Orientation::Horizontal => {
+                            let value =
+                                size_constraint.height.clamping(available_area.height) * aspect;
+                            lower = Some(value);
+                            upper = Some(value);
+                        }
+                        Orientation::Vertical => {
+                            let value =
+                                size_constraint.width.clamping(available_area.width) / aspect;
+                            lower = Some(value);
+                            upper = Some(value);
+                        }
+                    },
+                    AspectMode::Fit => (),
                 }
             }
 

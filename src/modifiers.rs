@@ -318,9 +318,9 @@ impl<'nodes, State> Node<'nodes, State> {
         })
     }
     /// Constrains the node's height to `ratio` of width
-    pub fn aspect(self, ratio: f32) -> Self {
+    pub fn aspect(self, ratio: f32, mode: AspectMode) -> Self {
         self.wrap_or_update_explicit(Size {
-            aspect: Some(ratio),
+            aspect: Some((ratio, mode)),
             ..Default::default()
         })
     }
