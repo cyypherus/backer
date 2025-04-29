@@ -37,6 +37,15 @@ pub enum Align {
     CenterCenter,
 }
 
+/// The method a node will use to adhere to an aspect ratio
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AspectMode {
+    /// Uses the available area or less to adhere to the aspect ratio
+    Fit,
+    /// Uses as much space as needed, potentially expanding the node's container.
+    Fill,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum XAlign {
     Leading,
@@ -130,12 +139,6 @@ pub(crate) struct Size<State> {
     pub(crate) dynamic_width: DimensionFn<State>,
     pub(crate) expand_x: bool,
     pub(crate) expand_y: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum AspectMode {
-    Fit,
-    Fill,
 }
 
 impl<State> Clone for Size<State> {
