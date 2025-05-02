@@ -318,9 +318,9 @@ impl<'nodes, State> Node<'nodes, State> {
         })
     }
     /// Constrains the node's height to `ratio` of width
-    pub fn aspect(self, ratio: f32, mode: AspectMode) -> Self {
+    pub fn aspect(self, ratio: f32) -> Self {
         self.wrap_or_update_explicit(Size {
-            aspect: Some((ratio, mode)),
+            aspect: Some((ratio, AspectMode::Fit)),
             ..Default::default()
         })
     }
@@ -418,9 +418,9 @@ impl<'nodes, State> Node<'nodes, State> {
                         options.height_min
                     },
                     height_max: if height_update {
-                        size.height_min
+                        size.height_max
                     } else {
-                        options.height_min
+                        options.height_max
                     },
                     x_align: size.x_align.or(options.x_align),
                     y_align: size.y_align.or(options.y_align),

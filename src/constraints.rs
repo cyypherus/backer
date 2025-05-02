@@ -322,15 +322,17 @@ impl SizeConstraints {
             initial.width.set_lower(result);
             initial.width.set_upper(result);
         }
-        if let Some((aspect, mode)) = initial.aspect {
+        if let Some((aspect, mode)) = &initial.aspect {
             match mode {
                 AspectMode::Fit => (),
                 AspectMode::Fill => {
                     let clamped_width = initial.width.clamp((area.height * aspect).min(area.width));
                     initial.width.set_lower(Some(clamped_width));
+                    initial.width.set_upper(Some(clamped_width));
                     let clamped_height =
                         initial.height.clamp((area.width / aspect).min(area.height));
                     initial.height.set_lower(Some(clamped_height));
+                    initial.height.set_upper(Some(clamped_height));
                 }
             }
         }

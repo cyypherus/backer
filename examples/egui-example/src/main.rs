@@ -23,21 +23,51 @@ fn main() -> eframe::Result {
 
 fn my_layout_fn<'n>() -> Node<'n, Ui> {
     dynamic(|ui| {
-        column_spaced(
-            10.,
-            vec![
-                draw_a(ui),
-                row_spaced(
-                    10.,
-                    vec![
-                        draw_b(ui).width_range(200.0..),
-                        column_spaced(10., vec![draw_a(ui), draw_b(ui), draw_c(ui)]),
-                    ],
-                ),
+        // row(vec![
+        //     draw_a(ui).width(20.),
+        //     draw_b(ui),
+        //     column(vec![draw_c(ui), draw_b(ui).aspect(1., AspectMode::Fill)]),
+        // ])
+        // .aspect(2., AspectMode::Fill)
+        // .height_range(..300.)
+        // .width_range(..300.)
+        // .attach_under(draw_c(ui))
+        // column(vec![column(vec![
+        //     draw_a(ui),
+        //     row(vec![draw_a(ui), draw_c(ui).aspect(1.)]),
+        // ])
+        // .pad(50.)])
+        // row(vec![draw_a(ui).aspect(1.), draw_b(ui).width(50.)])
+        //     .attach_under(draw_c(ui))
+        //     .height_range(..200.)
+        // stack(vec![row(vec![
+        //     //>
+        //     draw_a(ui).width(20.).pad(10.),
+        //     draw_a(ui).aspect(0.5),
+        // ])
+        // .attach_under(draw_c(ui))])
+        // .width_range(..100.)
+        // .height_range(..100.)
+
+        // column(vec![draw_a(ui).aspect(0.5).align(Align::Trailing)])
+
+        // column(vec![draw_a(ui), draw_b(ui).aspect(1.)])
+        row(vec![
+            column(vec![
                 draw_c(ui),
-            ],
-        )
-        .pad(10.)
+                draw_b(ui).aspect(0.9),
+                draw_a(ui),
+                draw_b(ui).aspect(2.),
+            ]),
+            column(vec![
+                draw_b(ui).aspect(2.),
+                draw_a(ui),
+                draw_b(ui).aspect(0.9),
+                draw_c(ui),
+            ]),
+        ])
+        .width_range(..500.0)
+        .attach_under(draw_a(ui))
     })
 }
 
