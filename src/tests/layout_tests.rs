@@ -444,7 +444,7 @@ mod tests {
         .draw(Area::new(0., 0., 100., 100.), &mut ());
         Layout::new({
             column(vec![draw(|a, _: &mut ()| {
-                assert_eq!(a, Area::new(0., -50., 100., 200.));
+                assert_eq!(a, Area::new(0., 0., 50., 100.));
             })
             .aspect(0.5)
             .align(Align::Leading)])
@@ -575,10 +575,10 @@ mod tests {
         Layout::new({
             column(vec![
                 draw(|a, _: &mut ()| {
-                    assert_eq!(a, Area::new(0., 0., 100., 0.));
+                    assert_eq!(a, Area::new(0., 0., 100., 50.));
                 }),
                 draw(|a, _: &mut ()| {
-                    assert_eq!(a, Area::new(0., 0., 100., 100.));
+                    assert_eq!(a, Area::new(25., 50., 50., 50.));
                 })
                 .aspect(1.),
             ])
@@ -732,16 +732,16 @@ mod tests {
         Layout::new({
             row(vec![
                 draw(|a, _: &mut ()| {
-                    assert_eq!(a, Area::new(-25., 0., 100., 100.));
+                    assert_eq!(a, Area::new(0., 25., 50., 50.));
                 })
                 .aspect(1.),
                 draw(|a, _: &mut ()| {
-                    assert_eq!(a, Area::new(75., 0., 50., 100.));
+                    assert_eq!(a, Area::new(50., 0., 50., 100.));
                 })
                 .width(50.),
             ])
             .attach_under(draw(|a, _: &mut ()| {
-                assert_eq!(a, Area::new(-25., 0., 150., 100.));
+                assert_eq!(a, Area::new(0., 0., 100., 100.));
             }))
         })
         .draw(Area::new(0., 0., 100., 100.), &mut ());

@@ -142,7 +142,9 @@ fn main_view<'a>(state: &mut State<'_>) -> Node<'a, State<'a>> {
                                                 12.,
                                                 DEMO_FG_SECONDARY,
                                             ),
-                                            icon(include_image!("../assets/copy.svg")).aspect(1.),
+                                            icon(include_image!("../assets/copy.svg"))
+                                                .aspect(1.)
+                                                .width(20.),
                                         ],
                                     )
                                     .pad(5.),
@@ -157,7 +159,8 @@ fn main_view<'a>(state: &mut State<'_>) -> Node<'a, State<'a>> {
                                                 10.,
                                                 vec![
                                                     icon(include_image!("../assets/share.svg"))
-                                                        .aspect(1.),
+                                                        .aspect(1.)
+                                                        .width(20.),
                                                     label_color(
                                                         state,
                                                         "Share",
@@ -176,7 +179,8 @@ fn main_view<'a>(state: &mut State<'_>) -> Node<'a, State<'a>> {
                                                 10.,
                                                 vec![
                                                     icon(include_image!("../assets/map-pin.svg"))
-                                                        .aspect(1.),
+                                                        .aspect(1.)
+                                                        .width(20.),
                                                     label_color(
                                                         state,
                                                         "View location",
@@ -356,12 +360,14 @@ fn header<'a>(state: &mut State<'_>) -> Node<'a, State<'a>> {
                 rect(DEMO_FG, DEMO_HINT, 5.),
                 icon(include_image!("../assets/bell.svg")).pad_y(8.5),
             ])
-            .aspect(1.),
+            .aspect(1.)
+            .width(30.),
             stack(vec![
                 rect(DEMO_FG, DEMO_HINT, 5.),
                 icon(include_image!("../assets/user.svg")).pad_y(8.5),
             ])
-            .aspect(1.),
+            .aspect(1.)
+            .width(30.),
         ],
     )
     .pad_top(35.)

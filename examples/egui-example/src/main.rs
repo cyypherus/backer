@@ -52,22 +52,24 @@ fn my_layout_fn<'n>() -> Node<'n, Ui> {
         // column(vec![draw_a(ui).aspect(0.5).align(Align::Trailing)])
 
         // column(vec![draw_a(ui), draw_b(ui).aspect(1.)])
-        row(vec![
-            column(vec![
-                draw_c(ui),
-                draw_b(ui).aspect(0.9),
-                draw_a(ui),
-                draw_b(ui).aspect(2.),
-            ]),
-            column(vec![
-                draw_b(ui).aspect(2.),
-                draw_a(ui),
-                draw_b(ui).aspect(0.9),
-                draw_c(ui),
-            ]),
-        ])
-        .width_range(..500.0)
-        .attach_under(draw_a(ui))
+        // row(vec![
+        //     column(vec![
+        //         draw_c(ui),
+        //         draw_b(ui).aspect(0.9),
+        //         draw_a(ui),
+        //         draw_b(ui).aspect(2.),
+        //     ]),
+        //     column(vec![
+        //         draw_b(ui).aspect(2.),
+        //         draw_a(ui),
+        //         draw_b(ui).aspect(0.9),
+        //         draw_c(ui),
+        //     ]),
+        // ])
+        // .width_range(..500.0)
+        // .attach_under(draw_a(ui))
+
+        row(vec![draw_a(ui).aspect(1.), draw_b(ui).width(50.)]).attach_under(draw_c(ui))
     })
 }
 

@@ -431,7 +431,7 @@ impl Area {
             (Some(lower), None) => self.height.max(lower),
             (Some(lower), Some(upper)) => self.height.clamp(lower, upper.max(lower)),
         };
-        if let Some((aspect, _)) = constraints.aspect {
+        if let Some(aspect) = constraints.aspect {
             width = (height * aspect).min(width);
             height = (width / aspect).min(height);
         }
@@ -498,13 +498,10 @@ pub(crate) fn layout_axis<State>(
                 Orientation::Vertical => size_constraint.height,
             };
             let mut final_size = Option::<f32>::None;
-            let mut lower = constraint.get_lower();
+            let lower = constraint.get_lower();
             let mut upper = constraint.get_upper();
 
-            if let Some((aspect, mode)) = size_constraint.aspect {
-                // match mode {
-                //     AspectMode::Fit => (),
-                //     AspectMode::Fill =>
+            if let Some(aspect) = size_constraint.aspect {
                 match orientation {
                     Orientation::Horizontal => {
                         let value = size_constraint.height.clamping(available_area.height) * aspect;

@@ -118,12 +118,6 @@ pub(crate) struct Padding {
 
 type DimensionFn<State> = Option<Rc<dyn Fn(f32, &mut State) -> f32>>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum AspectMode {
-    Fit,
-    Fill,
-}
-
 pub(crate) struct Size<State> {
     pub(crate) width_min: Option<f32>,
     pub(crate) width_max: Option<f32>,
@@ -131,7 +125,7 @@ pub(crate) struct Size<State> {
     pub(crate) height_max: Option<f32>,
     pub(crate) x_align: Option<XAlign>,
     pub(crate) y_align: Option<YAlign>,
-    pub(crate) aspect: Option<(f32, AspectMode)>,
+    pub(crate) aspect: Option<f32>,
     pub(crate) dynamic_height: DimensionFn<State>,
     pub(crate) dynamic_width: DimensionFn<State>,
     pub(crate) expand_x: bool,

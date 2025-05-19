@@ -1,14 +1,10 @@
-use crate::{
-    layout::NodeValue,
-    models::{Area, AspectMode, Size, XAlign, YAlign},
-    node_cache::NodeCache,
-};
+use crate::{layout::NodeValue, models::*, node_cache::NodeCache};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct SizeConstraints {
     pub(crate) width: Constraint,
     pub(crate) height: Constraint,
-    pub(crate) aspect: Option<(f32, AspectMode)>,
+    pub(crate) aspect: Option<f32>,
     pub(crate) expand_x: bool,
     pub(crate) expand_y: bool,
     pub(crate) x_align: Option<XAlign>,
@@ -322,20 +318,7 @@ impl SizeConstraints {
             initial.width.set_lower(result);
             initial.width.set_upper(result);
         }
-        if let Some((aspect, mode)) = &initial.aspect {
-            match mode {
-                AspectMode::Fit => (),
-                AspectMode::Fill => {
-                    let clamped_width = initial.width.clamp((area.height * aspect).min(area.width));
-                    initial.width.set_lower(Some(clamped_width));
-                    initial.width.set_upper(Some(clamped_width));
-                    let clamped_height =
-                        initial.height.clamp((area.width / aspect).min(area.height));
-                    initial.height.set_lower(Some(clamped_height));
-                    initial.height.set_upper(Some(clamped_height));
-                }
-            }
-        }
+
         initial
     }
 }
