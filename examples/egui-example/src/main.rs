@@ -70,6 +70,7 @@ fn my_layout_fn<'n>() -> Node<'n, Ui> {
         // .attach_under(draw_a(ui))
 
         row(vec![draw_a(ui).aspect(1.), draw_b(ui).width(50.)]).attach_under(draw_c(ui))
+        // column(vec![draw_a(ui).aspect(1.), draw_b(ui).aspect(1.)])
     })
 }
 

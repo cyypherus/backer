@@ -358,19 +358,6 @@ impl<State> NodeValue<'_, State> {
                     None,
                     state,
                 );
-                // coupled.layout(
-                //     element
-                //         .kind
-                //         .allocate_area(allocated[0], None, None, state)
-                //         .iter()
-                //         .fold(Option::<Area>::None, |current, next| {
-                //             Some(current.unwrap_or(*next).union(*next))
-                //         })
-                //         .unwrap_or(available_area),
-                //     None,
-                //     None,
-                //     state,
-                // );
             }
             NodeValue::Visibility { element, .. } => {
                 element.layout(allocated[0], None, None, state);
@@ -505,16 +492,13 @@ pub(crate) fn layout_axis<State>(
                 match orientation {
                     Orientation::Horizontal => {
                         let value = size_constraint.height.clamping(available_area.height) * aspect;
-                        // lower = Some(value);
                         upper = Some(value);
                     }
                     Orientation::Vertical => {
                         let value = size_constraint.width.clamping(available_area.width) / aspect;
-                        // lower = Some(value);
                         upper = Some(value);
                     }
                 }
-                // }
             }
 
             if let Some(lower) = lower {
