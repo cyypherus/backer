@@ -87,6 +87,15 @@ pub struct Area {
     pub height: f32,
 }
 
+/// A 2D size specification with width and height dimensions
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Size {
+    /// Width dimension
+    pub width: f32,
+    /// Height dimension
+    pub height: f32,
+}
+
 impl Area {
     /// Creates a new [`Area`].
     pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
@@ -118,7 +127,7 @@ pub(crate) struct Padding {
 
 type DimensionFn<State> = Option<Rc<dyn Fn(f32, &mut State) -> f32>>;
 
-pub(crate) struct Size<State> {
+pub(crate) struct NodeConstraints<State> {
     pub(crate) width_min: Option<f32>,
     pub(crate) width_max: Option<f32>,
     pub(crate) height_min: Option<f32>,
@@ -132,7 +141,7 @@ pub(crate) struct Size<State> {
     pub(crate) expand_y: bool,
 }
 
-impl<State> Clone for Size<State> {
+impl<State> Clone for NodeConstraints<State> {
     fn clone(&self) -> Self {
         Self {
             width_min: self.width_min,
@@ -150,7 +159,7 @@ impl<State> Clone for Size<State> {
     }
 }
 
-impl<State> std::fmt::Debug for Size<State> {
+impl<State> std::fmt::Debug for NodeConstraints<State> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Size")
             .field("width_min", &self.width_min)
@@ -168,16 +177,16 @@ impl<State> std::fmt::Debug for Size<State> {
     }
 }
 
-impl<State> Default for Size<State> {
+impl<State> Default for NodeConstraints<State> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<State> Size<State> {
+impl<State> NodeConstraints<State> {
     /// Creates a default size object to add constraints to
     pub(crate) fn new() -> Self {
-        Size {
+        NodeConstraints {
             width_min: None,
             width_max: None,
             height_min: None,

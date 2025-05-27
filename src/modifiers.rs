@@ -9,7 +9,7 @@ impl<State> Node<'_, State> {
     /// **This is primarily for UI elements such as text** where node height must depend on available width & scaling is
     /// not a simple option.
     pub fn dynamic_height(self, f: impl Fn(f32, &mut State) -> f32 + 'static) -> Self {
-        self.wrap_or_update_explicit(Size {
+        self.wrap_or_update_explicit(NodeConstraints {
             dynamic_height: Some(Rc::new(f)),
             ..Default::default()
         })
@@ -21,7 +21,7 @@ impl<State> Node<'_, State> {
     /// **This is primarily for UI elements such as text** where node width must depend on available height & scaling is
     /// not a simple option.
     pub fn dynamic_width(self, f: impl Fn(f32, &mut State) -> f32 + 'static) -> Self {
-        self.wrap_or_update_explicit(Size {
+        self.wrap_or_update_explicit(NodeConstraints {
             dynamic_width: Some(Rc::new(f)),
             ..Default::default()
         })
@@ -166,7 +166,7 @@ impl<'nodes, State> Node<'nodes, State> {
     }
     /// Specifies an explicit width for a node
     pub fn width(self, width: f32) -> Self {
-        self.wrap_or_update_explicit(Size {
+        self.wrap_or_update_explicit(NodeConstraints {
             width_min: Some(width),
             width_max: Some(width),
             expand_x: false,
@@ -175,7 +175,7 @@ impl<'nodes, State> Node<'nodes, State> {
     }
     /// Specifies an explicit height for a node
     pub fn height(self, height: f32) -> Self {
-        self.wrap_or_update_explicit(Size {
+        self.wrap_or_update_explicit(NodeConstraints {
             height_min: Some(height),
             height_max: Some(height),
             expand_y: false,
@@ -187,7 +187,7 @@ impl<'nodes, State> Node<'nodes, State> {
     where
         R: RangeBounds<f32>,
     {
-        self.wrap_or_update_explicit(Size {
+        self.wrap_or_update_explicit(NodeConstraints {
             height_min: match range.start_bound() {
                 std::ops::Bound::Included(bound) => Some(*bound),
                 std::ops::Bound::Excluded(bound) => Some(*bound),
@@ -207,7 +207,7 @@ impl<'nodes, State> Node<'nodes, State> {
     where
         R: RangeBounds<f32>,
     {
-        self.wrap_or_update_explicit(Size {
+        self.wrap_or_update_explicit(NodeConstraints {
             width_min: match range.start_bound() {
                 std::ops::Bound::Included(bound) => Some(*bound),
                 std::ops::Bound::Excluded(bound) => Some(*bound),
@@ -306,20 +306,20 @@ impl<'nodes, State> Node<'nodes, State> {
         self
     }
     fn x_align(self, align: XAlign) -> Self {
-        self.wrap_or_update_explicit(Size {
+        self.wrap_or_update_explicit(NodeConstraints {
             x_align: Some(align),
             ..Default::default()
         })
     }
     fn y_align(self, align: YAlign) -> Self {
-        self.wrap_or_update_explicit(Size {
+        self.wrap_or_update_explicit(NodeConstraints {
             y_align: Some(align),
             ..Default::default()
         })
     }
     /// Constrains the node's height to `ratio` of width
     pub fn aspect(self, ratio: f32) -> Self {
-        self.wrap_or_update_explicit(Size {
+        self.wrap_or_update_explicit(NodeConstraints {
             aspect: Some(ratio),
             ..Default::default()
         })
@@ -329,7 +329,7 @@ impl<'nodes, State> Node<'nodes, State> {
     /// Prevents containers from hugging / shrink-wrapping their contents.
     /// This is mutually exclusive with explicit size constraints.
     pub fn expand(self) -> Self {
-        self.wrap_or_update_explicit(Size {
+        self.wrap_or_update_explicit(NodeConstraints {
             expand_x: true,
             expand_y: true,
             ..Default::default()
@@ -340,7 +340,7 @@ impl<'nodes, State> Node<'nodes, State> {
     /// Prevents containers from hugging / shrink-wrapping their contents.
     /// This is mutually exclusive with explicit height constraints.
     pub fn expand_y(self) -> Self {
-        self.wrap_or_update_explicit(Size {
+        self.wrap_or_update_explicit(NodeConstraints {
             expand_y: true,
             ..Default::default()
         })
@@ -350,7 +350,7 @@ impl<'nodes, State> Node<'nodes, State> {
     /// Prevents containers from hugging / shrink-wrapping their contents.
     /// This is mutually exclusive with explicit width constraints.
     pub fn expand_x(self) -> Self {
-        self.wrap_or_update_explicit(Size {
+        self.wrap_or_update_explicit(NodeConstraints {
             expand_x: true,
             ..Default::default()
         })
@@ -393,7 +393,7 @@ impl<'nodes, State> Node<'nodes, State> {
             },
         }
     }
-    fn wrap_or_update_explicit(mut self, size: Size<State>) -> Self {
+    fn wrap_or_update_explicit(mut self, size: NodeConstraints<State>) -> Self {
         match self.inner {
             NodeValue::Explicit {
                 ref mut options,
@@ -401,7 +401,7 @@ impl<'nodes, State> Node<'nodes, State> {
             } => {
                 let width_update = size.width_min.or(size.width_max).is_some();
                 let height_update = size.height_min.or(size.height_max).is_some();
-                *options = Size {
+                *options = NodeConstraints {
                     width_min: if width_update {
                         size.width_min
                     } else {

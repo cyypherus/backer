@@ -104,7 +104,7 @@ pub(crate) enum NodeValue<'nodes, State> {
     },
     Draw(DrawableNode<'nodes, State>),
     Explicit {
-        options: Size<State>,
+        options: NodeConstraints<State>,
         element: Box<NodeCache<'nodes, State>>,
     },
     Empty,
