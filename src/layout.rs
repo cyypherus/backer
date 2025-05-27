@@ -122,11 +122,17 @@ pub(crate) enum NodeValue<'nodes, State> {
         element: Box<NodeCache<'nodes, State>>,
     },
     NodeTrait {
-        node: Box<dyn NodeTrait<State> + 'nodes>,
+        element: Box<dyn NodeTrait<State> + 'nodes>,
     },
     Dynamic {
-        node: DynamicNodeFn<'nodes, State>,
+        element: DynamicNodeFn<'nodes, State>,
         computed: Option<Box<NodeCache<'nodes, State>>>,
+    },
+    Intermediate {
+        before: Box<dyn Fn(Area, &mut State) + 'nodes>,
+        after: Box<dyn Fn(&mut State) + 'nodes>,
+        area: Option<Area>,
+        element: Box<NodeCache<'nodes, State>>,
     },
 }
 
@@ -167,13 +173,25 @@ impl<State> NodeValue<'_, State> {
             Self::Visibility { element, visible } => {
                 element.draw(state, *visible && contextual_visibility)
             }
-            Self::NodeTrait { node } => {
+            Self::NodeTrait { element: node } => {
                 node.draw(state, contextual_visibility);
             }
             NodeValue::Dynamic { computed, .. } => computed
                 .as_mut()
                 .unwrap()
                 .draw(state, contextual_visibility),
+            NodeValue::Intermediate {
+                before,
+                after,
+                area,
+                element,
+            } => {
+                if let Some(area) = area {
+                    before(*area, state);
+                }
+                element.draw(state, contextual_visibility);
+                after(state);
+            }
             NodeValue::Group(_) | NodeValue::Empty | NodeValue::AreaReader { .. } => {
                 unreachable!()
             }
@@ -275,6 +293,12 @@ impl<State> NodeValue<'_, State> {
             NodeValue::Visibility { .. } => {
                 vec![available_area]
             }
+            NodeValue::Intermediate { element, .. } => element.kind.allocate_area(
+                available_area,
+                contextual_x_align,
+                contextual_y_align,
+                state,
+            ),
             NodeValue::Draw(_)
             | NodeValue::Space
             | NodeValue::AreaReader { .. }
@@ -362,7 +386,7 @@ impl<State> NodeValue<'_, State> {
             NodeValue::Visibility { element, .. } => {
                 element.layout(allocated[0], None, None, state);
             }
-            NodeValue::NodeTrait { node } => {
+            NodeValue::NodeTrait { element: node } => {
                 node.layout(
                     available_area,
                     contextual_x_align,
@@ -370,7 +394,10 @@ impl<State> NodeValue<'_, State> {
                     state,
                 );
             }
-            NodeValue::Dynamic { node, computed } => {
+            NodeValue::Dynamic {
+                element: node,
+                computed,
+            } => {
                 let mut node = NodeCache::new(node(state).inner);
                 node.layout(
                     available_area,
@@ -379,6 +406,15 @@ impl<State> NodeValue<'_, State> {
                     state,
                 );
                 *computed = Some(Box::new(node))
+            }
+            NodeValue::Intermediate { area, element, .. } => {
+                *area = Some(available_area);
+                element.layout(
+                    available_area,
+                    contextual_x_align,
+                    contextual_y_align,
+                    state,
+                );
             }
             NodeValue::Group(_) | NodeValue::Empty => unreachable!(),
         }

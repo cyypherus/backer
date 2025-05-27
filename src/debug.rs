@@ -83,6 +83,13 @@ impl<State> fmt::Debug for NodeValue<'_, State> {
                 .debug_struct("Dynamic")
                 .field("computed", computed)
                 .finish(),
+            NodeValue::Intermediate { area, element, .. } => f
+                .debug_struct("Intermediate")
+                .field("before", &"<function>")
+                .field("after", &"<function>")
+                .field("area", area)
+                .field("element", element)
+                .finish(),
         }
     }
 }

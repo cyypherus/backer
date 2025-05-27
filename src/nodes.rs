@@ -190,7 +190,7 @@ pub fn dynamic<'nodes, State>(
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::Dynamic {
-            node: Box::new(func),
+            element: Box::new(func),
             computed: None,
         },
     }
@@ -222,7 +222,7 @@ pub fn scope<'nodes, State, Scoped: 'nodes>(
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::NodeTrait {
-            node: Box::new(Scoper {
+            element: Box::new(Scoper {
                 scope,
                 node: node.into(),
             }),
@@ -237,7 +237,7 @@ pub fn scope_unwrap<'nodes, State, Scoped: 'nodes>(
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::NodeTrait {
-            node: Box::new(OptionScoper {
+            element: Box::new(OptionScoper {
                 scope,
                 node: node.into(),
             }),
@@ -256,11 +256,26 @@ pub fn scope_owned<'nodes, State, Scoped: 'nodes>(
 ) -> Node<'nodes, State> {
     Node {
         inner: NodeValue::NodeTrait {
-            node: Box::new(OwnedScoper {
+            element: Box::new(OwnedScoper {
                 scope,
                 embed,
                 node: node.into(),
             }),
+        },
+    }
+}
+/// Adds intermediate access to the available area allocated to this node during layout, before and after the node is drawn.
+pub fn intermediate<'nodes, State>(
+    before: impl Fn(Area, &mut State) + 'nodes,
+    after: impl Fn(&mut State) + 'nodes,
+    element: impl Into<Node<'nodes, State>> + 'nodes,
+) -> Node<'nodes, State> {
+    Node {
+        inner: NodeValue::Intermediate {
+            before: Box::new(before),
+            after: Box::new(after),
+            area: None,
+            element: Box::new(NodeCache::new(element.into().inner)),
         },
     }
 }

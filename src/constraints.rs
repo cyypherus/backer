@@ -177,10 +177,14 @@ impl<State> NodeValue<'_, State> {
                     None
                 }
             }
-            NodeValue::NodeTrait { node } => node.constraints(available_area, state),
-            NodeValue::Dynamic { node, computed } => computed
+            NodeValue::NodeTrait { element: node } => node.constraints(available_area, state),
+            NodeValue::Dynamic {
+                element: node,
+                computed,
+            } => computed
                 .get_or_insert(Box::new(NodeCache::new(node(state).inner)))
                 .constraints(available_area, state),
+            NodeValue::Intermediate { element, .. } => element.constraints(allocations[0], state),
             NodeValue::Empty | NodeValue::Group(_) => unreachable!(),
         }
     }
