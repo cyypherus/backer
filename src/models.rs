@@ -88,13 +88,13 @@ pub struct Area {
 }
 
 /// A 2D size specification with width and height dimensions
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub struct Size {
-    /// Width dimension
-    pub width: f32,
-    /// Height dimension
-    pub height: f32,
-}
+// #[derive(Debug, Clone, Copy, Default, PartialEq)]
+// pub struct Size {
+//     /// Width dimension
+//     pub width: f32,
+//     /// Height dimension
+//     pub height: f32,
+// }
 
 impl Area {
     /// Creates a new [`Area`].
