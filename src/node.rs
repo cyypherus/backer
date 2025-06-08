@@ -17,7 +17,7 @@ impl<State> Debug for Node<'_, State> {
 }
 
 impl<'nodes, State> Node<'nodes, State> {
-    /// Returns the minimum size of the node based on the contents and constraints of the node & the available area.
+    /// Returns the minimum height of the node based on the contents and constraints of the node & the available area.
     pub fn min_height(&mut self, available_area: Area, state: &mut State) -> Option<f32> {
         self.inner
             .constraints(available_area, state)
