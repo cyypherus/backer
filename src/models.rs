@@ -87,15 +87,6 @@ pub struct Area {
     pub height: f32,
 }
 
-/// A 2D size specification with width and height dimensions
-// #[derive(Debug, Clone, Copy, Default, PartialEq)]
-// pub struct Size {
-//     /// Width dimension
-//     pub width: f32,
-//     /// Height dimension
-//     pub height: f32,
-// }
-
 impl Area {
     /// Creates a new [`Area`].
     pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
