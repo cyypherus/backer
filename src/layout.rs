@@ -42,21 +42,21 @@ layout.draw(available_area, &mut my_state);
 struct MyState {}
 ```
  */
-pub struct Layout<'nodes, State> {
-    tree: Node<'nodes, State>,
+pub struct Layout<'nodes, T, U> {
+    tree: Node<'nodes, T, U>,
 }
 
-impl<'nodes, State> Layout<'nodes, State> {
+impl<'nodes, T, U> Layout<'nodes, T, U> {
     /// Creates a new [`Layout<State>`].
-    pub fn new(tree: Node<'nodes, State>) -> Self {
+    pub fn new(tree: Node<'nodes, T, U>) -> Self {
         Self { tree }
     }
 }
 
-impl<State> Layout<'_, State> {
+impl<T, U> Layout<'_, T, U> {
     /// Calculates layout and draws all draw nodes in the tree
-    pub fn draw(&mut self, area: Area, state: &mut State) {
-        let constraints = self.tree.inner.constraints(area, state);
+    pub fn draw(&mut self, area: Area, t: &mut T, u: &mut U) {
+        let constraints = self.tree.inner.constraints(area, t, u);
         self.tree.inner.layout(
             area.constrained(
                 &constraints.unwrap_or_default(),
@@ -65,96 +65,97 @@ impl<State> Layout<'_, State> {
             ),
             None,
             None,
-            state,
+            t,
+            u,
         );
-        self.tree.inner.draw(state, true);
+        self.tree.inner.draw(t, u, true);
     }
 }
 
-type AreaReaderFn<'nodes, State> = Box<dyn Fn(Area, &mut State) -> Node<'nodes, State> + 'nodes>;
-type DynamicNodeFn<'nodes, State> = Box<dyn Fn(&mut State) -> Node<'nodes, State> + 'nodes>;
+type AreaReaderFn<'nodes, T, U> = Box<dyn Fn(Area, &mut T, &mut U) -> Node<'nodes, T, U> + 'nodes>;
+type DynamicNodeFn<'nodes, T, U> = Box<dyn Fn(&mut T, &mut U) -> Node<'nodes, T, U> + 'nodes>;
 
-pub(crate) enum NodeValue<'nodes, State> {
+pub(crate) enum NodeValue<'nodes, T, U> {
     Padding {
         amounts: Padding,
-        element: Box<NodeCache<'nodes, State>>,
+        element: Box<NodeCache<'nodes, T, U>>,
     },
     Column {
-        elements: Vec<NodeCache<'nodes, State>>,
+        elements: Vec<NodeCache<'nodes, T, U>>,
         spacing: f32,
         align: Option<YAlign>,
         off_axis_align: Option<XAlign>,
     },
     Row {
-        elements: Vec<NodeCache<'nodes, State>>,
+        elements: Vec<NodeCache<'nodes, T, U>>,
         spacing: f32,
         align: Option<XAlign>,
         off_axis_align: Option<YAlign>,
     },
     Stack {
-        elements: Vec<NodeCache<'nodes, State>>,
+        elements: Vec<NodeCache<'nodes, T, U>>,
         x_align: Option<XAlign>,
         y_align: Option<YAlign>,
     },
-    Group(Vec<NodeCache<'nodes, State>>),
+    Group(Vec<NodeCache<'nodes, T, U>>),
     Offset {
         offset_x: f32,
         offset_y: f32,
-        element: Box<NodeCache<'nodes, State>>,
+        element: Box<NodeCache<'nodes, T, U>>,
     },
-    Draw(DrawableNode<'nodes, State>),
+    Draw(DrawableNode<'nodes, T, U>),
     Explicit {
-        options: NodeConstraints<State>,
-        element: Box<NodeCache<'nodes, State>>,
+        options: NodeConstraints<T>,
+        element: Box<NodeCache<'nodes, T, U>>,
     },
     Empty,
     Space,
     AreaReader {
-        read: AreaReaderFn<'nodes, State>,
+        read: AreaReaderFn<'nodes, T, U>,
     },
     Coupled {
         over: bool,
-        element: Box<NodeCache<'nodes, State>>,
-        coupled: Box<NodeCache<'nodes, State>>,
+        element: Box<NodeCache<'nodes, T, U>>,
+        coupled: Box<NodeCache<'nodes, T, U>>,
     },
     Visibility {
         visible: bool,
-        element: Box<NodeCache<'nodes, State>>,
+        element: Box<NodeCache<'nodes, T, U>>,
     },
     NodeTrait {
-        element: Box<dyn NodeTrait<State> + 'nodes>,
+        element: Box<dyn NodeTrait<T, U> + 'nodes>,
     },
     Dynamic {
-        element: DynamicNodeFn<'nodes, State>,
-        computed: Option<Box<NodeCache<'nodes, State>>>,
+        element: DynamicNodeFn<'nodes, T, U>,
+        computed: Option<Box<NodeCache<'nodes, T, U>>>,
     },
     Intermediate {
-        before: Box<dyn Fn(Area, &mut State) + 'nodes>,
-        after: Box<dyn Fn(&mut State) + 'nodes>,
+        before: Box<dyn Fn(Area, &mut T, &mut U) + 'nodes>,
+        after: Box<dyn Fn(&mut T, &mut U) + 'nodes>,
         area: Option<Area>,
-        element: Box<NodeCache<'nodes, State>>,
+        element: Box<NodeCache<'nodes, T, U>>,
     },
 }
 
-impl<State> NodeValue<'_, State> {
-    pub(crate) fn draw(&mut self, state: &mut State, contextual_visibility: bool) {
+impl<T, U> NodeValue<'_, T, U> {
+    pub(crate) fn draw(&mut self, t: &mut T, u: &mut U, contextual_visibility: bool) {
         match self {
-            NodeValue::Draw(drawable) => drawable.draw(drawable.area, state, contextual_visibility),
+            NodeValue::Draw(drawable) => drawable.draw(drawable.area, t, u, contextual_visibility),
             NodeValue::Padding { element, .. }
             | NodeValue::Explicit { element, .. }
             | NodeValue::Offset { element, .. } => {
-                element.draw(state, contextual_visibility);
+                element.draw(t, u, contextual_visibility);
             }
             NodeValue::Stack { elements, .. } => {
                 elements
                     .iter_mut()
-                    .for_each(|el| el.draw(state, contextual_visibility));
+                    .for_each(|el| el.draw(t, u, contextual_visibility));
             }
             NodeValue::Column { elements, .. } | NodeValue::Row { elements, .. } => {
                 elements
                     .iter_mut()
                     .rev()
-                    .for_each(|el| el.draw(state, contextual_visibility));
+                    .for_each(|el| el.draw(t, u, contextual_visibility));
             }
             NodeValue::Space => (),
             NodeValue::Coupled {
@@ -163,23 +164,22 @@ impl<State> NodeValue<'_, State> {
                 over,
             } => {
                 if *over {
-                    element.draw(state, contextual_visibility);
-                    coupled.draw(state, contextual_visibility);
+                    element.draw(t, u, contextual_visibility);
+                    coupled.draw(t, u, contextual_visibility);
                 } else {
-                    coupled.draw(state, contextual_visibility);
-                    element.draw(state, contextual_visibility);
+                    coupled.draw(t, u, contextual_visibility);
+                    element.draw(t, u, contextual_visibility);
                 }
             }
             Self::Visibility { element, visible } => {
-                element.draw(state, *visible && contextual_visibility)
+                element.draw(t, u, *visible && contextual_visibility)
             }
             Self::NodeTrait { element: node } => {
-                node.draw(state, contextual_visibility);
+                node.draw(t, u, contextual_visibility);
             }
-            NodeValue::Dynamic { computed, .. } => computed
-                .as_mut()
-                .unwrap()
-                .draw(state, contextual_visibility),
+            NodeValue::Dynamic { computed, .. } => {
+                computed.as_mut().unwrap().draw(t, u, contextual_visibility)
+            }
             NodeValue::Intermediate {
                 before,
                 after,
@@ -187,10 +187,10 @@ impl<State> NodeValue<'_, State> {
                 element,
             } => {
                 if let Some(area) = area {
-                    before(*area, state);
+                    before(*area, t, u);
                 }
-                element.draw(state, contextual_visibility);
-                after(state);
+                element.draw(t, u, contextual_visibility);
+                after(t, u);
             }
             NodeValue::Group(_) | NodeValue::Empty | NodeValue::AreaReader { .. } => {
                 unreachable!()
@@ -221,7 +221,8 @@ impl<State> NodeValue<'_, State> {
         available_area: Area,
         contextual_x_align: Option<XAlign>,
         contextual_y_align: Option<YAlign>,
-        state: &mut State,
+        t: &mut T,
+        u: &mut U,
     ) -> Vec<Area> {
         match self {
             NodeValue::Padding { amounts, .. } => vec![Area {
@@ -242,7 +243,8 @@ impl<State> NodeValue<'_, State> {
                 Orientation::Vertical,
                 off_axis_align.unwrap_or(XAlign::Center),
                 align.unwrap_or(YAlign::Center),
-                state,
+                t,
+                u,
                 true,
             ),
             NodeValue::Row {
@@ -257,7 +259,8 @@ impl<State> NodeValue<'_, State> {
                 Orientation::Horizontal,
                 align.unwrap_or(XAlign::Center),
                 off_axis_align.unwrap_or(YAlign::Center),
-                state,
+                t,
+                u,
                 true,
             ),
             NodeValue::Stack {
@@ -266,7 +269,7 @@ impl<State> NodeValue<'_, State> {
                 y_align,
             } => elements
                 .iter_mut()
-                .filter_map(|element| element.constraints(available_area, state))
+                .filter_map(|element| element.constraints(available_area, t, u))
                 .map(|constraints| {
                     available_area.constrained(
                         &constraints,
@@ -277,7 +280,7 @@ impl<State> NodeValue<'_, State> {
                 .collect(),
             NodeValue::Explicit { options, .. } => {
                 vec![available_area.constrained(
-                    &SizeConstraints::from_size(options.clone(), available_area, state),
+                    &SizeConstraints::from_size(options.clone(), available_area, t),
                     contextual_x_align.unwrap_or(XAlign::Center),
                     contextual_y_align.unwrap_or(YAlign::Center),
                 )]
@@ -297,7 +300,8 @@ impl<State> NodeValue<'_, State> {
                 available_area,
                 contextual_x_align,
                 contextual_y_align,
-                state,
+                t,
+                u,
             ),
             NodeValue::Draw(_)
             | NodeValue::Space
@@ -316,7 +320,8 @@ impl<State> NodeValue<'_, State> {
         available_area: Area,
         contextual_x_align: Option<XAlign>,
         contextual_y_align: Option<YAlign>,
-        state: &mut State,
+        t: &mut T,
+        u: &mut U,
     ) {
         let contextual_aligns = self.contextual_aligns();
 
@@ -324,7 +329,8 @@ impl<State> NodeValue<'_, State> {
             available_area,
             contextual_aligns.0.or(contextual_x_align),
             contextual_aligns.1.or(contextual_y_align),
-            state,
+            t,
+            u,
         );
 
         match self {
@@ -343,18 +349,18 @@ impl<State> NodeValue<'_, State> {
                 elements
                     .iter_mut()
                     .zip(allocated)
-                    .for_each(|(el, allocation)| el.layout(allocation, *x_align, *y_align, state));
+                    .for_each(|(el, allocation)| el.layout(allocation, *x_align, *y_align, t, u));
             }
             NodeValue::Stack { elements, .. } => {
                 elements
                     .iter_mut()
                     .zip(allocated)
-                    .for_each(|(el, allocation)| el.layout(allocation, None, None, state));
+                    .for_each(|(el, allocation)| el.layout(allocation, None, None, t, u));
             }
             NodeValue::Padding { element, .. }
             | NodeValue::Explicit { element, .. }
             | NodeValue::Offset { element, .. } => {
-                element.layout(allocated[0], None, None, state);
+                element.layout(allocated[0], None, None, t, u);
             }
             NodeValue::Draw(drawable) => {
                 drawable.area = allocated[0];
@@ -363,58 +369,44 @@ impl<State> NodeValue<'_, State> {
             }
             NodeValue::Space => (),
             NodeValue::AreaReader { read } => {
-                *self = read(allocated[0], state).inner;
-                self.layout(allocated[0], None, None, state);
+                *self = read(allocated[0], t, u).inner;
+                self.layout(allocated[0], None, None, t, u);
             }
             NodeValue::Coupled {
                 element, coupled, ..
             } => {
-                element.layout(allocated[0], None, None, state);
+                element.layout(allocated[0], None, None, t, u);
                 coupled.layout(
                     available_area.constrained(
                         &element
-                            .constraints(available_area, state)
+                            .constraints(available_area, t, u)
                             .unwrap_or_default(),
                         contextual_x_align.unwrap_or(XAlign::Center),
                         contextual_y_align.unwrap_or(YAlign::Center),
                     ),
                     None,
                     None,
-                    state,
+                    t,
+                    u,
                 );
             }
             NodeValue::Visibility { element, .. } => {
-                element.layout(allocated[0], None, None, state);
+                element.layout(allocated[0], None, None, t, u);
             }
             NodeValue::NodeTrait { element: node } => {
-                node.layout(
-                    available_area,
-                    contextual_x_align,
-                    contextual_y_align,
-                    state,
-                );
+                node.layout(available_area, contextual_x_align, contextual_y_align, t, u);
             }
             NodeValue::Dynamic {
                 element: node,
                 computed,
             } => {
-                let mut node = NodeCache::new(node(state).inner);
-                node.layout(
-                    available_area,
-                    contextual_x_align,
-                    contextual_y_align,
-                    state,
-                );
+                let mut node = NodeCache::new(node(t, u).inner);
+                node.layout(available_area, contextual_x_align, contextual_y_align, t, u);
                 *computed = Some(Box::new(node))
             }
             NodeValue::Intermediate { area, element, .. } => {
                 *area = Some(available_area);
-                element.layout(
-                    available_area,
-                    contextual_x_align,
-                    contextual_y_align,
-                    state,
-                );
+                element.layout(available_area, contextual_x_align, contextual_y_align, t, u);
             }
             NodeValue::Group(_) | NodeValue::Empty => unreachable!(),
         }
@@ -484,20 +476,21 @@ pub(crate) enum Orientation {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn layout_axis<State>(
-    elements: &mut [NodeCache<'_, State>],
+pub(crate) fn layout_axis<T, U>(
+    elements: &mut [NodeCache<'_, T, U>],
     spacing: &f32,
     available_area: Area,
     orientation: Orientation,
     x_align: XAlign,
     y_align: YAlign,
-    state: &mut State,
+    t: &mut T,
+    u: &mut U,
     check: bool,
 ) -> Vec<Area> {
     let element_count = elements.len();
     let sizes: Vec<Option<SizeConstraints>> = elements
         .iter_mut()
-        .map(|element| element.constraints(available_area, state))
+        .map(|element| element.constraints(available_area, t, u))
         .collect();
     let filtered_element_count = sizes.iter().filter_map(|&el| el).count();
 
@@ -678,7 +671,7 @@ pub(crate) fn layout_axis<State>(
         .constrained(&sizes[i].unwrap_or_default(), x_align, y_align);
 
         if !check {
-            child.layout(area, Some(x_align), Some(y_align), state);
+            child.layout(area, Some(x_align), Some(y_align), t, u);
         } else {
             areas.push(area);
         }

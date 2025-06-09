@@ -8,29 +8,29 @@ mod tests {
         Layout::new({
             stack(vec![
                 //>
-                draw(move |a, _: &mut ()| {
+                draw(move |a, _: &mut (), _| {
                     assert_eq!(a, Area::new(40., 40., 20., 20.));
                 })
                 .width(20.)
                 .height(20.)
                 .pad(10.)
-                .attach_under(draw(|a, _: &mut ()| {
+                .attach_under(draw(|a, _: &mut (), _| {
                     assert_eq!(a, Area::new(30., 30., 40., 40.));
                 })),
             ])
         })
-        .draw(Area::new(0., 0., 100., 100.), &mut ());
+        .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
         Layout::new({
-            stack(vec![draw(|a, _: &mut ()| {
+            stack(vec![draw(|a, _: &mut (), _| {
                 assert_eq!(a, Area::new(40., 40., 20., 20.));
             })
             .width(20.)
             .height(20.)
             .pad(10.)
-            .attach_over(draw(|a, _: &mut ()| {
+            .attach_over(draw(|a, _: &mut (), _| {
                 assert_eq!(a, Area::new(30., 30., 40., 40.));
             }))])
         })
-        .draw(Area::new(0., 0., 100., 100.), &mut ());
+        .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
     }
 }

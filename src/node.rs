@@ -4,11 +4,11 @@ use std::fmt::{Debug, Formatter};
 use crate::{layout::NodeValue, models::Area};
 
 /// A layout tree node. Use methods in [`crate::nodes`] to create nodes.
-pub struct Node<'nodes, State> {
-    pub(crate) inner: NodeValue<'nodes, State>,
+pub struct Node<'nodes, T, U> {
+    pub(crate) inner: NodeValue<'nodes, T, U>,
 }
 
-impl<State> Debug for Node<'_, State> {
+impl<T, U> Debug for Node<'_, T, U> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("NodeWith")
             .field("inner", &self.inner)
@@ -16,12 +16,12 @@ impl<State> Debug for Node<'_, State> {
     }
 }
 
-impl<'nodes, State> Node<'nodes, State> {
+impl<'nodes, T, U> Node<'nodes, T, U> {
     /// Returns the minimum height of the node based on the contents and constraints of the node & the available area.
-    pub fn min_height(&mut self, available_area: Area, state: &mut State) -> Option<f32> {
+    pub fn min_height(&mut self, available_area: Area, t: &mut T, u: &mut U) -> Option<f32> {
         if let Some(min_height) = self
             .inner
-            .constraints(available_area, state)
+            .constraints(available_area, t, u)
             .and_then(|c| c.height.get_lower())
         {
             Some(min_height)
@@ -31,10 +31,10 @@ impl<'nodes, State> Node<'nodes, State> {
     }
 
     /// Returns the minimum width of the node based on the contents and constraints of the node & the available area.
-    pub fn min_width(&mut self, available_area: Area, state: &mut State) -> Option<f32> {
+    pub fn min_width(&mut self, available_area: Area, state: &mut T, u: &mut U) -> Option<f32> {
         if let Some(min_width) = self
             .inner
-            .constraints(available_area, state)
+            .constraints(available_area, state, u)
             .and_then(|c| c.width.get_lower())
         {
             Some(min_width)

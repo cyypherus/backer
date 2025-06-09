@@ -73,22 +73,24 @@ impl Constraint {
     }
 }
 
-impl<State> NodeValue<'_, State> {
+impl<T, U> NodeValue<'_, T, U> {
     pub(crate) fn constraints(
         &mut self,
         available_area: Area,
-        state: &mut State,
+        t: &mut T,
+        u: &mut U,
     ) -> Option<SizeConstraints> {
         let contextual_aligns = self.contextual_aligns();
         let allocations = self.allocate_area(
             available_area,
             contextual_aligns.0,
             contextual_aligns.1,
-            state,
+            t,
+            u,
         );
         match self {
             NodeValue::Padding { amounts, element } => element
-                .constraints(allocations[0], state)
+                .constraints(allocations[0], t, u)
                 .map(|constraints| SizeConstraints {
                     width: Constraint::new(
                         constraints
@@ -119,7 +121,7 @@ impl<State> NodeValue<'_, State> {
             } => elements
                 .iter_mut()
                 .zip(allocations.iter())
-                .filter_map(|(element, &allocated)| element.constraints(allocated, state))
+                .filter_map(|(element, &allocated)| element.constraints(allocated, t, u))
                 .fold(Option::<SizeConstraints>::None, |current, constraints| {
                     if let Some(current) = current {
                         Some(SizeConstraints {
@@ -138,7 +140,7 @@ impl<State> NodeValue<'_, State> {
             } => elements
                 .iter_mut()
                 .zip(allocations.iter())
-                .filter_map(|(element, &allocated)| element.constraints(allocated, state))
+                .filter_map(|(element, &allocated)| element.constraints(allocated, t, u))
                 .fold(Option::<SizeConstraints>::None, |current, constraints| {
                     if let Some(current) = current {
                         Some(SizeConstraints {
@@ -152,7 +154,7 @@ impl<State> NodeValue<'_, State> {
                 }),
             NodeValue::Stack { elements, .. } => elements
                 .iter_mut()
-                .filter_map(|element| element.constraints(allocations[0], state))
+                .filter_map(|element| element.constraints(allocations[0], t, u))
                 .fold(Option::<SizeConstraints>::None, |current, constraints| {
                     if let Some(current) = current {
                         Some(current.combine_adjacent_priority(constraints))
@@ -161,30 +163,30 @@ impl<State> NodeValue<'_, State> {
                     }
                 }),
             NodeValue::Explicit { options, element } => element
-                .constraints(allocations[0], state)
+                .constraints(allocations[0], t, u)
                 .map(|child_constraints| {
-                    SizeConstraints::from_size(options.clone(), allocations[0], state)
+                    SizeConstraints::from_size(options.clone(), allocations[0], t)
                         .combine_explicit_with_child(child_constraints)
                 }),
-            NodeValue::Offset { element, .. } => element.constraints(allocations[0], state),
+            NodeValue::Offset { element, .. } => element.constraints(allocations[0], t, u),
             NodeValue::Draw(_) => Some(SizeConstraints::default()),
             NodeValue::Space | NodeValue::AreaReader { .. } => Some(SizeConstraints::default()),
-            NodeValue::Coupled { element, .. } => element.constraints(allocations[0], state),
+            NodeValue::Coupled { element, .. } => element.constraints(allocations[0], t, u),
             NodeValue::Visibility { visible, element } => {
                 if *visible {
-                    element.constraints(allocations[0], state)
+                    element.constraints(allocations[0], t, u)
                 } else {
                     None
                 }
             }
-            NodeValue::NodeTrait { element: node } => node.constraints(available_area, state),
+            NodeValue::NodeTrait { element: node } => node.constraints(available_area, t, u),
             NodeValue::Dynamic {
                 element: node,
                 computed,
             } => computed
-                .get_or_insert(Box::new(NodeCache::new(node(state).inner)))
-                .constraints(available_area, state),
-            NodeValue::Intermediate { element, .. } => element.constraints(allocations[0], state),
+                .get_or_insert(Box::new(NodeCache::new(node(t, u).inner)))
+                .constraints(available_area, t, u),
+            NodeValue::Intermediate { element, .. } => element.constraints(allocations[0], t, u),
             NodeValue::Empty | NodeValue::Group(_) => unreachable!(),
         }
     }

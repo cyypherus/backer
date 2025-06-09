@@ -25,7 +25,7 @@ or pushing against other unconstrained nodes with equal force.
 /// Creates a vertical sequence of elements
 ///
 #[doc = container_doc!()]
-pub fn column<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, State> {
+pub fn column<'n, T, U>(elements: Vec<impl Into<Node<'n, T, U>>>) -> Node<'n, T, U> {
     Node {
         inner: NodeValue::Column {
             elements: filter_empty(ungroup(convert_into(elements))),
@@ -53,7 +53,7 @@ pub fn column<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, 
 ///     ),
 /// ]);
 /// ```
-pub fn group<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, State> {
+pub fn group<'n, T, U>(elements: Vec<impl Into<Node<'n, T, U>>>) -> Node<'n, T, U> {
     Node {
         inner: NodeValue::Group(filter_empty(ungroup(convert_into(elements)))),
     }
@@ -61,10 +61,10 @@ pub fn group<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, S
 /// Creates a vertical sequence of elements with the specified spacing between each element.
 ///
 #[doc = container_doc!()]
-pub fn column_spaced<'n, State>(
+pub fn column_spaced<'n, T, U>(
     spacing: f32,
-    elements: Vec<impl Into<Node<'n, State>>>,
-) -> Node<'n, State> {
+    elements: Vec<impl Into<Node<'n, T, U>>>,
+) -> Node<'n, T, U> {
     Node {
         inner: NodeValue::Column {
             elements: filter_empty(ungroup(convert_into(elements))),
@@ -77,7 +77,7 @@ pub fn column_spaced<'n, State>(
 /// Creates a horizontal sequence of elements
 ///
 #[doc = container_doc!()]
-pub fn row<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, State> {
+pub fn row<'n, T, U>(elements: Vec<impl Into<Node<'n, T, U>>>) -> Node<'n, T, U> {
     Node {
         inner: NodeValue::Row {
             elements: filter_empty(ungroup(convert_into(elements))),
@@ -90,10 +90,10 @@ pub fn row<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, Sta
 /// Creates a horizontal sequence of elements with the specified spacing between each element.
 ///
 #[doc = container_doc!()]
-pub fn row_spaced<'n, State>(
+pub fn row_spaced<'n, T, U>(
     spacing: f32,
-    elements: Vec<impl Into<Node<'n, State>>>,
-) -> Node<'n, State> {
+    elements: Vec<impl Into<Node<'n, T, U>>>,
+) -> Node<'n, T, U> {
     Node {
         inner: NodeValue::Row {
             elements: filter_empty(ungroup(convert_into(elements))),
@@ -106,7 +106,7 @@ pub fn row_spaced<'n, State>(
 /// Creates a sequence of elements to be laid out on top of each other.
 ///
 #[doc = container_doc!()]
-pub fn stack<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, State> {
+pub fn stack<'n, T, U>(elements: Vec<impl Into<Node<'n, T, U>>>) -> Node<'n, T, U> {
     Node {
         inner: NodeValue::Stack {
             elements: filter_empty(ungroup(convert_into(elements))),
@@ -132,9 +132,9 @@ pub fn stack<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Node<'n, S
 ///  })
 ///}
 /// ```
-pub fn draw<'nodes, State>(
-    drawable_fn: impl Fn(Area, &mut State) + 'static,
-) -> Node<'nodes, State> {
+pub fn draw<'nodes, T, U>(
+    drawable_fn: impl Fn(Area, &mut T, &mut U) + 'static,
+) -> Node<'nodes, T, U> {
     Node {
         inner: NodeValue::Draw(DrawableNode {
             area: Area::default(),
@@ -146,7 +146,7 @@ pub fn draw<'nodes, State>(
 /// (or the `TransitionDrawable` trait)
 ///
 /// See [`draw`]
-pub fn draw_object<'nodes, State>(drawable: impl Drawable<State> + 'nodes) -> Node<'nodes, State> {
+pub fn draw_object<'nodes, T, U>(drawable: impl Drawable<T, U> + 'nodes) -> Node<'nodes, T, U> {
     Node {
         inner: NodeValue::Draw(DrawableNode {
             area: Area::default(),
@@ -159,14 +159,14 @@ pub fn draw_object<'nodes, State>(drawable: impl Drawable<State> + 'nodes) -> No
 ///
 /// To add spacing between each item in a row or column you can also use
 /// [`row_spaced`] & [`column_spaced`]
-pub fn space<'nodes, State>() -> Node<'nodes, State> {
+pub fn space<'nodes, T, U>() -> Node<'nodes, T, U> {
     Node {
         inner: NodeValue::Space,
     }
 }
 /// Nothing! This will not have any impact on layout - useful for conditionally
 /// adding elements to a layout in the case where nothing should be added.
-pub fn empty<'nodes, State>() -> Node<'nodes, State> {
+pub fn empty<'nodes, T, U>() -> Node<'nodes, T, U> {
     Node {
         inner: NodeValue::Empty,
     }
@@ -175,9 +175,9 @@ pub fn empty<'nodes, State>() -> Node<'nodes, State> {
 ///
 /// This node comes with caveats! Constraints within an area reader **cannot** expand the area reader itself.
 /// If it could - it would create cyclical dependency which may be impossible to resolve.
-pub fn area_reader<'nodes, State>(
-    func: impl Fn(Area, &mut State) -> Node<'nodes, State> + 'static,
-) -> Node<'nodes, State> {
+pub fn area_reader<'nodes, T, U>(
+    func: impl Fn(Area, &mut T, &mut U) -> Node<'nodes, T, U> + 'static,
+) -> Node<'nodes, T, U> {
     Node {
         inner: NodeValue::AreaReader {
             read: Box::new(func),
@@ -185,9 +185,9 @@ pub fn area_reader<'nodes, State>(
     }
 }
 /// Returns a dynamic set of nodes based on state
-pub fn dynamic<'nodes, State>(
-    func: impl Fn(&'_ mut State) -> Node<'nodes, State> + 'nodes,
-) -> Node<'nodes, State> {
+pub fn dynamic<'nodes, T, U>(
+    func: impl Fn(&'_ mut T, &'_ mut U) -> Node<'nodes, T, U> + 'nodes,
+) -> Node<'nodes, T, U> {
     Node {
         inner: NodeValue::Dynamic {
             element: Box::new(func),
@@ -216,14 +216,16 @@ pub fn dynamic<'nodes, State>(
 ///     ])
 /// });
 ///```
-pub fn scope<'nodes, State, Scoped: 'nodes>(
-    scope: impl Fn(&mut State) -> &mut Scoped + 'nodes,
-    node: impl Into<Node<'nodes, Scoped>>,
-) -> Node<'nodes, State> {
+pub fn scope<'nodes, T, U, ScopedT: 'nodes, ScopedU: 'nodes>(
+    scope_t: impl Fn(&mut T) -> &mut ScopedT + 'nodes,
+    scope_u: impl Fn(&mut U) -> &mut ScopedU + 'nodes,
+    node: impl Into<Node<'nodes, ScopedT, ScopedU>>,
+) -> Node<'nodes, T, U> {
     Node {
         inner: NodeValue::NodeTrait {
             element: Box::new(Scoper {
-                scope,
+                scope_t,
+                scope_u,
                 node: node.into(),
             }),
         },
@@ -231,14 +233,16 @@ pub fn scope<'nodes, State, Scoped: 'nodes>(
 }
 /// Scopes state to some derived *optional* subset which is unwrapped for all children of this node
 /// See `nodes::scope`
-pub fn scope_unwrap<'nodes, State, Scoped: 'nodes>(
-    scope: impl Fn(&mut State) -> &mut Option<Scoped> + 'nodes,
-    node: impl Into<Node<'nodes, Scoped>>,
-) -> Node<'nodes, State> {
+pub fn scope_unwrap<'nodes, T, U, ScopedT: 'nodes, ScopedU: 'nodes>(
+    scope_t: impl Fn(&mut T) -> &mut Option<ScopedT> + 'nodes,
+    scope_u: impl Fn(&mut U) -> &mut Option<ScopedU> + 'nodes,
+    node: impl Into<Node<'nodes, ScopedT, ScopedU>>,
+) -> Node<'nodes, T, U> {
     Node {
         inner: NodeValue::NodeTrait {
             element: Box::new(OptionScoper {
-                scope,
+                scope_t,
+                scope_u,
                 node: node.into(),
             }),
         },
@@ -249,15 +253,17 @@ pub fn scope_unwrap<'nodes, State, Scoped: 'nodes>(
 ///
 /// The scope & embed functions are generally called multiple times in a single `draw` call, use them sparingly
 /// See `nodes::scope`
-pub fn scope_owned<'nodes, State, Scoped: 'nodes>(
-    scope: impl Fn(&mut State) -> Scoped + 'nodes,
-    embed: impl Fn(&mut State, Scoped) + 'nodes,
-    node: impl Into<Node<'nodes, Scoped>>,
-) -> Node<'nodes, State> {
+pub fn scope_owned<'nodes, T, U, ScopedT: 'nodes, ScopedU: 'nodes>(
+    scope_t: impl Fn(&mut T) -> ScopedT + 'nodes,
+    scope_u: impl Fn(&mut U) -> ScopedU + 'nodes,
+    embed: impl Fn(&mut T, ScopedT, &mut U, ScopedU) + 'nodes,
+    node: impl Into<Node<'nodes, ScopedT, ScopedU>>,
+) -> Node<'nodes, T, U> {
     Node {
         inner: NodeValue::NodeTrait {
             element: Box::new(OwnedScoper {
-                scope,
+                scope_t,
+                scope_u,
                 embed,
                 node: node.into(),
             }),
@@ -265,11 +271,11 @@ pub fn scope_owned<'nodes, State, Scoped: 'nodes>(
     }
 }
 /// Adds intermediate access to the available area allocated to this node during layout, before and after the node is drawn.
-pub fn intermediate<'nodes, State>(
-    before: impl Fn(Area, &mut State) + 'nodes,
-    after: impl Fn(&mut State) + 'nodes,
-    element: impl Into<Node<'nodes, State>> + 'nodes,
-) -> Node<'nodes, State> {
+pub fn intermediate<'nodes, T, U>(
+    before: impl Fn(Area, &mut T, &mut U) + 'nodes,
+    after: impl Fn(&mut T, &mut U) + 'nodes,
+    element: impl Into<Node<'nodes, T, U>> + 'nodes,
+) -> Node<'nodes, T, U> {
     Node {
         inner: NodeValue::Intermediate {
             before: Box::new(before),
@@ -280,11 +286,11 @@ pub fn intermediate<'nodes, State>(
     }
 }
 
-fn convert_into<'n, State>(elements: Vec<impl Into<Node<'n, State>>>) -> Vec<Node<'n, State>> {
+fn convert_into<'n, T, U>(elements: Vec<impl Into<Node<'n, T, U>>>) -> Vec<Node<'n, T, U>> {
     elements.into_iter().map(|e| e.into()).collect()
 }
 
-fn ungroup<State>(elements: Vec<Node<State>>) -> Vec<NodeCache<State>> {
+fn ungroup<T, U>(elements: Vec<Node<T, U>>) -> Vec<NodeCache<T, U>> {
     elements
         .into_iter()
         .flat_map(|el| {
@@ -300,7 +306,7 @@ fn ungroup<State>(elements: Vec<Node<State>>) -> Vec<NodeCache<State>> {
         .collect()
 }
 
-fn filter_empty<State>(elements: Vec<NodeCache<State>>) -> Vec<NodeCache<State>> {
+fn filter_empty<T, U>(elements: Vec<NodeCache<T, U>>) -> Vec<NodeCache<T, U>> {
     elements
         .into_iter()
         .filter(|el| {

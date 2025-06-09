@@ -6,14 +6,14 @@ use crate::{
     models::{Area, XAlign, YAlign},
 };
 
-pub(crate) struct NodeCache<'nodes, State> {
-    pub(crate) kind: NodeValue<'nodes, State>,
+pub(crate) struct NodeCache<'nodes, T, U> {
+    pub(crate) kind: NodeValue<'nodes, T, U>,
     pub(crate) cache_area: Option<Area>,
     pub(crate) cached_constraints: Option<SizeConstraints>,
 }
 
-impl<'nodes, State> NodeCache<'nodes, State> {
-    pub(crate) fn new(kind: NodeValue<'nodes, State>) -> Self {
+impl<'nodes, T, U> NodeCache<'nodes, T, U> {
+    pub(crate) fn new(kind: NodeValue<'nodes, T, U>) -> Self {
         Self {
             kind,
             cache_area: None,
@@ -22,7 +22,7 @@ impl<'nodes, State> NodeCache<'nodes, State> {
     }
 }
 
-impl<State> Debug for NodeCache<'_, State> {
+impl<T, U> Debug for NodeCache<'_, T, U> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeCache")
             .field("kind", &self.kind)
@@ -32,18 +32,19 @@ impl<State> Debug for NodeCache<'_, State> {
     }
 }
 
-impl<State> NodeCache<'_, State> {
+impl<T, U> NodeCache<'_, T, U> {
     pub(crate) fn constraints(
         &mut self,
         available_area: Area,
-        state: &mut State,
+        t: &mut T,
+        u: &mut U,
     ) -> Option<SizeConstraints> {
         if let (Some(cache), Some(constraints)) = (self.cache_area, self.cached_constraints) {
             if cache == available_area {
                 return Some(constraints);
             }
         }
-        let constraints = self.kind.constraints(available_area, state);
+        let constraints = self.kind.constraints(available_area, t, u);
         self.cache_area = Some(available_area);
         self.cached_constraints = constraints;
         constraints
@@ -53,16 +54,18 @@ impl<State> NodeCache<'_, State> {
         available_area: Area,
         contextual_x_align: Option<XAlign>,
         contextual_y_align: Option<YAlign>,
-        state: &mut State,
+        state: &mut T,
+        u: &mut U,
     ) {
         self.kind.layout(
             available_area,
             contextual_x_align,
             contextual_y_align,
             state,
+            u,
         );
     }
-    pub(crate) fn draw(&mut self, state: &mut State, contextual_visibility: bool) {
-        self.kind.draw(state, contextual_visibility)
+    pub(crate) fn draw(&mut self, t: &mut T, u: &mut U, contextual_visibility: bool) {
+        self.kind.draw(t, u, contextual_visibility)
     }
 }

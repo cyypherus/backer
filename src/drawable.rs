@@ -1,40 +1,40 @@
 use crate::{models::Area, traits::Drawable};
 use std::fmt;
 
-type DrawFn<'nodes, State> = Box<dyn Fn(Area, &mut State) + 'nodes>;
+type DrawFn<'nodes, T, U> = Box<dyn Fn(Area, &mut T, &mut U) + 'nodes>;
 
-pub(crate) enum SomeDrawable<'nodes, State> {
-    Fn(DrawFn<'nodes, State>),
-    Object(Box<dyn Drawable<State> + 'nodes>),
+pub(crate) enum SomeDrawable<'nodes, T, U> {
+    Fn(DrawFn<'nodes, T, U>),
+    Object(Box<dyn Drawable<T, U> + 'nodes>),
 }
 
-impl<State> SomeDrawable<'_, State> {
-    fn draw(&mut self, area: Area, state: &mut State, visible: bool) {
+impl<T, U> SomeDrawable<'_, T, U> {
+    fn draw(&mut self, area: Area, t: &mut T, u: &mut U, visible: bool) {
         match self {
             SomeDrawable::Fn(closure) => {
                 if visible {
-                    closure(area, state)
+                    closure(area, t, u)
                 }
             }
-            SomeDrawable::Object(object) => object.draw(area, state, visible),
+            SomeDrawable::Object(object) => object.draw(area, t, u, visible),
         }
     }
 }
 
-pub(crate) struct DrawableNode<'nodes, State> {
+pub(crate) struct DrawableNode<'nodes, T, U> {
     pub(crate) area: Area,
-    pub(crate) drawable: SomeDrawable<'nodes, State>,
+    pub(crate) drawable: SomeDrawable<'nodes, T, U>,
 }
 
-impl<State> DrawableNode<'_, State> {
-    pub(crate) fn draw(&mut self, area: Area, state: &mut State, contextual_visibility: bool) {
+impl<T, U> DrawableNode<'_, T, U> {
+    pub(crate) fn draw(&mut self, area: Area, t: &mut T, u: &mut U, contextual_visibility: bool) {
         if area.width >= 0. && area.height >= 0. {
-            self.drawable.draw(area, state, contextual_visibility);
+            self.drawable.draw(area, t, u, contextual_visibility);
         }
     }
 }
 
-impl<State> fmt::Debug for DrawableNode<'_, State> {
+impl<T, U> fmt::Debug for DrawableNode<'_, T, U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Drawable")
             .field("area", &self.area)
