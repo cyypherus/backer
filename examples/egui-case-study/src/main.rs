@@ -96,11 +96,11 @@ impl eframe::App for MyApp {
           let mut area = area_from(scroll_rect);
           area.y = -area.y;
           area.width = viewport.width();
-          Layout::new(dynamic(|state: &mut State| {
+          Layout::new(dynamic(|state: &mut State, _| {
             column_spaced(
               10.,
               vec![
-                draw(|area, state: &mut State| {
+                draw(|area, state: &mut State, _| {
                   if state
                     .ui
                     .put(rect(area), Button::new("Backer Off"))
@@ -117,7 +117,7 @@ impl eframe::App for MyApp {
                     .enumerate()
                     .map(|(i, item)| {
                       stack(vec![
-                        draw(|area, state: &mut State| {
+                        draw(|area, state: &mut State, _| {
                           state.ui.painter().rect_stroke(
                             rect(area),
                             10.,
@@ -127,7 +127,7 @@ impl eframe::App for MyApp {
                         row_spaced(
                           10.,
                           vec![
-                            draw(|area, state: &mut State| {
+                            draw(|area, state: &mut State, _| {
                               state.ui.put(
                                 rect(area),
                                 Image::new(egui::include_image!("../frs.png"))
@@ -170,7 +170,7 @@ impl eframe::App for MyApp {
                             .align_contents(Align::Leading)
                             .width_range(120.0..),
                             space(),
-                            draw(|area, state: &mut State| {
+                            draw(|area, state: &mut State, _| {
                               if state
                                 .ui
                                 .put(
@@ -199,7 +199,7 @@ impl eframe::App for MyApp {
             .pad(10.)
             .align(Align::Top)
           }))
-          .draw(area, &mut state);
+          .draw(area, &mut state, &mut ());
         });
       } else {
         ScrollArea::vertical().show(ui, |ui| {
@@ -266,11 +266,11 @@ impl eframe::App for MyApp {
   }
 }
 
-fn draw_label<'a>(ui: &'_ mut Ui, text: RichText) -> Node<'a, State<'a>> {
+fn draw_label<'a>(ui: &'_ mut Ui, text: RichText) -> Node<'a, State<'a>, ()> {
   let label = egui::Label::new(text.clone());
   let galley = label.layout_in_ui(ui).1.rect;
   let text_area = area_from(galley);
-  draw(move |area, state: &mut State| {
+  draw(move |area, state: &mut State, _| {
     state.ui.put(rect(area), egui::Label::new(text.clone()));
   })
   .width(text_area.width)

@@ -33,14 +33,15 @@ async fn main() {
                 height: screen_height(),
             },
             &mut state,
+            &mut (),
         );
         next_frame().await
     }
 }
 
 const BTN_SIZE: f32 = 50.;
-fn layout_for_highlight<'n>() -> Node<'n, State> {
-    dynamic(|ctx: &mut State| {
+fn layout_for_highlight<'n>() -> Node<'n, State, ()> {
+    dynamic(|ctx: &mut State, _| {
         let highlight = ctx.highlight;
         row_spaced(
             10.,
@@ -50,6 +51,7 @@ fn layout_for_highlight<'n>() -> Node<'n, State> {
                 {
                     scope(
                         |state: &mut State| &mut state.highlight,
+                        |x| x,
                         rel_abs_seq(highlight),
                     )
                 } else {
@@ -108,7 +110,7 @@ fn layout_for_highlight<'n>() -> Node<'n, State> {
     })
 }
 
-fn rel_abs_seq<'n>(_highlight: HighlightedCase) -> Node<'n, HighlightedCase> {
+fn rel_abs_seq<'n>(_highlight: HighlightedCase) -> Node<'n, HighlightedCase, ()> {
     column_spaced(
         10.,
         vec![
@@ -131,9 +133,9 @@ fn rel_abs_seq<'n>(_highlight: HighlightedCase) -> Node<'n, HighlightedCase> {
     )
 }
 
-fn text<'n, U>(string: &'static str, font_size: f32, color: Color) -> Node<'n, U> {
+fn text<'n, T>(string: &'static str, font_size: f32, color: Color) -> Node<'n, T, ()> {
     let dimensions = measure_text(string, None, font_size as u16, 1.0);
-    draw(move |area: Area, _: &mut U| {
+    draw(move |area: Area, _: &mut T, _| {
         draw_text(
             string,
             area.x + ((area.width - dimensions.width) * 0.5),
@@ -146,17 +148,17 @@ fn text<'n, U>(string: &'static str, font_size: f32, color: Color) -> Node<'n, U
     .height(dimensions.height)
 }
 
-fn rect<'n, U>(color: Color) -> Node<'n, U> {
-    draw(move |area: Area, _: &mut U| {
+fn rect<'n, T, U>(color: Color) -> Node<'n, T, U> {
+    draw(move |area: Area, _: &mut T, _| {
         draw_rectangle(area.x, area.y, area.width, area.height, color);
     })
 }
 
-fn button<'n, U, Action>(label: &'static str, action: Action) -> Node<'n, U>
+fn button<'n, T, U, Action>(label: &'static str, action: Action) -> Node<'n, T, U>
 where
-    Action: Fn(&mut U) + 'static,
+    Action: Fn(&mut T) + 'static,
 {
-    draw(move |area: Area, ctx: &mut U| {
+    draw(move |area: Area, ctx: &mut T, _| {
         if widgets::Button::new(label)
             .size(vec2(area.width, area.height))
             .position(vec2(area.x, area.y))
