@@ -754,7 +754,7 @@ mod tests {
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(25., 25., 25., 50.));
                 })
-                .dynamic_height(|h, _| h * 2.)
+                .dynamic_height(|h, _, _| h * 2.)
                 .attach_under(draw(|a, _, _| {
                     assert_eq!(a, Area::new(25., 25., 25., 50.));
                 })),

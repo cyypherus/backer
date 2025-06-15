@@ -8,7 +8,7 @@ impl<T, U> Node<'_, T, U> {
     ///
     /// **This is primarily for UI elements such as text** where node height must depend on available width & scaling is
     /// not a simple option.
-    pub fn dynamic_height(self, f: impl Fn(f32, &mut T) -> f32 + 'static) -> Self {
+    pub fn dynamic_height(self, f: impl Fn(f32, &mut T, &mut U) -> f32 + 'static) -> Self {
         self.wrap_or_update_explicit(NodeConstraints {
             dynamic_height: Some(Rc::new(f)),
             ..Default::default()
@@ -20,7 +20,7 @@ impl<T, U> Node<'_, T, U> {
     ///
     /// **This is primarily for UI elements such as text** where node width must depend on available height & scaling is
     /// not a simple option.
-    pub fn dynamic_width(self, f: impl Fn(f32, &mut T) -> f32 + 'static) -> Self {
+    pub fn dynamic_width(self, f: impl Fn(f32, &mut T, &mut U) -> f32 + 'static) -> Self {
         self.wrap_or_update_explicit(NodeConstraints {
             dynamic_width: Some(Rc::new(f)),
             ..Default::default()
@@ -393,7 +393,7 @@ impl<'nodes, T, U> Node<'nodes, T, U> {
             },
         }
     }
-    fn wrap_or_update_explicit(mut self, size: NodeConstraints<T>) -> Self {
+    fn wrap_or_update_explicit(mut self, size: NodeConstraints<T, U>) -> Self {
         match self.inner {
             NodeValue::Explicit {
                 ref mut options,

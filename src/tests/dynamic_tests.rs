@@ -10,7 +10,7 @@ mod tests {
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., 0., 100., 50.));
                 })
-                .dynamic_height(|w, _| w * 0.5),
+                .dynamic_height(|w, _, _| w * 0.5),
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., 50., 100., 50.));
                 }),
@@ -25,7 +25,7 @@ mod tests {
                 row(vec![draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., 20., 100., 50.));
                 })
-                .dynamic_height(|w, _| w * 0.5)]),
+                .dynamic_height(|w, _, _| w * 0.5)]),
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., 70., 100., 10.));
                 })
@@ -38,7 +38,7 @@ mod tests {
                 row(vec![draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., -5., 100., 50.));
                 })
-                .dynamic_height(|w, _| w * 0.5)]),
+                .dynamic_height(|w, _, _| w * 0.5)]),
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., 45., 100., 60.));
                 })

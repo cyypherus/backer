@@ -125,9 +125,9 @@ pub(crate) struct Padding {
     pub(crate) bottom: f32,
 }
 
-type DimensionFn<State> = Option<Rc<dyn Fn(f32, &mut State) -> f32>>;
+type DimensionFn<T, U> = Option<Rc<dyn Fn(f32, &mut T, &mut U) -> f32>>;
 
-pub(crate) struct NodeConstraints<State> {
+pub(crate) struct NodeConstraints<T, U> {
     pub(crate) width_min: Option<f32>,
     pub(crate) width_max: Option<f32>,
     pub(crate) height_min: Option<f32>,
@@ -135,13 +135,13 @@ pub(crate) struct NodeConstraints<State> {
     pub(crate) x_align: Option<XAlign>,
     pub(crate) y_align: Option<YAlign>,
     pub(crate) aspect: Option<f32>,
-    pub(crate) dynamic_height: DimensionFn<State>,
-    pub(crate) dynamic_width: DimensionFn<State>,
+    pub(crate) dynamic_height: DimensionFn<T, U>,
+    pub(crate) dynamic_width: DimensionFn<T, U>,
     pub(crate) expand_x: bool,
     pub(crate) expand_y: bool,
 }
 
-impl<State> Clone for NodeConstraints<State> {
+impl<T, U> Clone for NodeConstraints<T, U> {
     fn clone(&self) -> Self {
         Self {
             width_min: self.width_min,
@@ -159,7 +159,7 @@ impl<State> Clone for NodeConstraints<State> {
     }
 }
 
-impl<State> std::fmt::Debug for NodeConstraints<State> {
+impl<T, U> std::fmt::Debug for NodeConstraints<T, U> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Size")
             .field("width_min", &self.width_min)
@@ -177,13 +177,13 @@ impl<State> std::fmt::Debug for NodeConstraints<State> {
     }
 }
 
-impl<State> Default for NodeConstraints<State> {
+impl<T, U> Default for NodeConstraints<T, U> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<State> NodeConstraints<State> {
+impl<T, U> NodeConstraints<T, U> {
     /// Creates a default size object to add constraints to
     pub(crate) fn new() -> Self {
         NodeConstraints {

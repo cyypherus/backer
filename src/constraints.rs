@@ -165,7 +165,7 @@ impl<T, U> NodeValue<'_, T, U> {
             NodeValue::Explicit { options, element } => element
                 .constraints(allocations[0], t, u)
                 .map(|child_constraints| {
-                    SizeConstraints::from_size(options.clone(), allocations[0], t)
+                    SizeConstraints::from_size(options.clone(), allocations[0], t, u)
                         .combine_explicit_with_child(child_constraints)
                 }),
             NodeValue::Offset { element, .. } => element.constraints(allocations[0], t, u),
@@ -296,10 +296,11 @@ impl Constraint {
 }
 
 impl SizeConstraints {
-    pub(crate) fn from_size<State>(
-        value: NodeConstraints<State>,
+    pub(crate) fn from_size<T, U>(
+        value: NodeConstraints<T, U>,
         area: Area,
-        state: &mut State,
+        t: &mut T,
+        u: &mut U,
     ) -> Self {
         let mut initial = SizeConstraints {
             width: if value.width_min.is_some() || value.width_max.is_some() {
@@ -319,12 +320,12 @@ impl SizeConstraints {
             y_align: value.y_align,
         };
         if let Some(dynamic) = value.dynamic_height {
-            let result = Some(initial.height.clamp(dynamic(area.width, state)));
+            let result = Some(initial.height.clamp(dynamic(area.width, t, u)));
             initial.height.set_lower(result);
             initial.height.set_upper(result);
         }
         if let Some(dynamic) = value.dynamic_width {
-            let result = Some(initial.width.clamp(dynamic(area.height, state)));
+            let result = Some(initial.width.clamp(dynamic(area.height, t, u)));
             initial.width.set_lower(result);
             initial.width.set_upper(result);
         }

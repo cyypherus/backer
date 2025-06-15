@@ -105,7 +105,7 @@ pub(crate) enum NodeValue<'nodes, T, U> {
     },
     Draw(DrawableNode<'nodes, T, U>),
     Explicit {
-        options: NodeConstraints<T>,
+        options: NodeConstraints<T, U>,
         element: Box<NodeCache<'nodes, T, U>>,
     },
     Empty,
@@ -280,7 +280,7 @@ impl<T, U> NodeValue<'_, T, U> {
                 .collect(),
             NodeValue::Explicit { options, .. } => {
                 vec![available_area.constrained(
-                    &SizeConstraints::from_size(options.clone(), available_area, t),
+                    &SizeConstraints::from_size(options.clone(), available_area, t, u),
                     contextual_x_align.unwrap_or(XAlign::Center),
                     contextual_y_align.unwrap_or(YAlign::Center),
                 )]
