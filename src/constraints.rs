@@ -73,12 +73,12 @@ impl Constraint {
     }
 }
 
-impl<T, U> NodeValue<'_, T, U> {
+impl<T, U: Copy> NodeValue<'_, T, U> {
     pub(crate) fn constraints(
         &mut self,
         available_area: Area,
         t: &mut T,
-        u: &mut U,
+        u: U,
     ) -> Option<SizeConstraints> {
         let contextual_aligns = self.contextual_aligns();
         let allocations = self.allocate_area(

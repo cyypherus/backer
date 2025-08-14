@@ -4,12 +4,12 @@ use crate::{
 };
 use std::fmt::Debug;
 
-pub(crate) trait NodeTrait<T, U>: Debug {
+pub(crate) trait NodeTrait<T, Lens>: Debug {
     fn constraints(
         &mut self,
         available_area: Area,
         t: &mut T,
-        u: &mut U,
+        lens: Lens,
     ) -> Option<SizeConstraints>;
     fn layout(
         &mut self,
@@ -17,7 +17,7 @@ pub(crate) trait NodeTrait<T, U>: Debug {
         contextual_x_align: Option<XAlign>,
         contextual_y_align: Option<YAlign>,
         t: &mut T,
-        u: &mut U,
+        lens: Lens,
     );
-    fn draw(&mut self, t: &mut T, u: &mut U, contextual_visibility: bool);
+    fn draw(&mut self, t: &mut T, lens: Lens, contextual_visibility: bool);
 }

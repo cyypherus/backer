@@ -6,13 +6,13 @@ use crate::{
     models::{Area, XAlign, YAlign},
 };
 
-pub(crate) struct NodeCache<'nodes, T, U> {
+pub(crate) struct NodeCache<'nodes, T, U: Copy> {
     pub(crate) kind: NodeValue<'nodes, T, U>,
     pub(crate) cache_area: Option<Area>,
     pub(crate) cached_constraints: Option<SizeConstraints>,
 }
 
-impl<'nodes, T, U> NodeCache<'nodes, T, U> {
+impl<'nodes, T, U: Copy> NodeCache<'nodes, T, U> {
     pub(crate) fn new(kind: NodeValue<'nodes, T, U>) -> Self {
         Self {
             kind,
@@ -22,7 +22,7 @@ impl<'nodes, T, U> NodeCache<'nodes, T, U> {
     }
 }
 
-impl<T, U> Debug for NodeCache<'_, T, U> {
+impl<T, U: Copy> Debug for NodeCache<'_, T, U> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeCache")
             .field("kind", &self.kind)
@@ -32,12 +32,12 @@ impl<T, U> Debug for NodeCache<'_, T, U> {
     }
 }
 
-impl<T, U> NodeCache<'_, T, U> {
+impl<T, Lens: Copy> NodeCache<'_, T, Lens> {
     pub(crate) fn constraints(
         &mut self,
         available_area: Area,
         t: &mut T,
-        u: &mut U,
+        u: Lens,
     ) -> Option<SizeConstraints> {
         if let (Some(cache), Some(constraints)) = (self.cache_area, self.cached_constraints) {
             if cache == available_area {
@@ -55,17 +55,17 @@ impl<T, U> NodeCache<'_, T, U> {
         contextual_x_align: Option<XAlign>,
         contextual_y_align: Option<YAlign>,
         state: &mut T,
-        u: &mut U,
+        lens: Lens,
     ) {
         self.kind.layout(
             available_area,
             contextual_x_align,
             contextual_y_align,
             state,
-            u,
+            lens,
         );
     }
-    pub(crate) fn draw(&mut self, t: &mut T, u: &mut U, contextual_visibility: bool) {
-        self.kind.draw(t, u, contextual_visibility)
+    pub(crate) fn draw(&mut self, t: &mut T, lens: Lens, contextual_visibility: bool) {
+        self.kind.draw(t, lens, contextual_visibility)
     }
 }

@@ -42,20 +42,20 @@ layout.draw(available_area, &mut my_state);
 struct MyState {}
 ```
  */
-pub struct Layout<'nodes, T, U> {
+pub struct Layout<'nodes, T, U: Copy> {
     tree: Node<'nodes, T, U>,
 }
 
-impl<'nodes, T, U> Layout<'nodes, T, U> {
+impl<'nodes, T, U: Copy> Layout<'nodes, T, U> {
     /// Creates a new [`Layout<State>`].
     pub fn new(tree: Node<'nodes, T, U>) -> Self {
         Self { tree }
     }
 }
 
-impl<T, U> Layout<'_, T, U> {
+impl<T, Lens: Copy> Layout<'_, T, Lens> {
     /// Calculates layout and draws all draw nodes in the tree
-    pub fn draw(&mut self, area: Area, t: &mut T, u: &mut U) {
+    pub fn draw(&mut self, area: Area, t: &mut T, u: Lens) {
         let constraints = self.tree.inner.constraints(area, t, u);
         self.tree.inner.layout(
             area.constrained(
@@ -72,73 +72,78 @@ impl<T, U> Layout<'_, T, U> {
     }
 }
 
-type AreaReaderFn<'nodes, T, U> = Box<dyn Fn(Area, &mut T, &mut U) -> Node<'nodes, T, U> + 'nodes>;
-type DynamicNodeFn<'nodes, T, U> = Box<dyn Fn(&mut T, &mut U) -> Node<'nodes, T, U> + 'nodes>;
+// trait Lens<T, U>: Copy {
+//     fn view(self, t: &mut T) -> &mut U;
+// }
 
-pub(crate) enum NodeValue<'nodes, T, U> {
+type AreaReaderFn<'nodes, T, Lens> =
+    Box<dyn Fn(Area, &mut T, Lens) -> Node<'nodes, T, Lens> + 'nodes>;
+type DynamicNodeFn<'nodes, T, Lens> = Box<dyn Fn(&mut T, Lens) -> Node<'nodes, T, Lens> + 'nodes>;
+
+pub(crate) enum NodeValue<'nodes, T, Lens: Copy> {
     Padding {
         amounts: Padding,
-        element: Box<NodeCache<'nodes, T, U>>,
+        element: Box<NodeCache<'nodes, T, Lens>>,
     },
     Column {
-        elements: Vec<NodeCache<'nodes, T, U>>,
+        elements: Vec<NodeCache<'nodes, T, Lens>>,
         spacing: f32,
         align: Option<YAlign>,
         off_axis_align: Option<XAlign>,
     },
     Row {
-        elements: Vec<NodeCache<'nodes, T, U>>,
+        elements: Vec<NodeCache<'nodes, T, Lens>>,
         spacing: f32,
         align: Option<XAlign>,
         off_axis_align: Option<YAlign>,
     },
     Stack {
-        elements: Vec<NodeCache<'nodes, T, U>>,
+        elements: Vec<NodeCache<'nodes, T, Lens>>,
         x_align: Option<XAlign>,
         y_align: Option<YAlign>,
     },
-    Group(Vec<NodeCache<'nodes, T, U>>),
+    Group(Vec<NodeCache<'nodes, T, Lens>>),
     Offset {
         offset_x: f32,
         offset_y: f32,
-        element: Box<NodeCache<'nodes, T, U>>,
+        element: Box<NodeCache<'nodes, T, Lens>>,
     },
-    Draw(DrawableNode<'nodes, T, U>),
+    Draw(DrawableNode<'nodes, T, Lens>),
     Explicit {
         options: NodeConstraints<T>,
-        element: Box<NodeCache<'nodes, T, U>>,
+        element: Box<NodeCache<'nodes, T, Lens>>,
     },
     Empty,
     Space,
     AreaReader {
-        read: AreaReaderFn<'nodes, T, U>,
+        read: AreaReaderFn<'nodes, T, Lens>,
     },
     Coupled {
         over: bool,
-        element: Box<NodeCache<'nodes, T, U>>,
-        coupled: Box<NodeCache<'nodes, T, U>>,
+        element: Box<NodeCache<'nodes, T, Lens>>,
+        coupled: Box<NodeCache<'nodes, T, Lens>>,
     },
     Visibility {
         visible: bool,
-        element: Box<NodeCache<'nodes, T, U>>,
+        element: Box<NodeCache<'nodes, T, Lens>>,
     },
     NodeTrait {
-        element: Box<dyn NodeTrait<T, U> + 'nodes>,
+        element: Box<dyn NodeTrait<T, Lens> + 'nodes>,
     },
     Dynamic {
-        element: DynamicNodeFn<'nodes, T, U>,
-        computed: Option<Box<NodeCache<'nodes, T, U>>>,
+        element: DynamicNodeFn<'nodes, T, Lens>,
+        computed: Option<Box<NodeCache<'nodes, T, Lens>>>,
     },
     Intermediate {
-        before: Box<dyn Fn(Area, &mut T, &mut U) + 'nodes>,
-        after: Box<dyn Fn(&mut T, &mut U) + 'nodes>,
+        before: Box<dyn Fn(Area, &mut T, Lens) + 'nodes>,
+        after: Box<dyn Fn(&mut T, Lens) + 'nodes>,
         area: Option<Area>,
-        element: Box<NodeCache<'nodes, T, U>>,
+        element: Box<NodeCache<'nodes, T, Lens>>,
     },
 }
 
-impl<T, U> NodeValue<'_, T, U> {
-    pub(crate) fn draw(&mut self, t: &mut T, u: &mut U, contextual_visibility: bool) {
+impl<T, Lens: Copy> NodeValue<'_, T, Lens> {
+    pub(crate) fn draw(&mut self, t: &mut T, u: Lens, contextual_visibility: bool) {
         match self {
             NodeValue::Draw(drawable) => drawable.draw(drawable.area, t, u, contextual_visibility),
             NodeValue::Padding { element, .. }
@@ -222,7 +227,7 @@ impl<T, U> NodeValue<'_, T, U> {
         contextual_x_align: Option<XAlign>,
         contextual_y_align: Option<YAlign>,
         t: &mut T,
-        u: &mut U,
+        u: Lens,
     ) -> Vec<Area> {
         match self {
             NodeValue::Padding { amounts, .. } => vec![Area {
@@ -321,7 +326,7 @@ impl<T, U> NodeValue<'_, T, U> {
         contextual_x_align: Option<XAlign>,
         contextual_y_align: Option<YAlign>,
         t: &mut T,
-        u: &mut U,
+        u: Lens,
     ) {
         let contextual_aligns = self.contextual_aligns();
 
@@ -476,21 +481,21 @@ pub(crate) enum Orientation {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn layout_axis<T, U>(
-    elements: &mut [NodeCache<'_, T, U>],
+pub(crate) fn layout_axis<T, Lens: Copy>(
+    elements: &mut [NodeCache<'_, T, Lens>],
     spacing: &f32,
     available_area: Area,
     orientation: Orientation,
     x_align: XAlign,
     y_align: YAlign,
     t: &mut T,
-    u: &mut U,
+    lens: Lens,
     check: bool,
 ) -> Vec<Area> {
     let element_count = elements.len();
     let sizes: Vec<Option<SizeConstraints>> = elements
         .iter_mut()
-        .map(|element| element.constraints(available_area, t, u))
+        .map(|element| element.constraints(available_area, t, lens))
         .collect();
     let filtered_element_count = sizes.iter().filter_map(|&el| el).count();
 
@@ -671,7 +676,7 @@ pub(crate) fn layout_axis<T, U>(
         .constrained(&sizes[i].unwrap_or_default(), x_align, y_align);
 
         if !check {
-            child.layout(area, Some(x_align), Some(y_align), t, u);
+            child.layout(area, Some(x_align), Some(y_align), t, lens);
         } else {
             areas.push(area);
         }
