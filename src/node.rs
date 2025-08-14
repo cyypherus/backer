@@ -19,27 +19,15 @@ impl<T, U> Debug for Node<'_, T, U> {
 impl<'nodes, T, U> Node<'nodes, T, U> {
     /// Returns the minimum height of the node based on the contents and constraints of the node & the available area.
     pub fn min_height(&mut self, available_area: Area, t: &mut T, u: &mut U) -> Option<f32> {
-        if let Some(min_height) = self
-            .inner
+        self.inner
             .constraints(available_area, t, u)
             .and_then(|c| c.height.get_lower())
-        {
-            Some(min_height)
-        } else {
-            None
-        }
     }
 
     /// Returns the minimum width of the node based on the contents and constraints of the node & the available area.
     pub fn min_width(&mut self, available_area: Area, state: &mut T, u: &mut U) -> Option<f32> {
-        if let Some(min_width) = self
-            .inner
+        self.inner
             .constraints(available_area, state, u)
             .and_then(|c| c.width.get_lower())
-        {
-            Some(min_width)
-        } else {
-            None
-        }
     }
 }
