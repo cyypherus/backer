@@ -83,17 +83,20 @@ fn draw_rect<'n>(color: Color32, stroke: bool) -> Node<'n, Ui, ()> {
 }
 
 fn area_from(rect: Rect) -> Area {
-    Area {
-        x: rect.min.x,
-        y: rect.min.y,
-        width: rect.max.x - rect.min.x,
-        height: rect.max.y - rect.min.y,
-    }
+    Area::new(
+        rect.min.x,
+        rect.min.y,
+        rect.max.x - rect.min.x,
+        rect.max.y - rect.min.y,
+    )
 }
 
 fn rect(area: Area) -> Rect {
     Rect {
-        min: Pos2::new(area.x, area.y),
-        max: Pos2::new(area.x + area.width, area.y + area.height),
+        min: Pos2::new(area.absolute_pos.x, area.absolute_pos.y),
+        max: Pos2::new(
+            area.absolute_pos.x + area.width,
+            area.absolute_pos.y + area.height,
+        ),
     }
 }

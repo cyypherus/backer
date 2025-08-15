@@ -225,12 +225,12 @@ impl<T, U> NodeValue<'_, T, U> {
         u: &mut U,
     ) -> Vec<Area> {
         match self {
-            NodeValue::Padding { amounts, .. } => vec![Area {
-                x: available_area.x + amounts.leading,
-                y: available_area.y + amounts.top,
-                width: (available_area.width - amounts.trailing - amounts.leading).max(0.),
-                height: (available_area.height - amounts.bottom - amounts.top).max(0.),
-            }],
+            NodeValue::Padding { amounts, .. } => vec![available_area.inset_all_edges(
+                amounts.leading,
+                amounts.top,
+                amounts.trailing,
+                amounts.bottom,
+            )],
             NodeValue::Column {
                 elements,
                 spacing,
@@ -287,12 +287,7 @@ impl<T, U> NodeValue<'_, T, U> {
             }
             NodeValue::Offset {
                 offset_x, offset_y, ..
-            } => vec![Area {
-                x: available_area.x + *offset_x,
-                y: available_area.y + *offset_y,
-                width: available_area.width,
-                height: available_area.height,
-            }],
+            } => vec![available_area.inset_all_edges(*offset_x, *offset_y, 0., 0.)],
             NodeValue::Visibility { .. } => {
                 vec![available_area]
             }
@@ -450,22 +445,49 @@ impl Area {
             width = (height * aspect).min(width);
             height = (width / aspect).min(height);
         }
-        let x = match constraints.x_align.unwrap_or(contextual_x_align) {
-            XAlign::Leading => self.x,
-            XAlign::Trailing => self.x + (self.width - width),
-            XAlign::Center => self.x + (self.width * 0.5) - (width * 0.5),
-        };
-        let y = match constraints.y_align.unwrap_or(contextual_y_align) {
-            YAlign::Top => self.y,
-            YAlign::Bottom => self.y + (self.height - height),
-            YAlign::Center => self.y + (self.height * 0.5) - (height * 0.5),
-        };
-        Area {
-            x,
-            y,
-            width,
-            height,
-        }
+        // let x = match constraints.x_align.unwrap_or(contextual_x_align) {
+        //     XAlign::Leading => self.x,
+        //     XAlign::Trailing => self.x + (self.width - width),
+        //     XAlign::Center => self.x + (self.width * 0.5) - (width * 0.5),
+        // };
+        // let y = match constraints.y_align.unwrap_or(contextual_y_align) {
+        //     YAlign::Top => self.y,
+        //     YAlign::Bottom => self.y + (self.height - height),
+        //     YAlign::Center => self.y + (self.height * 0.5) - (height * 0.5),
+        // };
+        // let leading_inset = match constraints.x_align.unwrap_or(contextual_x_align) {
+        //     XAlign::Leading => self.x,
+        //     XAlign::Trailing => self.x + (self.width - width),
+        //     XAlign::Center => self.x + (self.width * 0.5) - (width * 0.5),
+        // };
+        // Area {
+        //     x,
+        //     y,
+        //     width,
+        //     height,
+        // }
+        self.inset_all_edges(
+            match constraints.x_align.unwrap_or(contextual_x_align) {
+                XAlign::Leading => 0.,
+                XAlign::Trailing => self.width - width,
+                XAlign::Center => (self.width * 0.5) - (width * 0.5),
+            },
+            match constraints.y_align.unwrap_or(contextual_y_align) {
+                YAlign::Top => 0.,
+                YAlign::Bottom => self.height - height,
+                YAlign::Center => (self.height * 0.5) - (height * 0.5),
+            },
+            match constraints.x_align.unwrap_or(contextual_x_align) {
+                XAlign::Leading => self.width - width,
+                XAlign::Trailing => 0.,
+                XAlign::Center => (self.width * 0.5) - (width * 0.5),
+            },
+            match constraints.y_align.unwrap_or(contextual_y_align) {
+                YAlign::Top => self.height - height,
+                YAlign::Bottom => 0.,
+                YAlign::Center => (self.height * 0.5) - (height * 0.5),
+            },
+        )
     }
 }
 
@@ -632,14 +654,14 @@ pub(crate) fn layout_axis<T, U>(
 
     let mut current_pos = match orientation {
         Orientation::Horizontal => match x_align {
-            XAlign::Leading => available_area.x,
-            XAlign::Center => available_area.x + (pool * 0.5),
-            XAlign::Trailing => available_area.x + pool,
+            XAlign::Leading => 0.,
+            XAlign::Center => pool * 0.5,
+            XAlign::Trailing => pool,
         },
         Orientation::Vertical => match y_align {
-            YAlign::Top => available_area.y,
-            YAlign::Center => available_area.y + (pool * 0.5),
-            YAlign::Bottom => available_area.y + pool,
+            YAlign::Top => 0.,
+            YAlign::Center => pool * 0.5,
+            YAlign::Bottom => pool,
         },
     };
 
@@ -655,18 +677,23 @@ pub(crate) fn layout_axis<T, U>(
         });
 
         let area = match orientation {
-            Orientation::Horizontal => Area {
-                x: current_pos,
-                y: available_area.y,
-                width: child_size,
-                height: available_area.height,
-            },
-            Orientation::Vertical => Area {
-                x: available_area.x,
-                y: current_pos,
-                width: available_area.width,
-                height: child_size,
-            },
+            Orientation::Horizontal => {
+                available_area.inset_leading_top(current_pos, 0., child_size, available_area.height)
+            }
+            // Area {
+            //     x: current_pos,
+            //     y: available_area.y,
+            //     width: child_size,
+            //     height: available_area.height,
+            // },
+            Orientation::Vertical => {
+                available_area.inset_leading_top(0., current_pos, available_area.width, child_size)
+            } // Area {
+              //     x: available_area.x,
+              //     y: current_pos,
+              //     width: available_area.width,
+              //     height: child_size,
+              // },
         }
         .constrained(&sizes[i].unwrap_or_default(), x_align, y_align);
 

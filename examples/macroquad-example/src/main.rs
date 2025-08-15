@@ -26,12 +26,7 @@ async fn main() {
     let mut layout = Layout::new(layout_for_highlight());
     loop {
         layout.draw(
-            Area {
-                x: 0.,
-                y: 0.,
-                width: screen_width(),
-                height: screen_height(),
-            },
+            Area::new(0., 0., screen_width(), screen_height()),
             &mut state,
             &mut (),
         );
@@ -138,8 +133,8 @@ fn text<'n, T>(string: &'static str, font_size: f32, color: Color) -> Node<'n, T
     draw(move |area: Area, _: &mut T, _| {
         draw_text(
             string,
-            area.x + ((area.width - dimensions.width) * 0.5),
-            area.y + (area.height * 0.5) + (dimensions.height * 0.5),
+            area.absolute_pos.x + ((area.width - dimensions.width) * 0.5),
+            area.absolute_pos.y + (area.height * 0.5) + (dimensions.height * 0.5),
             font_size,
             color,
         );
@@ -150,7 +145,13 @@ fn text<'n, T>(string: &'static str, font_size: f32, color: Color) -> Node<'n, T
 
 fn rect<'n, T, U>(color: Color) -> Node<'n, T, U> {
     draw(move |area: Area, _: &mut T, _| {
-        draw_rectangle(area.x, area.y, area.width, area.height, color);
+        draw_rectangle(
+            area.absolute_pos.x,
+            area.absolute_pos.y,
+            area.width,
+            area.height,
+            color,
+        );
     })
 }
 
@@ -161,7 +162,7 @@ where
     draw(move |area: Area, ctx: &mut T, _| {
         if widgets::Button::new(label)
             .size(vec2(area.width, area.height))
-            .position(vec2(area.x, area.y))
+            .position(vec2(area.absolute_pos.x, area.absolute_pos.y))
             .ui(&mut root_ui())
         {
             action(ctx);

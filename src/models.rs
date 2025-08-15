@@ -77,14 +77,18 @@ impl Align {
 /// An allocation of screen space as a rectangle
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Area {
-    /// Origin - usually the left-most X
-    pub x: f32,
-    /// Origin - usually the upper-most Y
-    pub y: f32,
+    pub relative_pos: Position,
     /// Available width, starting at `x`
     pub width: f32,
     /// Available height, starting at `y`
     pub height: f32,
+    pub absolute_pos: Position,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Position {
+    pub x: f32,
+    pub y: f32,
 }
 
 /// A 2D size specification with width and height dimensions
@@ -100,8 +104,30 @@ impl Area {
     /// Creates a new [`Area`].
     pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
         Self {
-            x,
-            y,
+            relative_pos: Position { x: 0., y: 0. },
+            width,
+            height,
+            absolute_pos: Position { x, y },
+        }
+    }
+    pub fn inset_all_edges(&self, leading: f32, top: f32, trailing: f32, bottom: f32) -> Self {
+        Self {
+            relative_pos: Position { x: leading, y: top },
+            absolute_pos: Position {
+                x: self.absolute_pos.x + leading,
+                y: self.absolute_pos.y + top,
+            },
+            width: (self.width - (leading + trailing)).max(0.),
+            height: (self.height - (top + bottom)).max(0.),
+        }
+    }
+    pub fn inset_leading_top(&self, leading: f32, top: f32, width: f32, height: f32) -> Self {
+        Self {
+            relative_pos: Position { x: leading, y: top },
+            absolute_pos: Position {
+                x: self.absolute_pos.x + leading,
+                y: self.absolute_pos.y + top,
+            },
             width,
             height,
         }
@@ -109,10 +135,10 @@ impl Area {
     #[allow(unused)]
     pub(crate) fn zero() -> Self {
         Self {
-            x: 0.,
-            y: 0.,
+            relative_pos: Position { x: 0., y: 0. },
             width: 0.,
             height: 0.,
+            absolute_pos: Position { x: 0., y: 0. },
         }
     }
 }
