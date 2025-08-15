@@ -331,9 +331,15 @@ impl SizeConstraints {
         }
 
         if let Some(aspect) = initial.aspect {
-            let clamped_width = initial.width.clamp((area.height * aspect).min(area.width));
+            let clamped_width = initial
+                .width
+                .clamp((area.height * aspect).min(area.width))
+                .max(0.);
             initial.width.set_upper(Some(clamped_width));
-            let clamped_height = initial.height.clamp((area.width / aspect).min(area.height));
+            let clamped_height = initial
+                .height
+                .clamp((area.width / aspect).min(area.height))
+                .max(0.);
             initial.height.set_upper(Some(clamped_height));
         }
 
