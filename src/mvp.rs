@@ -1208,12 +1208,10 @@ impl<T, U> Layout<T, U> {
                     } else {
                         child_constraints.expand_x || size_constraints.should_expand_x()
                     }
+                } else if is_vertical {
+                    child_constraints.expand_y || child_constraints.height_max.is_none()
                 } else {
-                    if is_vertical {
-                        child_constraints.expand_y || child_constraints.height_max.is_none()
-                    } else {
-                        child_constraints.expand_x || child_constraints.width_max.is_none()
-                    }
+                    child_constraints.expand_x || child_constraints.width_max.is_none()
                 };
 
                 if !is_expanded {
