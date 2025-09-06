@@ -271,7 +271,6 @@ pub(crate) enum NodeType<T, U> {
         element: NodeId,
         coupled: NodeId,
     },
-    Explicit,
 }
 
 struct NodeData<T, U> {
@@ -317,26 +316,6 @@ impl<T, U> Node<T, U> {
         self
     }
 
-    pub(crate) fn with_width_constraints(
-        mut self,
-        width_min: Option<f32>,
-        width_max: Option<f32>,
-    ) -> Self {
-        self.constraints.width_min = width_min;
-        self.constraints.width_max = width_max;
-        self
-    }
-
-    pub(crate) fn with_height_constraints(
-        mut self,
-        height_min: Option<f32>,
-        height_max: Option<f32>,
-    ) -> Self {
-        self.constraints.height_min = height_min;
-        self.constraints.height_max = height_max;
-        self
-    }
-
     pub fn width(mut self, width: f32) -> Self {
         self.constraints.width_min = Some(width);
         self.constraints.width_max = Some(width);
@@ -349,24 +328,24 @@ impl<T, U> Node<T, U> {
         self
     }
 
-    pub fn width_range<R>(self, range: R) -> Self
+    pub fn width_range<R>(mut self, range: R) -> Self
     where
         R: RangeBounds<f32>,
     {
         let (width_min, width_max) = Self::extract_bounds(range);
-        Node::new(NodeType::Explicit)
-            .with_width_constraints(width_min, width_max)
-            .with_children(vec![self])
+        self.constraints.width_min = width_min;
+        self.constraints.width_max = width_max;
+        self
     }
 
-    pub fn height_range<R>(self, range: R) -> Self
+    pub fn height_range<R>(mut self, range: R) -> Self
     where
         R: RangeBounds<f32>,
     {
         let (height_min, height_max) = Self::extract_bounds(range);
-        Node::new(NodeType::Explicit)
-            .with_height_constraints(height_min, height_max)
-            .with_children(vec![self])
+        self.constraints.height_min = height_min;
+        self.constraints.height_max = height_max;
+        self
     }
 
     pub fn expand(mut self) -> Self {
@@ -489,26 +468,17 @@ impl<T, U> Node<T, U> {
     }
 
     pub fn dynamic_width(self, f: impl Fn(f32, &mut T, &mut U) -> f32 + 'static) -> Self {
-        Node::new(NodeType::Explicit)
-            .with_constraints(NodeConstraints {
-                dynamic_width: Some(Rc::new(f)),
-                ..Default::default()
-            })
-            .with_children(vec![self])
+        let mut wrapper = Node::new(NodeType::Draw(Box::new(|_, _, _| {})));
+        wrapper.constraints.dynamic_width = Some(Rc::new(f));
+        wrapper.children = vec![self];
+        wrapper
     }
 
     pub fn dynamic_height(self, f: impl Fn(f32, &mut T, &mut U) -> f32 + 'static) -> Self {
-        Node::new(NodeType::Explicit)
-            .with_constraints(NodeConstraints {
-                dynamic_height: Some(Rc::new(f)),
-                ..Default::default()
-            })
-            .with_children(vec![self])
-    }
-
-    fn with_constraints(mut self, constraints: NodeConstraints<T, U>) -> Self {
-        self.constraints = constraints;
-        self
+        let mut wrapper = Node::new(NodeType::Draw(Box::new(|_, _, _| {})));
+        wrapper.constraints.dynamic_height = Some(Rc::new(f));
+        wrapper.children = vec![self];
+        wrapper
     }
 
     pub fn aspect_width(self, ratio: f32) -> Self {
@@ -709,7 +679,7 @@ impl<T, U> Layout<T, U> {
         state: &mut T,
         ui_state: &mut U,
     ) {
-        self.queue_constraints_pass(root_id);
+        self.queue_constraints_pass(root_id, state, ui_state);
         while let Some(node_id) = self.work_queue.pop_front() {
             self.resolve_node_constraints(node_id, state, ui_state);
         }
@@ -721,7 +691,11 @@ impl<T, U> Layout<T, U> {
         }
     }
 
-    fn queue_constraints_pass(&mut self, root_id: NodeId) {
+    fn queue_constraints_pass(&mut self, root_id: NodeId, state: &mut T, ui_state: &mut U) {
+        // First pass: resolve all dynamic nodes
+        self.resolve_all_dynamic_nodes(root_id, state, ui_state);
+
+        // Second pass: queue nodes in post-order for constraint calculation
         let mut stack = vec![(root_id, false)];
         let mut visit_order = Vec::new();
 
@@ -742,6 +716,37 @@ impl<T, U> Layout<T, U> {
         }
     }
 
+    fn resolve_all_dynamic_nodes(&mut self, root_id: NodeId, state: &mut T, ui_state: &mut U) {
+        let mut stack = vec![root_id];
+
+        while let Some(node_id) = stack.pop() {
+            // Resolve dynamic node if needed
+            if matches!(&self.nodes[node_id].node_type, NodeType::Dynamic { .. }) {
+                if let NodeType::Dynamic { func, computed } = &self.nodes[node_id].node_type {
+                    if computed.is_none() {
+                        let dynamic_result = func(state, ui_state);
+                        let computed_id = self.flatten_tree(dynamic_result);
+
+                        if let NodeType::Dynamic { computed, .. } =
+                            &mut self.nodes[node_id].node_type
+                        {
+                            *computed = Some(computed_id);
+                        }
+                        self.nodes[node_id].children = vec![computed_id];
+
+                        // Add the computed child to the stack to process recursively
+                        stack.push(computed_id);
+                    }
+                }
+            }
+
+            // Add all children to the stack for processing
+            for &child_id in &self.nodes[node_id].children.clone() {
+                stack.push(child_id);
+            }
+        }
+    }
+
     fn queue_allocation_pass(&mut self, root_id: NodeId) {
         let mut stack = vec![root_id];
 
@@ -755,30 +760,6 @@ impl<T, U> Layout<T, U> {
     }
 
     fn resolve_node_constraints(&mut self, node_id: NodeId, state: &mut T, ui_state: &mut U) {
-        let node_type_matches_dynamic =
-            matches!(&self.nodes[node_id].node_type, NodeType::Dynamic { .. });
-        if node_type_matches_dynamic {
-            if let NodeType::Dynamic { func, computed } = &self.nodes[node_id].node_type {
-                if computed.is_none() {
-                    let dynamic_result = func(state, ui_state);
-                    let computed_id = self.flatten_tree(dynamic_result);
-
-                    if let NodeType::Dynamic { computed, .. } = &mut self.nodes[node_id].node_type {
-                        *computed = Some(computed_id);
-                    }
-                    self.nodes[node_id].children = vec![computed_id];
-
-                    let mut queue = vec![computed_id];
-                    while let Some(child_id) = queue.pop() {
-                        self.work_queue.push_back(child_id);
-                        for &grandchild_id in &self.nodes[child_id].children.clone() {
-                            queue.push(grandchild_id);
-                        }
-                    }
-                }
-            }
-        }
-
         let node_type_matches_area_reader =
             matches!(&self.nodes[node_id].node_type, NodeType::AreaReader(_));
         if node_type_matches_area_reader {
@@ -914,37 +895,7 @@ impl<T, U> Layout<T, U> {
                 expand_x: node.constraints.expand_x,
                 expand_y: node.constraints.expand_y,
             },
-            NodeType::Explicit => {
-                if let Some(&child_id) = node.children.first() {
-                    let child_hash = self.nodes[child_id].content_hash;
-                    if let Some(&child_constraints) = self.cache.constraint_results.get(&child_hash)
-                    {
-                        SizeConstraints {
-                            width: node_width.combine_explicit_with_child(child_constraints.width),
-                            height: node_height
-                                .combine_explicit_with_child(child_constraints.height),
-                            expand_x: node.constraints.expand_x
-                                || child_constraints.should_expand_x(),
-                            expand_y: node.constraints.expand_y
-                                || child_constraints.should_expand_y(),
-                        }
-                    } else {
-                        SizeConstraints {
-                            width: node_width,
-                            height: node_height,
-                            expand_x: node.constraints.expand_x,
-                            expand_y: node.constraints.expand_y,
-                        }
-                    }
-                } else {
-                    SizeConstraints {
-                        width: node_width,
-                        height: node_height,
-                        expand_x: node.constraints.expand_x,
-                        expand_y: node.constraints.expand_y,
-                    }
-                }
-            }
+
             NodeType::Column { spacing, .. } => self.combine_child_constraints(
                 node,
                 node_width,
@@ -990,22 +941,65 @@ impl<T, U> Layout<T, U> {
                         let padding_height = padding.top + padding.bottom;
 
                         SizeConstraints {
-                            width: Constraint::new(
+                            width: node_width.combine_explicit_with_child(Constraint::new(
                                 child_constraints.width.lower.map(|l| l + padding_width),
                                 child_constraints.width.upper.map(|u| u + padding_width),
-                            ),
-                            height: Constraint::new(
+                            )),
+                            height: node_height.combine_explicit_with_child(Constraint::new(
                                 child_constraints.height.lower.map(|l| l + padding_height),
                                 child_constraints.height.upper.map(|u| u + padding_height),
-                            ),
-                            expand_x: child_constraints.should_expand_x(),
-                            expand_y: child_constraints.should_expand_y(),
+                            )),
+                            expand_x: node.constraints.expand_x
+                                || child_constraints.should_expand_x(),
+                            expand_y: node.constraints.expand_y
+                                || child_constraints.should_expand_y(),
                         }
                     } else {
-                        SizeConstraints::default()
+                        SizeConstraints {
+                            width: node_width,
+                            height: node_height,
+                            expand_x: node.constraints.expand_x,
+                            expand_y: node.constraints.expand_y,
+                        }
                     }
                 } else {
-                    SizeConstraints::default()
+                    SizeConstraints {
+                        width: node_width,
+                        height: node_height,
+                        expand_x: node.constraints.expand_x,
+                        expand_y: node.constraints.expand_y,
+                    }
+                }
+            }
+            NodeType::Dynamic { computed, .. } => {
+                if let Some(computed_id) = computed {
+                    let child_hash = self.nodes[*computed_id].content_hash;
+                    if let Some(&child_constraints) = self.cache.constraint_results.get(&child_hash)
+                    {
+                        SizeConstraints {
+                            width: node_width.combine_explicit_with_child(child_constraints.width),
+                            height: node_height
+                                .combine_explicit_with_child(child_constraints.height),
+                            expand_x: node.constraints.expand_x
+                                || child_constraints.should_expand_x(),
+                            expand_y: node.constraints.expand_y
+                                || child_constraints.should_expand_y(),
+                        }
+                    } else {
+                        SizeConstraints {
+                            width: node_width,
+                            height: node_height,
+                            expand_x: node.constraints.expand_x,
+                            expand_y: node.constraints.expand_y,
+                        }
+                    }
+                } else {
+                    SizeConstraints {
+                        width: node_width,
+                        height: node_height,
+                        expand_x: node.constraints.expand_x,
+                        expand_y: node.constraints.expand_y,
+                    }
                 }
             }
             _ => SizeConstraints {
@@ -1074,23 +1068,7 @@ impl<T, U> Layout<T, U> {
                 );
                 return;
             }
-            NodeType::Explicit => {
-                if let Some(&child_id) = self.nodes[node_id].children.first() {
-                    let constraints = self.nodes[node_id].constraints.clone();
 
-                    let constrained_area = self.apply_constraints_to_area(
-                        available_area,
-                        &constraints,
-                        XAlign::Center,
-                        YAlign::Center,
-                        state,
-                        ui_state,
-                    );
-
-                    self.nodes[child_id].area = constrained_area;
-                }
-                return;
-            }
             _ => {}
         }
 
@@ -1689,11 +1667,7 @@ impl<T, U> Layout<T, U> {
                         stack.push((*computed_id, visible));
                     }
                 }
-                NodeType::Explicit => {
-                    for &child_id in children.iter().rev() {
-                        stack.push((child_id, visible));
-                    }
-                }
+
                 NodeType::Coupled {
                     over,
                     element,
@@ -3238,15 +3212,47 @@ mod tests {
                     })
                     .width(20.),
                     draw(|a, _, _| {
-                        assert_eq!(a, Area::new(20., 25., 30., 50.));
+                        assert_eq!(a, Area::new(20., 0., 30., 100.));
                     })
-                    .width(30.)
-                    .height(50.),
+                    .width(30.),
                     draw(|a, _, _| {
-                        assert_eq!(a, Area::new(50., 0., 25., 100.));
+                        assert!((a.x - 50.0).abs() < 0.001);
+                        assert!((a.y - 0.0).abs() < 0.001);
+                        assert!((a.width - 50.0).abs() < 0.001);
+                        assert!((a.height - 100.0).abs() < 0.001);
                     }),
+                ])
+            })
+            .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
+        }
+
+        #[test]
+        fn test_row_with_constrained_height_in_column() {
+            Layout::new({
+                column(vec![
                     draw(|a, _, _| {
-                        assert_eq!(a, Area::new(75., 0., 25., 100.));
+                        // Should get 40px height (half of remaining 80px after row takes 20px)
+                        assert_eq!(a, Area::new(0., 0., 100., 40.));
+                    }),
+                    row(vec![
+                        dynamic(|_, _| {
+                            draw(|a, _, _| {
+                                // Row content should be 20px tall
+                                assert_eq!(a, Area::new(0., 40., 50., 20.));
+                            })
+                            .height(20.)
+                        }),
+                        dynamic(|_, _| {
+                            draw(|a, _, _| {
+                                // Row content should be 20px tall
+                                assert_eq!(a, Area::new(50., 40., 50., 20.));
+                            })
+                            .height(20.)
+                        }),
+                    ]),
+                    draw(|a, _, _| {
+                        // Should get 40px height (half of remaining 80px after row takes 20px)
+                        assert_eq!(a, Area::new(0., 60., 100., 40.));
                     }),
                 ])
             })
