@@ -556,17 +556,84 @@ impl<T, U> Layout<T, U> {
         use std::cell::RefCell;
         use std::rc::Rc;
 
+        fn find_all_draw_nodes<T, U>(
+            nodes: &[NodeData<T, U>],
+            root_id: Option<NodeId>,
+            draw_nodes: &mut Vec<NodeId>,
+        ) {
+            fn find_recursive<T, U>(
+                nodes: &[NodeData<T, U>],
+                node_id: NodeId,
+                draw_nodes: &mut Vec<NodeId>,
+            ) {
+                let node = &nodes[node_id];
+                if matches!(node.node_type, NodeType::Draw(_)) {
+                    draw_nodes.push(node_id);
+                }
+                for &child_id in &node.children {
+                    find_recursive(nodes, child_id, draw_nodes);
+                }
+            }
+
+            if let Some(node_id) = root_id {
+                find_recursive(nodes, node_id, draw_nodes);
+            }
+        }
+
+        fn replace_draw_nodes_with_debug<T, U>(
+            nodes: &mut [NodeData<T, U>],
+            draw_node_indices: Vec<NodeId>,
+            grid: Rc<RefCell<Vec<Vec<char>>>>,
+            bounds: Area,
+            scale_x: f32,
+            scale_y: f32,
+            chars: [char; 7],
+            char_counter: Rc<RefCell<usize>>,
+        ) {
+            for node_id in draw_node_indices {
+                let grid_clone = grid.clone();
+                let char_counter_clone = char_counter.clone();
+
+                nodes[node_id].node_type =
+                    NodeType::Draw(Box::new(move |area, _state, _ui_state| {
+                        if area.width > 0.0 && area.height > 0.0 {
+                            let start_x = ((area.x - bounds.x) / scale_x) as usize;
+                            let start_y = ((area.y - bounds.y) / scale_y) as usize;
+                            let end_x = (((area.x + area.width) - bounds.x) / scale_x) as usize;
+                            let end_y = (((area.y + area.height) - bounds.y) / scale_y) as usize;
+
+                            let mut counter = char_counter_clone.borrow_mut();
+                            let ch = chars[*counter % chars.len()];
+                            *counter += 1;
+
+                            let mut grid_ref = grid_clone.borrow_mut();
+                            for y in start_y..end_y.min(grid_ref.len()) {
+                                for x in start_x..end_x.min(grid_ref[0].len()) {
+                                    grid_ref[y][x] = ch;
+                                }
+                            }
+                        }
+                    }));
+            }
+        }
+
         let scale_x = 2.5;
         let scale_y = 7.0;
         let width = (bounds.width / scale_x) as usize;
         let height = (bounds.height / scale_y) as usize;
 
         let grid = Rc::new(RefCell::new(vec![vec![' '; width]; height]));
-        let chars = ['█', '▒', '░', '▪', '●', '■', '-'];
+        let chars = ['█', '▒', '░', '▪', '●', '■', '='];
         let char_counter = Rc::new(RefCell::new(0));
 
+        // Find all Draw nodes recursively, including those in Coupled structures
+        let mut draw_node_indices = Vec::new();
+        find_all_draw_nodes(&self.nodes, self.root_id, &mut draw_node_indices);
+
         // Replace all Draw nodes with debug draw functions
-        self.replace_draw_nodes_with_debug(
+        replace_draw_nodes_with_debug(
+            &mut self.nodes,
+            draw_node_indices,
             grid.clone(),
             bounds,
             scale_x,
@@ -590,44 +657,6 @@ impl<T, U> Layout<T, U> {
             println!("│");
         }
         println!("└{}┘", "─".repeat(width));
-    }
-
-    #[cfg(test)]
-    fn replace_draw_nodes_with_debug(
-        &mut self,
-        grid: std::rc::Rc<std::cell::RefCell<Vec<Vec<char>>>>,
-        bounds: Area,
-        scale_x: f32,
-        scale_y: f32,
-        chars: [char; 7],
-        char_counter: std::rc::Rc<std::cell::RefCell<usize>>,
-    ) {
-        for node in &mut self.nodes {
-            if matches!(node.node_type, NodeType::Draw(_)) {
-                let grid_clone = grid.clone();
-                let char_counter_clone = char_counter.clone();
-
-                node.node_type = NodeType::Draw(Box::new(move |area, _state, _ui_state| {
-                    if area.width > 0.0 && area.height > 0.0 {
-                        let start_x = ((area.x - bounds.x) / scale_x) as usize;
-                        let start_y = ((area.y - bounds.y) / scale_y) as usize;
-                        let end_x = (((area.x + area.width) - bounds.x) / scale_x) as usize;
-                        let end_y = (((area.y + area.height) - bounds.y) / scale_y) as usize;
-
-                        let mut counter = char_counter_clone.borrow_mut();
-                        let ch = chars[*counter % chars.len()];
-                        *counter += 1;
-
-                        let mut grid_ref = grid_clone.borrow_mut();
-                        for y in start_y..end_y.min(grid_ref.len()) {
-                            for x in start_x..end_x.min(grid_ref[0].len()) {
-                                grid_ref[y][x] = ch;
-                            }
-                        }
-                    }
-                }));
-            }
-        }
     }
 
     fn flatten_tree(&mut self, root_node: Node<T, U>) -> NodeId {
@@ -2701,7 +2730,6 @@ mod tests {
                 }))
                 .width_range(..10.)
                 .attach_under(draw(|a, _, _| {
-                    assert!(false);
                     assert_eq!(a, Area::new(45., 0., 10., 100.));
                 }))
             })
