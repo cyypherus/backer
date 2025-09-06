@@ -53,12 +53,7 @@ fn create_complex_nested_original() -> Layout<'static, TestState, TestUIState> {
 
 fn create_complex_nested_mvp() -> mvp::MvpLayout<TestState, TestUIState> {
     let mvp_node = mvp::column(vec![
-        mvp::MvpNode::new(mvp::MvpNodeType::Row {
-            spacing: 0.0,
-            align: None,
-            off_axis_align: None,
-        })
-        .with_children(vec![
+        mvp::row(vec![
             mvp::draw(|_area, _state: &mut TestState, _ui_state: &mut TestUIState| {})
                 .width(50.0)
                 .height(30.0),

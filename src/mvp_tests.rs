@@ -71,12 +71,10 @@ mod tests {
 
         let mvp_node = mvp::column(vec![
             mvp::draw(move |area, _: &mut TestState, _: &mut TestUIState| {
-                println!("Drawing MVP node 1");
                 areas_mvp_1.borrow_mut().push(area);
             })
             .height(30.0),
             mvp::draw(move |area, _: &mut TestState, _: &mut TestUIState| {
-                println!("Drawing MVP node 2");
                 areas_mvp_2.borrow_mut().push(area);
             })
             .height(40.0),

@@ -434,23 +434,6 @@ impl<T, U> MvpLayout<T, U> {
         });
 
         while let Some(work_item) = work_queue.pop_front() {
-            // Debug output for Explicit node creation
-            if work_item.node_id < 15 {
-                println!(
-                    "DEBUG: Creating node {} type: {:?} constraints: width_min={:?}, width_max={:?}",
-                    work_item.node_id,
-                    match &work_item.node.node_type {
-                        MvpNodeType::Explicit => "Explicit",
-                        MvpNodeType::Draw(_) => "Draw",
-                        MvpNodeType::Padding(_) => "Padding",
-                        MvpNodeType::Coupled { .. } => "Coupled",
-                        _ => "Other",
-                    },
-                    work_item.node.constraints.width_min,
-                    work_item.node.constraints.width_max
-                );
-            }
-
             // Create the node data (initially with empty children)
             self.nodes.push(NodeData {
                 node_type: work_item.node.node_type,
@@ -845,27 +828,12 @@ impl<T, U> MvpLayout<T, U> {
                     // Apply this node's constraints to the available area and pass to child
                     let constraints = &self.nodes[node_id].constraints;
 
-                    // Debug output for Explicit processing
-                    if node_id < 15 {
-                        println!(
-                            "DEBUG: Explicit node {} processing - constraints: width_min={:?}, width_max={:?}, available_area: {:?}",
-                            node_id, constraints.width_min, constraints.width_max, available_area
-                        );
-                    }
-
                     let constrained_area = self.apply_constraints_to_area(
                         available_area,
                         constraints,
                         XAlign::Center,
                         YAlign::Center,
                     );
-
-                    if node_id < 15 {
-                        println!(
-                            "DEBUG: Explicit node {} result area: {:?}",
-                            node_id, constrained_area
-                        );
-                    }
 
                     self.nodes[child_id].area = constrained_area;
                 }
