@@ -467,18 +467,14 @@ impl<T, U> Node<T, U> {
         .with_children(vec![self, node])
     }
 
-    pub fn dynamic_width(self, f: impl Fn(f32, &mut T, &mut U) -> f32 + 'static) -> Self {
-        let mut wrapper = Node::new(NodeType::Draw(Box::new(|_, _, _| {})));
-        wrapper.constraints.dynamic_width = Some(Rc::new(f));
-        wrapper.children = vec![self];
-        wrapper
+    pub fn dynamic_width(mut self, f: impl Fn(f32, &mut T, &mut U) -> f32 + 'static) -> Self {
+        self.constraints.dynamic_width = Some(Rc::new(f));
+        self
     }
 
-    pub fn dynamic_height(self, f: impl Fn(f32, &mut T, &mut U) -> f32 + 'static) -> Self {
-        let mut wrapper = Node::new(NodeType::Draw(Box::new(|_, _, _| {})));
-        wrapper.constraints.dynamic_height = Some(Rc::new(f));
-        wrapper.children = vec![self];
-        wrapper
+    pub fn dynamic_height(mut self, f: impl Fn(f32, &mut T, &mut U) -> f32 + 'static) -> Self {
+        self.constraints.dynamic_height = Some(Rc::new(f));
+        self
     }
 
     pub fn aspect_width(self, ratio: f32) -> Self {
@@ -519,6 +515,8 @@ impl<T, U> Layout<T, U> {
         use std::cell::RefCell;
         use std::rc::Rc;
 
+        self.layout_iterative(self.root_id.unwrap(), bounds, state, ui_state);
+
         fn find_all_draw_nodes<T, U>(
             nodes: &[NodeData<T, U>],
             root_id: Option<NodeId>,
@@ -530,8 +528,17 @@ impl<T, U> Layout<T, U> {
                 draw_nodes: &mut Vec<NodeId>,
             ) {
                 let node = &nodes[node_id];
-                if matches!(node.node_type, NodeType::Draw(_)) {
-                    draw_nodes.push(node_id);
+                match &node.node_type {
+                    NodeType::Draw(_) => {
+                        draw_nodes.push(node_id);
+                    }
+                    NodeType::Dynamic {
+                        computed: Some(computed_id),
+                        ..
+                    } => {
+                        find_recursive(nodes, *computed_id, draw_nodes);
+                    }
+                    _ => {}
                 }
                 for &child_id in &node.children {
                     find_recursive(nodes, child_id, draw_nodes);
@@ -679,23 +686,23 @@ impl<T, U> Layout<T, U> {
         state: &mut T,
         ui_state: &mut U,
     ) {
-        self.queue_constraints_pass(root_id, state, ui_state);
-        while let Some(node_id) = self.work_queue.pop_front() {
-            self.resolve_node_constraints(node_id, state, ui_state);
-        }
+        self.resolve_all_dynamic_nodes(root_id, state, ui_state);
 
-        self.nodes[root_id].area = available_area;
-        self.queue_allocation_pass(root_id);
-        while let Some(node_id) = self.work_queue.pop_front() {
-            self.allocate_node_area(node_id, state, ui_state);
+        for pass in 0..2 {
+            self.queue_constraints_pass(root_id);
+            while let Some(node_id) = self.work_queue.pop_front() {
+                self.resolve_node_constraints(node_id, state, ui_state, pass);
+            }
+
+            self.nodes[root_id].area = available_area;
+            self.queue_allocation_pass(root_id);
+            while let Some(node_id) = self.work_queue.pop_front() {
+                self.allocate_node_area(node_id, state, ui_state);
+            }
         }
     }
 
-    fn queue_constraints_pass(&mut self, root_id: NodeId, state: &mut T, ui_state: &mut U) {
-        // First pass: resolve all dynamic nodes
-        self.resolve_all_dynamic_nodes(root_id, state, ui_state);
-
-        // Second pass: queue nodes in post-order for constraint calculation
+    fn queue_constraints_pass(&mut self, root_id: NodeId) {
         let mut stack = vec![(root_id, false)];
         let mut visit_order = Vec::new();
 
@@ -759,7 +766,13 @@ impl<T, U> Layout<T, U> {
         }
     }
 
-    fn resolve_node_constraints(&mut self, node_id: NodeId, state: &mut T, ui_state: &mut U) {
+    fn resolve_node_constraints(
+        &mut self,
+        node_id: NodeId,
+        state: &mut T,
+        ui_state: &mut U,
+        pass: usize,
+    ) {
         let node_type_matches_area_reader =
             matches!(&self.nodes[node_id].node_type, NodeType::AreaReader(_));
         if node_type_matches_area_reader {
@@ -777,7 +790,7 @@ impl<T, U> Layout<T, U> {
             }
         }
 
-        let constraints = self.calculate_node_constraints(node_id, state, ui_state);
+        let constraints = self.calculate_node_constraints(node_id, state, ui_state, pass);
 
         let content_hash = self.calculate_content_hash(node_id);
         self.cache
@@ -880,13 +893,45 @@ impl<T, U> Layout<T, U> {
     fn calculate_node_constraints(
         &self,
         node_id: NodeId,
-        _state: &mut T,
-        _ui_state: &mut U,
+        state: &mut T,
+        ui_state: &mut U,
+        pass: usize,
     ) -> SizeConstraints {
         let node = &self.nodes[node_id];
 
-        let node_width = Constraint::new(node.constraints.width_min, node.constraints.width_max);
-        let node_height = Constraint::new(node.constraints.height_min, node.constraints.height_max);
+        // On the first pass, don't evaluate dynamic constraints
+        // On the second pass, evaluate them with estimated sizes from children
+        let (node_width, node_height) = if pass == 0 {
+            (
+                Constraint::new(node.constraints.width_min, node.constraints.width_max),
+                Constraint::new(node.constraints.height_min, node.constraints.height_max),
+            )
+        } else {
+            // Second pass: evaluate dynamic constraints with actual allocated sizes from first pass
+            let node_area = self.nodes[node_id].area;
+
+            let dynamic_width = node
+                .constraints
+                .dynamic_width
+                .as_ref()
+                .map(|f| f(node_area.height, state, ui_state));
+            let dynamic_height = node
+                .constraints
+                .dynamic_height
+                .as_ref()
+                .map(|f| f(node_area.width, state, ui_state));
+
+            (
+                Constraint::new(
+                    node.constraints.width_min.or(dynamic_width),
+                    node.constraints.width_max.or(dynamic_width),
+                ),
+                Constraint::new(
+                    node.constraints.height_min.or(dynamic_height),
+                    node.constraints.height_max.or(dynamic_height),
+                ),
+            )
+        };
 
         match &node.node_type {
             NodeType::Draw(_) => SizeConstraints {
@@ -2055,6 +2100,62 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_row_dynamic() {
+        Layout::new({
+            column(vec![
+                row(vec![
+                    space().height(0.),
+                    dynamic(|_, _| {
+                        draw(|a, _, _| {
+                            assert_eq!(a, Area::new(10., 0., 30., 100.));
+                        })
+                        .dynamic_height(|_, _, _| 20.)
+                    }),
+                ]),
+                draw(|a, _, _| {
+                    assert_eq!(a, Area::new(10., 0., 30., 100.));
+                }),
+            ])
+        })
+        .debug_visualize(Area::new(0., 0., 100., 100.), &mut (), &mut ());
+    }
+
+    #[test]
+    fn test_static_vs_dynamic_height() {
+        let mut layout1 = Layout::new({
+            column(vec![
+                row(vec![
+                    space().height(0.),
+                    draw(|a, _, _| {
+                        assert_eq!(a, Area::new(50., 0., 50., 30.));
+                    })
+                    .height(30.),
+                ]),
+                draw(|a, _, _| {
+                    assert_eq!(a, Area::new(0., 30., 100., 70.));
+                }),
+            ])
+        });
+        layout1.draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
+
+        let mut layout2 = Layout::new({
+            column(vec![
+                row(vec![
+                    space().height(0.),
+                    draw(|a, _, _| {
+                        assert_eq!(a, Area::new(50., 0., 50., 30.));
+                    })
+                    .dynamic_height(|_, _, _| 30.),
+                ]),
+                draw(|a, _, _| {
+                    assert_eq!(a, Area::new(0., 30., 100., 70.));
+                }),
+            ])
+        });
+        layout2.draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
+    }
+
     #[cfg(test)]
     mod layout_tests {
 
@@ -2643,7 +2744,7 @@ mod tests {
                 .pad(10.)
                 .aspect_width(0.5)])
             })
-            .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
+            .debug_visualize(Area::new(0., 0., 100., 100.), &mut (), &mut ());
         }
         #[test]
         fn test_aspect_ratio_fit() {
