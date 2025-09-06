@@ -478,11 +478,23 @@ impl<T, U> Node<T, U> {
     }
 
     pub fn aspect_width(self, ratio: f32) -> Self {
-        self.dynamic_width(move |height, _, _| height * ratio)
+        let mut wrapper = Node::new(NodeType::Stack {
+            x_align: None,
+            y_align: None,
+        });
+        wrapper.constraints.dynamic_width = Some(Rc::new(move |height, _, _| height * ratio));
+        wrapper.children = vec![self];
+        wrapper
     }
 
     pub fn aspect_height(self, ratio: f32) -> Self {
-        self.dynamic_height(move |width, _, _| width / ratio)
+        let mut wrapper = Node::new(NodeType::Stack {
+            x_align: None,
+            y_align: None,
+        });
+        wrapper.constraints.dynamic_height = Some(Rc::new(move |width, _, _| width / ratio));
+        wrapper.children = vec![self];
+        wrapper
     }
 }
 
@@ -688,17 +700,30 @@ impl<T, U> Layout<T, U> {
     ) {
         self.resolve_all_dynamic_nodes(root_id, state, ui_state);
 
-        for pass in 0..2 {
-            self.queue_constraints_pass(root_id);
-            while let Some(node_id) = self.work_queue.pop_front() {
-                self.resolve_node_constraints(node_id, state, ui_state, pass);
-            }
+        // First pass: resolve constraints without dynamic evaluation
+        self.queue_constraints_pass(root_id);
+        while let Some(node_id) = self.work_queue.pop_front() {
+            self.resolve_node_constraints(node_id, state, ui_state);
+        }
 
-            self.nodes[root_id].area = available_area;
-            self.queue_allocation_pass(root_id);
-            while let Some(node_id) = self.work_queue.pop_front() {
-                self.allocate_node_area(node_id, state, ui_state);
-            }
+        // First allocation pass to get initial areas for dynamic constraint evaluation
+        self.nodes[root_id].area = available_area;
+        self.queue_allocation_pass(root_id);
+        while let Some(node_id) = self.work_queue.pop_front() {
+            self.allocate_node_area(node_id, state, ui_state);
+        }
+
+        // Second pass: re-evaluate constraints with dynamic constraints now that we have areas
+        self.queue_constraints_pass(root_id);
+        while let Some(node_id) = self.work_queue.pop_front() {
+            self.resolve_node_constraints_with_dynamics(node_id, state, ui_state);
+        }
+
+        // Final allocation pass with updated constraints
+        self.nodes[root_id].area = available_area;
+        self.queue_allocation_pass(root_id);
+        while let Some(node_id) = self.work_queue.pop_front() {
+            self.allocate_node_area(node_id, state, ui_state);
         }
     }
 
@@ -766,13 +791,7 @@ impl<T, U> Layout<T, U> {
         }
     }
 
-    fn resolve_node_constraints(
-        &mut self,
-        node_id: NodeId,
-        state: &mut T,
-        ui_state: &mut U,
-        pass: usize,
-    ) {
+    fn resolve_node_constraints(&mut self, node_id: NodeId, state: &mut T, ui_state: &mut U) {
         let node_type_matches_area_reader =
             matches!(&self.nodes[node_id].node_type, NodeType::AreaReader(_));
         if node_type_matches_area_reader {
@@ -790,7 +809,22 @@ impl<T, U> Layout<T, U> {
             }
         }
 
-        let constraints = self.calculate_node_constraints(node_id, state, ui_state, pass);
+        let constraints = self.calculate_node_constraints(node_id, state, ui_state, false);
+
+        let content_hash = self.calculate_content_hash(node_id);
+        self.cache
+            .constraint_results
+            .insert(content_hash, constraints);
+        self.nodes[node_id].content_hash = content_hash;
+    }
+
+    fn resolve_node_constraints_with_dynamics(
+        &mut self,
+        node_id: NodeId,
+        state: &mut T,
+        ui_state: &mut U,
+    ) {
+        let constraints = self.calculate_node_constraints(node_id, state, ui_state, true);
 
         let content_hash = self.calculate_content_hash(node_id);
         self.cache
@@ -895,42 +929,36 @@ impl<T, U> Layout<T, U> {
         node_id: NodeId,
         state: &mut T,
         ui_state: &mut U,
-        pass: usize,
+        evaluate_dynamics: bool,
     ) -> SizeConstraints {
         let node = &self.nodes[node_id];
 
-        // On the first pass, don't evaluate dynamic constraints
-        // On the second pass, evaluate them with estimated sizes from children
-        let (node_width, node_height) = if pass == 0 {
-            (
-                Constraint::new(node.constraints.width_min, node.constraints.width_max),
-                Constraint::new(node.constraints.height_min, node.constraints.height_max),
-            )
-        } else {
-            // Second pass: evaluate dynamic constraints with actual allocated sizes from first pass
-            let node_area = self.nodes[node_id].area;
-
+        let node_width = if evaluate_dynamics {
             let dynamic_width = node
                 .constraints
                 .dynamic_width
                 .as_ref()
-                .map(|f| f(node_area.height, state, ui_state));
+                .map(|f| f(self.nodes[node_id].area.height, state, ui_state));
+            Constraint::new(
+                node.constraints.width_min.or(dynamic_width),
+                node.constraints.width_max.or(dynamic_width),
+            )
+        } else {
+            Constraint::new(node.constraints.width_min, node.constraints.width_max)
+        };
+
+        let node_height = if evaluate_dynamics {
             let dynamic_height = node
                 .constraints
                 .dynamic_height
                 .as_ref()
-                .map(|f| f(node_area.width, state, ui_state));
-
-            (
-                Constraint::new(
-                    node.constraints.width_min.or(dynamic_width),
-                    node.constraints.width_max.or(dynamic_width),
-                ),
-                Constraint::new(
-                    node.constraints.height_min.or(dynamic_height),
-                    node.constraints.height_max.or(dynamic_height),
-                ),
+                .map(|f| f(self.nodes[node_id].area.width, state, ui_state));
+            Constraint::new(
+                node.constraints.height_min.or(dynamic_height),
+                node.constraints.height_max.or(dynamic_height),
             )
+        } else {
+            Constraint::new(node.constraints.height_min, node.constraints.height_max)
         };
 
         match &node.node_type {
@@ -1893,7 +1921,7 @@ mod tests {
 
         let mut mvp_layout = Layout::new(layout_node);
         let bounds = Area::new(0.0, 0.0, 100.0, 100.0);
-        mvp_layout.debug_visualize(bounds, &mut (), &mut ());
+        mvp_layout.draw(bounds, &mut (), &mut ());
     }
 
     #[test]
@@ -2108,17 +2136,17 @@ mod tests {
                     space().height(0.),
                     dynamic(|_, _| {
                         draw(|a, _, _| {
-                            assert_eq!(a, Area::new(10., 0., 30., 100.));
+                            assert_eq!(a, Area::new(50., 0., 50., 20.));
                         })
                         .dynamic_height(|_, _, _| 20.)
                     }),
                 ]),
                 draw(|a, _, _| {
-                    assert_eq!(a, Area::new(10., 0., 30., 100.));
+                    assert_eq!(a, Area::new(0., 20., 100., 80.));
                 }),
             ])
         })
-        .debug_visualize(Area::new(0., 0., 100., 100.), &mut (), &mut ());
+        .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
     }
 
     #[test]
