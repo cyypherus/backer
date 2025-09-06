@@ -155,6 +155,7 @@ pub(crate) enum MvpNodeType<T, U> {
         element: NodeId,
         coupled: NodeId,
     },
+    Explicit,
 }
 
 pub struct NodeData<T, U> {
@@ -186,6 +187,26 @@ impl<T, U> MvpNode<T, U> {
         self
     }
 
+    pub fn with_width_constraints(
+        mut self,
+        width_min: Option<f32>,
+        width_max: Option<f32>,
+    ) -> Self {
+        self.constraints.width_min = width_min;
+        self.constraints.width_max = width_max;
+        self
+    }
+
+    pub fn with_height_constraints(
+        mut self,
+        height_min: Option<f32>,
+        height_max: Option<f32>,
+    ) -> Self {
+        self.constraints.height_min = height_min;
+        self.constraints.height_max = height_max;
+        self
+    }
+
     pub fn width(mut self, width: f32) -> Self {
         self.constraints.width_min = Some(width);
         self.constraints.width_max = Some(width);
@@ -198,38 +219,44 @@ impl<T, U> MvpNode<T, U> {
         self
     }
 
-    pub fn width_range<R>(mut self, range: R) -> Self
+    pub fn width_range<R>(self, range: R) -> Self
     where
         R: RangeBounds<f32>,
     {
-        self.constraints.width_min = match range.start_bound() {
+        let width_min = match range.start_bound() {
             std::ops::Bound::Included(bound) => Some(*bound),
             std::ops::Bound::Excluded(bound) => Some(*bound),
             std::ops::Bound::Unbounded => None,
         };
-        self.constraints.width_max = match range.end_bound() {
+        let width_max = match range.end_bound() {
             std::ops::Bound::Included(bound) => Some(*bound),
             std::ops::Bound::Excluded(bound) => Some(*bound),
             std::ops::Bound::Unbounded => None,
         };
-        self
+
+        MvpNode::new(MvpNodeType::Explicit)
+            .with_width_constraints(width_min, width_max)
+            .with_children(vec![self])
     }
 
-    pub fn height_range<R>(mut self, range: R) -> Self
+    pub fn height_range<R>(self, range: R) -> Self
     where
         R: RangeBounds<f32>,
     {
-        self.constraints.height_min = match range.start_bound() {
+        let height_min = match range.start_bound() {
             std::ops::Bound::Included(bound) => Some(*bound),
             std::ops::Bound::Excluded(bound) => Some(*bound),
             std::ops::Bound::Unbounded => None,
         };
-        self.constraints.height_max = match range.end_bound() {
+        let height_max = match range.end_bound() {
             std::ops::Bound::Included(bound) => Some(*bound),
             std::ops::Bound::Excluded(bound) => Some(*bound),
             std::ops::Bound::Unbounded => None,
         };
-        self
+
+        MvpNode::new(MvpNodeType::Explicit)
+            .with_height_constraints(height_min, height_max)
+            .with_children(vec![self])
     }
 
     pub fn expand(mut self) -> Self {
@@ -407,6 +434,23 @@ impl<T, U> MvpLayout<T, U> {
         });
 
         while let Some(work_item) = work_queue.pop_front() {
+            // Debug output for Explicit node creation
+            if work_item.node_id < 15 {
+                println!(
+                    "DEBUG: Creating node {} type: {:?} constraints: width_min={:?}, width_max={:?}",
+                    work_item.node_id,
+                    match &work_item.node.node_type {
+                        MvpNodeType::Explicit => "Explicit",
+                        MvpNodeType::Draw(_) => "Draw",
+                        MvpNodeType::Padding(_) => "Padding",
+                        MvpNodeType::Coupled { .. } => "Coupled",
+                        _ => "Other",
+                    },
+                    work_item.node.constraints.width_min,
+                    work_item.node.constraints.width_max
+                );
+            }
+
             // Create the node data (initially with empty children)
             self.nodes.push(NodeData {
                 node_type: work_item.node.node_type,
@@ -575,6 +619,52 @@ impl<T, U> MvpLayout<T, U> {
                 let height = node.constraints.height_min.unwrap_or(0.0);
                 (width, height)
             }
+            MvpNodeType::Explicit => {
+                // Explicit nodes propagate child constraints and apply their own
+                if let Some(&child_id) = node.children.first() {
+                    let child_hash = self.nodes[child_id].content_hash;
+                    if let Some(&(child_width, child_height)) =
+                        self.cache.constraint_results.get(&child_hash)
+                    {
+                        // Apply this node's constraints to child's intrinsic size
+                        let constrained_width = if let Some(min) = node.constraints.width_min {
+                            child_width.max(min)
+                        } else {
+                            child_width
+                        };
+                        let constrained_width = if let Some(max) = node.constraints.width_max {
+                            constrained_width.min(max)
+                        } else {
+                            constrained_width
+                        };
+
+                        let constrained_height = if let Some(min) = node.constraints.height_min {
+                            child_height.max(min)
+                        } else {
+                            child_height
+                        };
+                        let constrained_height = if let Some(max) = node.constraints.height_max {
+                            constrained_height.min(max)
+                        } else {
+                            constrained_height
+                        };
+
+                        (constrained_width, constrained_height)
+                    } else {
+                        // If child has no cached constraints, use this node's constraints
+                        (
+                            node.constraints.width_min.unwrap_or(0.0),
+                            node.constraints.height_min.unwrap_or(0.0),
+                        )
+                    }
+                } else {
+                    // No child, use own constraints
+                    (
+                        node.constraints.width_min.unwrap_or(0.0),
+                        node.constraints.height_min.unwrap_or(0.0),
+                    )
+                }
+            }
             MvpNodeType::Column { spacing, .. } => {
                 let mut total_height = 0.0;
                 let mut max_width: f32 = 0.0;
@@ -686,7 +776,8 @@ impl<T, U> MvpLayout<T, U> {
                     .copied()
                     .unwrap_or((0.0, 0.0))
             }
-            _ => (0.0, 0.0),
+            MvpNodeType::AreaReader(_) => (0.0, 0.0),
+            MvpNodeType::Dynamic { .. } => (0.0, 0.0),
         };
 
         // Apply aspect ratio constraints to all node types
@@ -749,6 +840,37 @@ impl<T, U> MvpLayout<T, U> {
                 self.allocate_stack_areas(node_id, available_area, &x_align, &y_align);
                 return;
             }
+            MvpNodeType::Explicit => {
+                if let Some(&child_id) = self.nodes[node_id].children.first() {
+                    // Apply this node's constraints to the available area and pass to child
+                    let constraints = &self.nodes[node_id].constraints;
+
+                    // Debug output for Explicit processing
+                    if node_id < 15 {
+                        println!(
+                            "DEBUG: Explicit node {} processing - constraints: width_min={:?}, width_max={:?}, available_area: {:?}",
+                            node_id, constraints.width_min, constraints.width_max, available_area
+                        );
+                    }
+
+                    let constrained_area = self.apply_constraints_to_area(
+                        available_area,
+                        constraints,
+                        XAlign::Center,
+                        YAlign::Center,
+                    );
+
+                    if node_id < 15 {
+                        println!(
+                            "DEBUG: Explicit node {} result area: {:?}",
+                            node_id, constrained_area
+                        );
+                    }
+
+                    self.nodes[child_id].area = constrained_area;
+                }
+                return;
+            }
             _ => {}
         }
 
@@ -781,18 +903,36 @@ impl<T, U> MvpLayout<T, U> {
                 }
             }
             MvpNodeType::Coupled {
-                element, coupled, ..
+                over: _,
+                element,
+                coupled,
             } => {
-                // Both element and coupled get the same constrained area based on element's constraints
+                // Use element's cached constraint results to determine final area for both children
                 if self.nodes[node_id].children.len() >= 2 {
                     let element_id = self.nodes[node_id].children[*element];
                     let coupled_id = self.nodes[node_id].children[*coupled];
 
-                    // Apply element's constraints to determine the final area for both nodes
-                    let element_constraints = &self.nodes[element_id].constraints;
+                    // Get the element's cached constraint results
+                    let element_hash = self.nodes[element_id].content_hash;
+                    let element_constraints = if let Some(&(width, height)) =
+                        self.cache.constraint_results.get(&element_hash)
+                    {
+                        // Create constraints based on element's resolved size
+                        NodeConstraints {
+                            width_min: if width > 0.0 { Some(width) } else { None },
+                            width_max: if width > 0.0 { Some(width) } else { None },
+                            height_min: if height > 0.0 { Some(height) } else { None },
+                            height_max: if height > 0.0 { Some(height) } else { None },
+                            ..Default::default()
+                        }
+                    } else {
+                        // Fallback to coupling node's constraints
+                        self.nodes[node_id].constraints.clone()
+                    };
+
                     let constrained_area = self.apply_constraints_to_area(
                         available_area,
-                        element_constraints,
+                        &element_constraints,
                         XAlign::Center,
                         YAlign::Center,
                     );
@@ -865,29 +1005,30 @@ impl<T, U> MvpLayout<T, U> {
                 constraints.width_max
             };
 
-            // Debug output for padding test
-            if child_id < 10 {
-                println!(
-                    "DEBUG: layout_axis child {} initial constraints: lower={:?}, upper={:?}",
-                    child_id, lower, upper
-                );
-            }
-
-            // If no explicit constraints, use intrinsic size from cache
+            // If no explicit constraints, use intrinsic size from cache (unless expanded)
             if lower.is_none() && upper.is_none() {
-                let child_hash = self.nodes[child_id].content_hash;
-                if let Some(&(intrinsic_width, intrinsic_height)) =
-                    self.cache.constraint_results.get(&child_hash)
-                {
-                    let intrinsic_size = if is_vertical {
-                        intrinsic_height
-                    } else {
-                        intrinsic_width
-                    };
+                let child_constraints = &self.nodes[child_id].constraints;
+                let is_expanded = if is_vertical {
+                    child_constraints.expand_y
+                } else {
+                    child_constraints.expand_x
+                };
 
-                    if intrinsic_size > 0.0 {
-                        lower = Some(intrinsic_size);
-                        upper = Some(intrinsic_size);
+                if !is_expanded {
+                    let child_hash = self.nodes[child_id].content_hash;
+                    if let Some(&(intrinsic_width, intrinsic_height)) =
+                        self.cache.constraint_results.get(&child_hash)
+                    {
+                        let intrinsic_size = if is_vertical {
+                            intrinsic_height
+                        } else {
+                            intrinsic_width
+                        };
+
+                        if intrinsic_size > 0.0 {
+                            lower = Some(intrinsic_size);
+                            upper = Some(intrinsic_size);
+                        }
                     }
                 }
             }
@@ -925,14 +1066,6 @@ impl<T, U> MvpLayout<T, U> {
             }
 
             final_sizes[i] = Some(final_size.unwrap_or(default_size));
-
-            // Debug output for padding test
-            if child_id < 10 {
-                println!(
-                    "DEBUG: Child {} final_size: {:?}, room_to_grow: {}, room_to_shrink: {}",
-                    child_id, final_sizes[i], room_to_grow[i], room_to_shrink[i]
-                );
-            }
         }
 
         fn can_accommodate(room: &[f32]) -> bool {
@@ -1039,7 +1172,7 @@ impl<T, U> MvpLayout<T, U> {
 
             let constraints = &self.nodes[child_id].constraints;
 
-            // For container nodes in cross-axis layout, apply intrinsic size constraints
+            // For container nodes in cross-axis layout, apply intrinsic size constraints (unless expanded)
             let mut effective_constraints = constraints.clone();
             if let Some(&(intrinsic_width, intrinsic_height)) = self
                 .cache
@@ -1048,14 +1181,14 @@ impl<T, U> MvpLayout<T, U> {
             {
                 match &self.nodes[child_id].node_type {
                     MvpNodeType::Row { .. } => {
-                        if is_vertical {
-                            // Row in a column should hug its children horizontally
+                        if is_vertical && !constraints.expand_x {
+                            // Row in a column should hug its children horizontally (unless expand_x)
                             if intrinsic_width > 0.0 {
                                 effective_constraints.width_min = Some(intrinsic_width);
                                 effective_constraints.width_max = Some(intrinsic_width);
                             }
-                        } else {
-                            // Row in a row should hug its children vertically
+                        } else if !is_vertical && !constraints.expand_y {
+                            // Row in a row should hug its children vertically (unless expand_y)
                             if intrinsic_height > 0.0 {
                                 effective_constraints.height_min = Some(intrinsic_height);
                                 effective_constraints.height_max = Some(intrinsic_height);
@@ -1063,18 +1196,27 @@ impl<T, U> MvpLayout<T, U> {
                         }
                     }
                     MvpNodeType::Column { .. } => {
-                        if !is_vertical {
-                            // Column in a row should hug its children vertically
+                        if !is_vertical && !constraints.expand_y {
+                            // Column in a row should hug its children vertically (unless expand_y)
                             if intrinsic_height > 0.0 {
                                 effective_constraints.height_min = Some(intrinsic_height);
                                 effective_constraints.height_max = Some(intrinsic_height);
                             }
-                        } else {
-                            // Column in a column should hug its children horizontally
+                        } else if is_vertical && !constraints.expand_x {
+                            // Column in a column should hug its children horizontally (unless expand_x)
                             if intrinsic_width > 0.0 {
                                 effective_constraints.width_min = Some(intrinsic_width);
                                 effective_constraints.width_max = Some(intrinsic_width);
                             }
+                        }
+                    }
+                    MvpNodeType::Stack { .. } => {
+                        // Stack should expand to fit its children unless explicitly constrained
+                        if !constraints.expand_x && intrinsic_width > 0.0 {
+                            effective_constraints.width_min = Some(intrinsic_width);
+                        }
+                        if !constraints.expand_y && intrinsic_height > 0.0 {
+                            effective_constraints.height_min = Some(intrinsic_height);
                         }
                     }
                     _ => {}
@@ -1083,14 +1225,6 @@ impl<T, U> MvpLayout<T, U> {
 
             let final_area =
                 self.apply_constraints_to_area(base_area, &effective_constraints, x_align, y_align);
-
-            // Debug output for padding test
-            if child_id < 10 {
-                println!(
-                    "DEBUG: Child {} base_area: {:?}, final_area: {:?}, current_pos: {}",
-                    child_id, base_area, final_area, current_pos
-                );
-            }
 
             self.nodes[child_id].area = final_area;
 
@@ -1139,7 +1273,74 @@ impl<T, U> MvpLayout<T, U> {
         let default_x_align = x_align.unwrap_or(XAlign::Center);
         let default_y_align = y_align.unwrap_or(YAlign::Center);
 
-        // Apply constraints to each child - similar to original Area.constrained()
+        // First, determine the stack's own size based on its constraints and children
+        let stack_constraints = &self.nodes[node_id].constraints;
+        let mut stack_area = available_area;
+
+        // If the stack is expanded, it should size itself to fit its children
+        if stack_constraints.expand_x || stack_constraints.expand_y {
+            let mut max_child_width = available_area.width;
+            let mut max_child_height = available_area.height;
+
+            // Find the maximum size needed by any child
+            for &child_id in &children {
+                let child_constraints = &self.nodes[child_id].constraints;
+
+                // If child has width constraint, use it
+                if let Some(child_width) =
+                    child_constraints.width_min.or(child_constraints.width_max)
+                {
+                    max_child_width = max_child_width.max(child_width);
+                }
+
+                // If child has height constraint, use it
+                if let Some(child_height) = child_constraints
+                    .height_min
+                    .or(child_constraints.height_max)
+                {
+                    max_child_height = max_child_height.max(child_height);
+                }
+            }
+
+            // Apply stack's own constraints first
+            let constrained_stack = self.apply_constraints_to_area(
+                Area {
+                    x: available_area.x,
+                    y: available_area.y,
+                    width: max_child_width,
+                    height: max_child_height,
+                },
+                stack_constraints,
+                default_x_align,
+                default_y_align,
+            );
+
+            // Position the stack within the available area
+            stack_area = self.apply_constraints_to_area(
+                available_area,
+                &NodeConstraints {
+                    width_min: Some(constrained_stack.width),
+                    width_max: Some(constrained_stack.width),
+                    height_min: Some(constrained_stack.height),
+                    height_max: Some(constrained_stack.height),
+                    x_align: stack_constraints.x_align,
+                    y_align: stack_constraints.y_align,
+                    ..Default::default()
+                },
+                default_x_align,
+                default_y_align,
+            );
+        } else {
+            // Non-expanded stack uses available area but may be constrained
+            stack_area = self.apply_constraints_to_area(
+                available_area,
+                stack_constraints,
+                default_x_align,
+                default_y_align,
+            );
+        }
+
+        // Now allocate the stack area to each child
         for &child_id in &children {
             let constraints = &self.nodes[child_id].constraints;
 
@@ -1153,15 +1354,15 @@ impl<T, U> MvpLayout<T, U> {
             if has_constraints {
                 // Apply constraints and alignment like original Area.constrained()
                 let final_area = self.apply_constraints_to_area(
-                    available_area,
+                    stack_area,
                     constraints,
                     default_x_align,
                     default_y_align,
                 );
                 self.nodes[child_id].area = final_area;
             } else {
-                // No constraints - child takes the full available area
-                self.nodes[child_id].area = available_area;
+                // No constraints - child takes the full stack area
+                self.nodes[child_id].area = stack_area;
             }
         }
     }
@@ -1253,6 +1454,12 @@ impl<T, U> MvpLayout<T, U> {
                     let effective_visibility = visible && *node_visible;
                     for &child_id in children.iter() {
                         stack.push((child_id, effective_visibility));
+                    }
+                }
+                MvpNodeType::Explicit => {
+                    // Explicit nodes just pass through to their child
+                    for &child_id in children.iter().rev() {
+                        stack.push((child_id, visible));
                     }
                 }
                 MvpNodeType::Coupled {
