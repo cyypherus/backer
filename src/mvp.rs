@@ -767,6 +767,14 @@ impl<T, U> Layout<T, U> {
                         *computed = Some(computed_id);
                     }
                     self.nodes[node_id].children = vec![computed_id];
+
+                    let mut queue = vec![computed_id];
+                    while let Some(child_id) = queue.pop() {
+                        self.work_queue.push_back(child_id);
+                        for &grandchild_id in &self.nodes[child_id].children.clone() {
+                            queue.push(grandchild_id);
+                        }
+                    }
                 }
             }
         }
@@ -1676,6 +1684,11 @@ impl<T, U> Layout<T, U> {
                         draw_fn(area, state, ui_state);
                     }
                 }
+                NodeType::Dynamic { computed, .. } => {
+                    if let Some(computed_id) = computed {
+                        stack.push((*computed_id, visible));
+                    }
+                }
                 NodeType::Explicit => {
                     for &child_id in children.iter().rev() {
                         stack.push((child_id, visible));
@@ -1970,6 +1983,102 @@ mod tests {
         let mut state = true;
         let mut mvp_layout = Layout::new(layout_node);
         mvp_layout.draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut state, &mut ());
+    }
+
+    #[test]
+    fn test_dynamic_node_drawing_issue() {
+        struct TestState {
+            counter: i32,
+            draw_calls: Vec<String>,
+        }
+
+        let layout_node = dynamic(|state: &mut TestState, _: &mut ()| {
+            state.counter += 1;
+
+            column(vec![
+                draw(|_, state: &mut TestState, _| {
+                    state
+                        .draw_calls
+                        .push(format!("dynamic_child_{}", state.counter));
+                })
+                .height(20.0),
+                draw(|_, state: &mut TestState, _| {
+                    state.draw_calls.push("static_draw".to_string());
+                })
+                .height(30.0),
+            ])
+        });
+
+        let mut state = TestState {
+            counter: 0,
+            draw_calls: Vec::new(),
+        };
+        let mut mvp_layout = Layout::new(layout_node);
+        mvp_layout.draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut state, &mut ());
+
+        println!("Draw calls: {:?}", state.draw_calls);
+        assert!(
+            !state.draw_calls.is_empty(),
+            "Dynamic node children should have been drawn"
+        );
+        assert!(
+            state.draw_calls.contains(&"static_draw".to_string()),
+            "Static draw should be called"
+        );
+    }
+
+    #[test]
+    fn test_nested_dynamic_nodes() {
+        struct TestState {
+            inner_counter: i32,
+            draw_calls: Vec<String>,
+        }
+
+        let layout_node = dynamic(|_state: &mut TestState, _: &mut ()| {
+            column(vec![
+                draw(|_, state: &mut TestState, _| {
+                    state.draw_calls.push("outer_before".to_string());
+                })
+                .height(10.0),
+                dynamic(|state: &mut TestState, _: &mut ()| {
+                    state.inner_counter += 1;
+                    draw(|_, state: &mut TestState, _| {
+                        state
+                            .draw_calls
+                            .push(format!("inner_{}", state.inner_counter));
+                    })
+                    .height(20.0)
+                }),
+                draw(|_, state: &mut TestState, _| {
+                    state.draw_calls.push("outer_after".to_string());
+                })
+                .height(15.0),
+            ])
+        });
+
+        let mut state = TestState {
+            inner_counter: 0,
+            draw_calls: Vec::new(),
+        };
+        let mut mvp_layout = Layout::new(layout_node);
+        mvp_layout.draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut state, &mut ());
+
+        println!("Nested draw calls: {:?}", state.draw_calls);
+        assert!(
+            state.draw_calls.contains(&"outer_before".to_string()),
+            "Outer before should be drawn"
+        );
+        assert!(
+            state.draw_calls.contains(&"outer_after".to_string()),
+            "Outer after should be drawn"
+        );
+        assert!(
+            state
+                .draw_calls
+                .iter()
+                .any(|call| call.starts_with("inner_")),
+            "Inner dynamic should be drawn"
+        );
     }
 
     #[cfg(test)]
