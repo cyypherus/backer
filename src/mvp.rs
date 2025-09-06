@@ -477,24 +477,14 @@ impl<T, U> Node<T, U> {
         self
     }
 
-    pub fn aspect_width(self, ratio: f32) -> Self {
-        let mut wrapper = Node::new(NodeType::Stack {
-            x_align: None,
-            y_align: None,
-        });
-        wrapper.constraints.dynamic_width = Some(Rc::new(move |height, _, _| height * ratio));
-        wrapper.children = vec![self];
-        wrapper
+    pub fn aspect_width(mut self, ratio: f32) -> Self {
+        self.constraints.dynamic_width = Some(Rc::new(move |height, _, _| height * ratio));
+        self
     }
 
-    pub fn aspect_height(self, ratio: f32) -> Self {
-        let mut wrapper = Node::new(NodeType::Stack {
-            x_align: None,
-            y_align: None,
-        });
-        wrapper.constraints.dynamic_height = Some(Rc::new(move |width, _, _| width / ratio));
-        wrapper.children = vec![self];
-        wrapper
+    pub fn aspect_height(mut self, ratio: f32) -> Self {
+        self.constraints.dynamic_height = Some(Rc::new(move |width, _, _| width / ratio));
+        self
     }
 }
 
