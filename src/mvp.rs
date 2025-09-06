@@ -1,24 +1,7 @@
-//! MVP iterative layout engine with frame-to-frame caching
-//!
-//! This is a complete rewrite of the backer layout system using iterative algorithms
-//! and predictable tree traversal patterns with work reuse across frames.
-//!
-//! # MVP Implementation Summary
-//!
-//! This module implements a complete MVP of the backer layout system with the following goals:
-//! - **Iterative algorithms only**: No recursion, all layout performed with predictable tree traversal
-//! - **Lightning fast layout**: Flat node storage, efficient BFS/DFS queuing, minimal allocations
-//! - **Predictable passes**: Two-phase layout (constraint resolution → area allocation)
-//! - **Exact compatibility**: Layout results match existing implementation for
-
 use std::collections::{HashMap, VecDeque};
 use std::ops::RangeBounds;
 use std::rc::Rc;
 
-// Re-export key types for API compatibility
-pub use crate::models::{Align, Area, Size};
-
-// Type aliases for compatibility
 type NodeId = usize;
 type AreaReaderFn<T, U> = Box<dyn Fn(Area, &mut T, &mut U) -> MvpNode<T, U>>;
 type DynamicNodeFn<T, U> = Box<dyn Fn(&mut T, &mut U) -> MvpNode<T, U>>;
@@ -39,8 +22,45 @@ pub enum YAlign {
     Bottom,
 }
 
+/// An alignment along the X and/or Y axis
+#[derive(Debug, Clone, Copy)]
+pub enum Align {
+    /// Aligns to the top
+    Top,
+    /// Aligns to the vertical center
+    CenterY,
+    /// Aligns to the bottom
+    Bottom,
+
+    /// Aligns to the left in LTR layout
+    Leading,
+    /// Aligns to the horizontal center
+    CenterX,
+    /// Aligns to the right in LTR layout
+    Trailing,
+
+    /// Aligns to the top left in LTR layout
+    TopLeading,
+    /// Aligns to the top center
+    TopCenter,
+    /// Aligns to the top right in LTR layout
+    TopTrailing,
+    /// Aligns to the middle right in LTR layout
+    CenterTrailing,
+    /// Aligns to the bottom right in LTR layout
+    BottomTrailing,
+    /// Aligns to the bottom middle
+    BottomCenter,
+    /// Aligns to the bottom left in LTR layout
+    BottomLeading,
+    /// Aligns to the middle left in LTR layout
+    CenterLeading,
+    /// Aligns to the center in LTR layout - the default alignment
+    CenterCenter,
+}
+
 impl Align {
-    fn mvp_axis_aligns(&self) -> (Option<XAlign>, Option<YAlign>) {
+    fn axis_aligns(&self) -> (Option<XAlign>, Option<YAlign>) {
         match self {
             Align::TopLeading => (Some(XAlign::Leading), Some(YAlign::Top)),
             Align::TopCenter => (Some(XAlign::Center), Some(YAlign::Top)),
@@ -59,6 +79,49 @@ impl Align {
             Align::Trailing => (Some(XAlign::Trailing), None),
         }
     }
+}
+
+/// An allocation of screen space as a rectangle
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Area {
+    /// Origin - usually the left-most X
+    pub x: f32,
+    /// Origin - usually the upper-most Y
+    pub y: f32,
+    /// Available width, starting at `x`
+    pub width: f32,
+    /// Available height, starting at `y`
+    pub height: f32,
+}
+
+impl Area {
+    /// Creates a new [`Area`].
+    pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+    #[allow(unused)]
+    pub(crate) fn zero() -> Self {
+        Self {
+            x: 0.,
+            y: 0.,
+            width: 0.,
+            height: 0.,
+        }
+    }
+}
+
+/// A 2D size specification with width and height dimensions
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Size {
+    /// Width dimension
+    pub width: f32,
+    /// Height dimension
+    pub height: f32,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -182,12 +245,12 @@ impl<T, U> MvpNode<T, U> {
         }
     }
 
-    pub fn with_children(mut self, children: Vec<MvpNode<T, U>>) -> Self {
+    pub(crate) fn with_children(mut self, children: Vec<MvpNode<T, U>>) -> Self {
         self.children = children;
         self
     }
 
-    pub fn with_width_constraints(
+    pub(crate) fn with_width_constraints(
         mut self,
         width_min: Option<f32>,
         width_max: Option<f32>,
@@ -197,7 +260,7 @@ impl<T, U> MvpNode<T, U> {
         self
     }
 
-    pub fn with_height_constraints(
+    pub(crate) fn with_height_constraints(
         mut self,
         height_min: Option<f32>,
         height_max: Option<f32>,
@@ -276,7 +339,7 @@ impl<T, U> MvpNode<T, U> {
     }
 
     pub fn align(mut self, align: Align) -> Self {
-        let (x_align, y_align) = align.mvp_axis_aligns();
+        let (x_align, y_align) = align.axis_aligns();
         if let Some(x) = x_align {
             self.constraints.x_align = Some(x);
         }
@@ -1493,7 +1556,7 @@ pub fn column_spaced<T, U>(spacing: f32, elements: Vec<MvpNode<T, U>>) -> MvpNod
 }
 
 pub fn column_aligned<T, U>(align: Align, elements: Vec<MvpNode<T, U>>) -> MvpNode<T, U> {
-    let (x_align, y_align) = align.mvp_axis_aligns();
+    let (x_align, y_align) = align.axis_aligns();
     MvpNode::new(MvpNodeType::Column {
         spacing: 0.0,
         x_align,
@@ -1507,7 +1570,7 @@ pub fn column_spaced_aligned<T, U>(
     align: Align,
     elements: Vec<MvpNode<T, U>>,
 ) -> MvpNode<T, U> {
-    let (x_align, y_align) = align.mvp_axis_aligns();
+    let (x_align, y_align) = align.axis_aligns();
     MvpNode::new(MvpNodeType::Column {
         spacing,
         x_align,
@@ -1535,7 +1598,7 @@ pub fn row_spaced<T, U>(spacing: f32, elements: Vec<MvpNode<T, U>>) -> MvpNode<T
 }
 
 pub fn row_aligned<T, U>(align: Align, elements: Vec<MvpNode<T, U>>) -> MvpNode<T, U> {
-    let (x_align, y_align) = align.mvp_axis_aligns();
+    let (x_align, y_align) = align.axis_aligns();
     MvpNode::new(MvpNodeType::Row {
         spacing: 0.,
         x_align,
@@ -1549,7 +1612,7 @@ pub fn row_spaced_aligned<T, U>(
     align: Align,
     elements: Vec<MvpNode<T, U>>,
 ) -> MvpNode<T, U> {
-    let (x_align, y_align) = align.mvp_axis_aligns();
+    let (x_align, y_align) = align.axis_aligns();
     MvpNode::new(MvpNodeType::Row {
         spacing,
         x_align,
