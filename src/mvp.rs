@@ -301,7 +301,7 @@ impl<T, U> MvpNode<T, U> {
         .with_children(vec![self])
     }
 
-    fn pad_x(self, amount: f32) -> Self {
+    pub fn pad_x(self, amount: f32) -> Self {
         MvpNode::new(MvpNodeType::Padding(Padding {
             leading: amount,
             trailing: amount,
@@ -311,7 +311,7 @@ impl<T, U> MvpNode<T, U> {
         .with_children(vec![self])
     }
 
-    fn pad_y(self, amount: f32) -> Self {
+    pub fn pad_y(self, amount: f32) -> Self {
         MvpNode::new(MvpNodeType::Padding(Padding {
             leading: 0.,
             trailing: 0.,
@@ -321,7 +321,7 @@ impl<T, U> MvpNode<T, U> {
         .with_children(vec![self])
     }
 
-    fn pad_top(self, amount: f32) -> Self {
+    pub fn pad_top(self, amount: f32) -> Self {
         MvpNode::new(MvpNodeType::Padding(Padding {
             leading: 0.,
             trailing: 0.,
@@ -331,7 +331,7 @@ impl<T, U> MvpNode<T, U> {
         .with_children(vec![self])
     }
 
-    fn pad_bottom(self, amount: f32) -> Self {
+    pub fn pad_bottom(self, amount: f32) -> Self {
         MvpNode::new(MvpNodeType::Padding(Padding {
             leading: 0.,
             trailing: 0.,
@@ -341,7 +341,7 @@ impl<T, U> MvpNode<T, U> {
         .with_children(vec![self])
     }
 
-    fn pad_leading(self, amount: f32) -> Self {
+    pub fn pad_leading(self, amount: f32) -> Self {
         MvpNode::new(MvpNodeType::Padding(Padding {
             leading: amount,
             trailing: 0.,
@@ -351,7 +351,7 @@ impl<T, U> MvpNode<T, U> {
         .with_children(vec![self])
     }
 
-    fn pad_trailing(self, amount: f32) -> Self {
+    pub fn pad_trailing(self, amount: f32) -> Self {
         MvpNode::new(MvpNodeType::Padding(Padding {
             leading: 0.,
             trailing: amount,
@@ -391,9 +391,6 @@ impl<T, U> MvpNode<T, U> {
 #[derive(Default)]
 struct LayoutCache {
     constraint_results: HashMap<u64, (f32, f32)>,
-    subtree_hashes: Vec<u64>,
-    last_frame_areas: Vec<Area>,
-    tree_structure_hash: u64,
 }
 
 pub struct MvpLayout<T, U> {
@@ -1243,10 +1240,9 @@ impl<T, U> MvpLayout<T, U> {
 
         // First, determine the stack's own size based on its constraints and children
         let stack_constraints = &self.nodes[node_id].constraints;
-        let mut stack_area = available_area;
 
         // If the stack is expanded, it should size itself to fit its children
-        if stack_constraints.expand_x || stack_constraints.expand_y {
+        let stack_area = if stack_constraints.expand_x || stack_constraints.expand_y {
             let mut max_child_width = available_area.width;
             let mut max_child_height = available_area.height;
 
@@ -1284,7 +1280,7 @@ impl<T, U> MvpLayout<T, U> {
             );
 
             // Position the stack within the available area
-            stack_area = self.apply_constraints_to_area(
+            self.apply_constraints_to_area(
                 available_area,
                 &NodeConstraints {
                     width_min: Some(constrained_stack.width),
@@ -1297,16 +1293,16 @@ impl<T, U> MvpLayout<T, U> {
                 },
                 default_x_align,
                 default_y_align,
-            );
+            )
         } else {
             // Non-expanded stack uses available area but may be constrained
-            stack_area = self.apply_constraints_to_area(
+            self.apply_constraints_to_area(
                 available_area,
                 stack_constraints,
                 default_x_align,
                 default_y_align,
-            );
-        }
+            )
+        };
 
         // Now allocate the stack area to each child
         for &child_id in &children {
