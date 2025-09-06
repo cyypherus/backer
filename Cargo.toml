@@ -40,6 +40,11 @@ insta = "1.42.1"
 public-api = "0.43.0"
 rustdoc-json = "0.9.4"
 rustup-toolchain = "0.1.9"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "layout_comparison"
+harness = false
 
 [dependencies]
 # Example dependencies - dev dependencies can't currently be optional,

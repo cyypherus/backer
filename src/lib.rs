@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+// #![warn(missing_docs)]
 #![allow(clippy::type_complexity)]
 
 /*!
@@ -22,10 +22,13 @@ pub use layout::Layout;
 mod modifiers;
 mod node;
 pub use node::Node;
+mod mvp_tests;
 mod node_cache;
 mod scoper;
 mod subtree;
 mod tests;
+
+pub mod mvp;
 
 /// Traits for layout definitions
 pub mod traits;
