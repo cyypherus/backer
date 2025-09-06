@@ -865,6 +865,14 @@ impl<T, U> MvpLayout<T, U> {
                 constraints.width_max
             };
 
+            // Debug output for padding test
+            if child_id < 10 {
+                println!(
+                    "DEBUG: layout_axis child {} initial constraints: lower={:?}, upper={:?}",
+                    child_id, lower, upper
+                );
+            }
+
             // If no explicit constraints, use intrinsic size from cache
             if lower.is_none() && upper.is_none() {
                 let child_hash = self.nodes[child_id].content_hash;
@@ -876,22 +884,10 @@ impl<T, U> MvpLayout<T, U> {
                     } else {
                         intrinsic_width
                     };
-                    // For container nodes, use intrinsic size as both min and max constraint
-                    // For draw nodes, only apply constraint if they have intrinsic size > 0 (meaning they have explicit constraints)
-                    match &self.nodes[child_id].node_type {
-                        MvpNodeType::Row { .. }
-                        | MvpNodeType::Column { .. }
-                        | MvpNodeType::Stack { .. } => {
-                            lower = Some(intrinsic_size);
-                            upper = Some(intrinsic_size);
-                        }
-                        MvpNodeType::Draw(_) => {
-                            if intrinsic_size > 0.0 {
-                                lower = Some(intrinsic_size);
-                                upper = Some(intrinsic_size);
-                            }
-                        }
-                        _ => {}
+
+                    if intrinsic_size > 0.0 {
+                        lower = Some(intrinsic_size);
+                        upper = Some(intrinsic_size);
                     }
                 }
             }
@@ -929,6 +925,14 @@ impl<T, U> MvpLayout<T, U> {
             }
 
             final_sizes[i] = Some(final_size.unwrap_or(default_size));
+
+            // Debug output for padding test
+            if child_id < 10 {
+                println!(
+                    "DEBUG: Child {} final_size: {:?}, room_to_grow: {}, room_to_shrink: {}",
+                    child_id, final_sizes[i], room_to_grow[i], room_to_shrink[i]
+                );
+            }
         }
 
         fn can_accommodate(room: &[f32]) -> bool {
@@ -1034,8 +1038,60 @@ impl<T, U> MvpLayout<T, U> {
             };
 
             let constraints = &self.nodes[child_id].constraints;
+
+            // For container nodes in cross-axis layout, apply intrinsic size constraints
+            let mut effective_constraints = constraints.clone();
+            if let Some(&(intrinsic_width, intrinsic_height)) = self
+                .cache
+                .constraint_results
+                .get(&self.nodes[child_id].content_hash)
+            {
+                match &self.nodes[child_id].node_type {
+                    MvpNodeType::Row { .. } => {
+                        if is_vertical {
+                            // Row in a column should hug its children horizontally
+                            if intrinsic_width > 0.0 {
+                                effective_constraints.width_min = Some(intrinsic_width);
+                                effective_constraints.width_max = Some(intrinsic_width);
+                            }
+                        } else {
+                            // Row in a row should hug its children vertically
+                            if intrinsic_height > 0.0 {
+                                effective_constraints.height_min = Some(intrinsic_height);
+                                effective_constraints.height_max = Some(intrinsic_height);
+                            }
+                        }
+                    }
+                    MvpNodeType::Column { .. } => {
+                        if !is_vertical {
+                            // Column in a row should hug its children vertically
+                            if intrinsic_height > 0.0 {
+                                effective_constraints.height_min = Some(intrinsic_height);
+                                effective_constraints.height_max = Some(intrinsic_height);
+                            }
+                        } else {
+                            // Column in a column should hug its children horizontally
+                            if intrinsic_width > 0.0 {
+                                effective_constraints.width_min = Some(intrinsic_width);
+                                effective_constraints.width_max = Some(intrinsic_width);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
             let final_area =
-                self.apply_constraints_to_area(base_area, constraints, x_align, y_align);
+                self.apply_constraints_to_area(base_area, &effective_constraints, x_align, y_align);
+
+            // Debug output for padding test
+            if child_id < 10 {
+                println!(
+                    "DEBUG: Child {} base_area: {:?}, final_area: {:?}, current_pos: {}",
+                    child_id, base_area, final_area, current_pos
+                );
+            }
+
             self.nodes[child_id].area = final_area;
 
             current_pos += child_size + spacing;
