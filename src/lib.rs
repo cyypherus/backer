@@ -37,8 +37,8 @@ pub mod models {
 }
 pub mod nodes {
     pub use crate::mvp::{
-        area_reader, column, column_spaced, column_spaced_aligned, draw, dynamic, empty, row,
-        row_spaced, row_spaced_aligned, space, stack, stack_aligned,
+        area_reader, column, column_aligned, column_spaced, column_spaced_aligned, draw, dynamic,
+        empty, row, row_aligned, row_spaced, row_spaced_aligned, space, stack, stack_aligned,
     };
 }
 pub mod node {

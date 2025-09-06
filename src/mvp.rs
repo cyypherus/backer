@@ -9,6 +9,105 @@ type DrawableFn<T, U> = Box<dyn Fn(Area, &mut T, &mut U)>;
 type DimensionFn<T, U> = Option<Rc<dyn Fn(f32, &mut T, &mut U) -> f32>>;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct Constraint {
+    lower: Option<f32>,
+    upper: Option<f32>,
+}
+
+impl Constraint {
+    pub(crate) fn new(lower: Option<f32>, upper: Option<f32>) -> Self {
+        assert!(Self::check_constraints(lower, upper));
+        Self { lower, upper }
+    }
+
+    pub(crate) fn none() -> Self {
+        Self::new(None, None)
+    }
+
+    pub(crate) fn get_lower(&self) -> Option<f32> {
+        self.lower
+    }
+
+    pub(crate) fn get_upper(&self) -> Option<f32> {
+        self.upper
+    }
+
+    pub(crate) fn combine_adjacent_priority(self, other: Self) -> Self {
+        let lower = match (self.get_lower(), other.get_lower()) {
+            (None, None) => None,
+            (None, Some(a)) | (Some(a), None) => Some(a),
+            (Some(bound_a), Some(bound_b)) => Some(bound_a.max(bound_b)),
+        };
+        let upper = match (self.get_upper(), other.get_upper()) {
+            (None, None) => None,
+            (None, Some(_)) | (Some(_), None) => None,
+            (Some(bound_a), Some(bound_b)) => Some(bound_a.max(bound_b)),
+        };
+        Constraint::new(lower, upper)
+    }
+
+    pub(crate) fn combine_explicit_with_child(self, child: Self) -> Self {
+        Constraint::new(
+            self.lower
+                .or(child.lower.map(|cl| cl.min(self.upper.unwrap_or(cl)))),
+            self.upper
+                .or(child.upper.map(|cl| cl.max(self.lower.unwrap_or(cl)))),
+        )
+    }
+
+    pub(crate) fn combine_sum(self, other: Self, spacing: f32) -> Self {
+        let lower = match (self.get_lower(), other.get_lower()) {
+            (None, None) => None,
+            (None, Some(bound)) | (Some(bound), None) => Some(bound + spacing),
+            (Some(bound_a), Some(bound_b)) => Some(bound_a + bound_b + spacing),
+        };
+        let upper = match (self.get_upper(), other.get_upper()) {
+            (None, None) => None,
+            (None, Some(_)) | (Some(_), None) => None,
+            (Some(bound_a), Some(bound_b)) => Some(bound_a + bound_b + spacing),
+        };
+        Constraint::new(lower, upper)
+    }
+
+    fn check_constraints(lower: Option<f32>, upper: Option<f32>) -> bool {
+        if let (Some(lower_unwrapped), Some(upper_unwrapped)) = (lower, upper) {
+            lower_unwrapped <= upper_unwrapped
+        } else {
+            true
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct SizeConstraints {
+    pub(crate) width: Constraint,
+    pub(crate) height: Constraint,
+    pub(crate) expand_x: bool,
+    pub(crate) expand_y: bool,
+}
+
+impl SizeConstraints {
+    pub(crate) fn should_expand_x(&self) -> bool {
+        self.expand_x || self.width.get_upper().is_none()
+    }
+
+    pub(crate) fn should_expand_y(&self) -> bool {
+        self.expand_y || self.height.get_upper().is_none()
+    }
+}
+
+impl Default for SizeConstraints {
+    fn default() -> Self {
+        SizeConstraints {
+            width: Constraint::none(),
+            height: Constraint::none(),
+            expand_x: false,
+            expand_y: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum XAlign {
     Leading,
     Center,
@@ -224,7 +323,6 @@ pub(crate) enum NodeType<T, U> {
 struct NodeData<T, U> {
     pub(crate) node_type: NodeType<T, U>,
     pub(crate) constraints: NodeConstraints<T, U>,
-    pub parent: Option<NodeId>,
     pub children: Vec<NodeId>,
     pub area: Area,
     pub content_hash: u64,
@@ -246,7 +344,10 @@ impl<T, U> Node<T, U> {
     }
 
     pub(crate) fn with_children(mut self, children: Vec<Node<T, U>>) -> Self {
-        self.children = children;
+        self.children = children
+            .into_iter()
+            .filter(|n| !matches!(n.node_type, NodeType::Empty))
+            .collect();
         self
     }
 
@@ -479,7 +580,7 @@ impl<T, U> Node<T, U> {
 
 #[derive(Default)]
 struct LayoutCache {
-    constraint_results: HashMap<u64, (f32, f32)>,
+    constraint_results: HashMap<u64, SizeConstraints>,
 }
 
 pub struct Layout<T, U> {
@@ -497,14 +598,13 @@ impl<T, U> Layout<T, U> {
             work_queue: VecDeque::new(),
             root_id: None,
         };
-        layout.root_id = Some(layout.flatten_tree(root_node, None));
+        layout.root_id = Some(layout.flatten_tree(root_node));
         layout
     }
 
-    fn flatten_tree(&mut self, root_node: Node<T, U>, root_parent_id: Option<NodeId>) -> NodeId {
+    fn flatten_tree(&mut self, root_node: Node<T, U>) -> NodeId {
         struct WorkItem<T, U> {
             node: Node<T, U>,
-            parent_id: Option<NodeId>,
             node_id: NodeId,
         }
 
@@ -515,7 +615,6 @@ impl<T, U> Layout<T, U> {
         let mut parent_child_map = std::collections::HashMap::new();
         work_queue.push_back(WorkItem {
             node: root_node,
-            parent_id: root_parent_id,
             node_id: root_id,
         });
 
@@ -524,7 +623,6 @@ impl<T, U> Layout<T, U> {
             self.nodes.push(NodeData {
                 node_type: work_item.node.node_type,
                 constraints: work_item.node.constraints,
-                parent: work_item.parent_id,
                 children: Vec::new(),
                 area: Area::default(),
                 content_hash: 0,
@@ -537,7 +635,6 @@ impl<T, U> Layout<T, U> {
                 child_ids.push(child_id);
                 work_queue.push_back(WorkItem {
                     node: child,
-                    parent_id: Some(work_item.node_id),
                     node_id: child_id,
                 });
             }
@@ -623,7 +720,7 @@ impl<T, U> Layout<T, U> {
             if let NodeType::Dynamic { func, computed } = &self.nodes[node_id].node_type {
                 if computed.is_none() {
                     let dynamic_result = func(state, ui_state);
-                    let computed_id = self.flatten_tree(dynamic_result, Some(node_id));
+                    let computed_id = self.flatten_tree(dynamic_result);
                     // Update the dynamic node's computed field
                     if let NodeType::Dynamic { computed, .. } = &mut self.nodes[node_id].node_type {
                         *computed = Some(computed_id);
@@ -641,7 +738,7 @@ impl<T, U> Layout<T, U> {
                 // Use current area (will be refined in allocation pass)
                 let current_area = self.nodes[node_id].area;
                 let area_result = reader_fn(current_area, state, ui_state);
-                let computed_id = self.flatten_tree(area_result, Some(node_id));
+                let computed_id = self.flatten_tree(area_result);
                 self.nodes[node_id].children = vec![computed_id];
                 // Replace the area reader with its computed result
                 let computed_node_type =
@@ -652,198 +749,219 @@ impl<T, U> Layout<T, U> {
             }
         }
 
-        // Calculate intrinsic size based on node type and children
-        let (min_width, min_height) = self.calculate_intrinsic_size(node_id, state, ui_state);
-
-        // Dynamic constraints are resolved during allocation phase, not here
+        // Calculate constraints based on node type and children
+        let constraints = self.calculate_node_constraints(node_id, state, ui_state);
 
         // Cache the result
         let content_hash = self.calculate_content_hash(node_id);
         self.cache
             .constraint_results
-            .insert(content_hash, (min_width, min_height));
+            .insert(content_hash, constraints);
         self.nodes[node_id].content_hash = content_hash;
     }
 
-    fn calculate_intrinsic_size(
+    fn calculate_node_constraints(
         &self,
         node_id: NodeId,
         _state: &mut T,
         _ui_state: &mut U,
-    ) -> (f32, f32) {
+    ) -> SizeConstraints {
         let node = &self.nodes[node_id];
 
-        let (width, height) = match &node.node_type {
-            NodeType::Draw(_) => {
-                // Drawable nodes use their explicit constraints as intrinsic size
-                let width = node.constraints.width_min.unwrap_or(0.0);
-                let height = node.constraints.height_min.unwrap_or(0.0);
+        // Convert node constraints to Constraint objects
+        let node_width = Constraint::new(node.constraints.width_min, node.constraints.width_max);
+        let node_height = Constraint::new(node.constraints.height_min, node.constraints.height_max);
 
-                (width, height)
-            }
+        match &node.node_type {
+            NodeType::Draw(_) => SizeConstraints {
+                width: node_width,
+                height: node_height,
+                expand_x: node.constraints.expand_x,
+                expand_y: node.constraints.expand_y,
+            },
             NodeType::Explicit => {
                 // Explicit nodes propagate child constraints and apply their own
                 if let Some(&child_id) = node.children.first() {
                     let child_hash = self.nodes[child_id].content_hash;
-                    if let Some(&(child_width, child_height)) =
-                        self.cache.constraint_results.get(&child_hash)
+                    if let Some(&child_constraints) = self.cache.constraint_results.get(&child_hash)
                     {
-                        // Apply this node's constraints to child's intrinsic size
-                        let mut constrained_width = if let Some(min) = node.constraints.width_min {
-                            child_width.max(min)
-                        } else {
-                            child_width
-                        };
-                        constrained_width = if let Some(max) = node.constraints.width_max {
-                            constrained_width.min(max)
-                        } else {
-                            constrained_width
-                        };
-
-                        let mut constrained_height = if let Some(min) = node.constraints.height_min
-                        {
-                            child_height.max(min)
-                        } else {
-                            child_height
-                        };
-                        constrained_height = if let Some(max) = node.constraints.height_max {
-                            constrained_height.min(max)
-                        } else {
-                            constrained_height
-                        };
-
-                        (constrained_width, constrained_height)
+                        SizeConstraints {
+                            width: node_width.combine_explicit_with_child(child_constraints.width),
+                            height: node_height
+                                .combine_explicit_with_child(child_constraints.height),
+                            expand_x: node.constraints.expand_x
+                                || child_constraints.should_expand_x(),
+                            expand_y: node.constraints.expand_y
+                                || child_constraints.should_expand_y(),
+                        }
                     } else {
-                        // If child has no cached constraints, use this node's constraints
-                        let width = node.constraints.width_min.unwrap_or(0.0);
-                        let height = node.constraints.height_min.unwrap_or(0.0);
-
-                        (width, height)
+                        SizeConstraints {
+                            width: node_width,
+                            height: node_height,
+                            expand_x: node.constraints.expand_x,
+                            expand_y: node.constraints.expand_y,
+                        }
                     }
                 } else {
-                    // No child, use own constraints
-                    let width = node.constraints.width_min.unwrap_or(0.0);
-                    let height = node.constraints.height_min.unwrap_or(0.0);
-
-                    (width, height)
+                    SizeConstraints {
+                        width: node_width,
+                        height: node_height,
+                        expand_x: node.constraints.expand_x,
+                        expand_y: node.constraints.expand_y,
+                    }
                 }
             }
             NodeType::Column { spacing, .. } => {
-                let mut total_height = 0.0;
-                let mut max_width: f32 = 0.0;
+                let mut combined_width = Constraint::none();
+                let mut combined_height = Constraint::none();
+                let mut any_expand_x = false;
+                let mut any_expand_y = false;
 
                 for (i, &child_id) in node.children.iter().enumerate() {
                     let child_hash = self.nodes[child_id].content_hash;
-                    if let Some(&(child_width, child_height)) =
-                        self.cache.constraint_results.get(&child_hash)
+                    if let Some(&child_constraints) = self.cache.constraint_results.get(&child_hash)
                     {
-                        total_height += child_height;
-                        max_width = max_width.max(child_width);
-                        if i > 0 {
-                            total_height += spacing;
-                        }
+                        // In columns, width is adjacent priority (max), height is sum
+                        combined_width = if i == 0 {
+                            child_constraints.width
+                        } else {
+                            combined_width.combine_adjacent_priority(child_constraints.width)
+                        };
+
+                        combined_height = if i == 0 {
+                            child_constraints.height
+                        } else {
+                            combined_height.combine_sum(child_constraints.height, *spacing)
+                        };
+
+                        any_expand_x |= child_constraints.should_expand_x();
+                        any_expand_y |= child_constraints.should_expand_y();
                     }
                 }
-                (max_width, total_height)
+
+                SizeConstraints {
+                    width: node_width.combine_explicit_with_child(combined_width),
+                    height: node_height.combine_explicit_with_child(combined_height),
+                    expand_x: node.constraints.expand_x || any_expand_x,
+                    expand_y: node.constraints.expand_y || any_expand_y,
+                }
             }
             NodeType::Row { spacing, .. } => {
-                let mut total_width = 0.0;
-                let mut max_height: f32 = 0.0;
+                let mut combined_width = Constraint::none();
+                let mut combined_height = Constraint::none();
+                let mut any_expand_x = false;
+                let mut any_expand_y = false;
 
                 for (i, &child_id) in node.children.iter().enumerate() {
                     let child_hash = self.nodes[child_id].content_hash;
-                    if let Some(&(child_width, child_height)) =
-                        self.cache.constraint_results.get(&child_hash)
+                    if let Some(&child_constraints) = self.cache.constraint_results.get(&child_hash)
                     {
-                        total_width += child_width;
-                        max_height = max_height.max(child_height);
-                        if i > 0 {
-                            total_width += spacing;
-                        }
+                        // In rows, width is sum, height is adjacent priority (max)
+                        combined_width = if i == 0 {
+                            child_constraints.width
+                        } else {
+                            combined_width.combine_sum(child_constraints.width, *spacing)
+                        };
+
+                        combined_height = if i == 0 {
+                            child_constraints.height
+                        } else {
+                            combined_height.combine_adjacent_priority(child_constraints.height)
+                        };
+
+                        any_expand_x |= child_constraints.should_expand_x();
+                        any_expand_y |= child_constraints.should_expand_y();
                     }
                 }
-                (total_width, max_height)
+
+                SizeConstraints {
+                    width: node_width.combine_explicit_with_child(combined_width),
+                    height: node_height.combine_explicit_with_child(combined_height),
+                    expand_x: node.constraints.expand_x || any_expand_x,
+                    expand_y: node.constraints.expand_y || any_expand_y,
+                }
             }
             NodeType::Stack { .. } => {
-                let mut max_width: f32 = 0.0;
-                let mut max_height: f32 = 0.0;
+                let mut combined_width = Constraint::none();
+                let mut combined_height = Constraint::none();
+                let mut any_expand_x = false;
+                let mut any_expand_y = false;
 
-                for &child_id in &node.children {
+                for (i, &child_id) in node.children.iter().enumerate() {
                     let child_hash = self.nodes[child_id].content_hash;
-                    if let Some(&(child_width, child_height)) =
-                        self.cache.constraint_results.get(&child_hash)
+                    if let Some(&child_constraints) = self.cache.constraint_results.get(&child_hash)
                     {
-                        max_width = max_width.max(child_width);
-                        max_height = max_height.max(child_height);
+                        // In stacks, both width and height are adjacent priority (max)
+                        combined_width = if i == 0 {
+                            child_constraints.width
+                        } else {
+                            combined_width.combine_adjacent_priority(child_constraints.width)
+                        };
+
+                        combined_height = if i == 0 {
+                            child_constraints.height
+                        } else {
+                            combined_height.combine_adjacent_priority(child_constraints.height)
+                        };
+
+                        any_expand_x |= child_constraints.should_expand_x();
+                        any_expand_y |= child_constraints.should_expand_y();
                     }
                 }
-                (max_width, max_height)
+
+                SizeConstraints {
+                    width: node_width.combine_explicit_with_child(combined_width),
+                    height: node_height.combine_explicit_with_child(combined_height),
+                    expand_x: node.constraints.expand_x || any_expand_x,
+                    expand_y: node.constraints.expand_y || any_expand_y,
+                }
             }
             NodeType::Padding(padding) => {
                 if let Some(&child_id) = node.children.first() {
                     let child_hash = self.nodes[child_id].content_hash;
-                    if let Some(&(child_width, child_height)) =
-                        self.cache.constraint_results.get(&child_hash)
+                    if let Some(&child_constraints) = self.cache.constraint_results.get(&child_hash)
                     {
-                        (
-                            child_width + padding.leading + padding.trailing,
-                            child_height + padding.top + padding.bottom,
-                        )
+                        let padding_width = padding.leading + padding.trailing;
+                        let padding_height = padding.top + padding.bottom;
+
+                        SizeConstraints {
+                            width: Constraint::new(
+                                child_constraints
+                                    .width
+                                    .get_lower()
+                                    .map(|l| l + padding_width),
+                                child_constraints
+                                    .width
+                                    .get_upper()
+                                    .map(|u| u + padding_width),
+                            ),
+                            height: Constraint::new(
+                                child_constraints
+                                    .height
+                                    .get_lower()
+                                    .map(|l| l + padding_height),
+                                child_constraints
+                                    .height
+                                    .get_upper()
+                                    .map(|u| u + padding_height),
+                            ),
+                            expand_x: child_constraints.should_expand_x(),
+                            expand_y: child_constraints.should_expand_y(),
+                        }
                     } else {
-                        (
-                            padding.leading + padding.trailing,
-                            padding.top + padding.bottom,
-                        )
+                        SizeConstraints::default()
                     }
                 } else {
-                    (
-                        padding.leading + padding.trailing,
-                        padding.top + padding.bottom,
-                    )
+                    SizeConstraints::default()
                 }
             }
-            NodeType::Offset { .. } => {
-                // Offset doesn't change intrinsic size
-                if let Some(&child_id) = node.children.first() {
-                    let child_hash = self.nodes[child_id].content_hash;
-                    self.cache
-                        .constraint_results
-                        .get(&child_hash)
-                        .copied()
-                        .unwrap_or((0.0, 0.0))
-                } else {
-                    (0.0, 0.0)
-                }
-            }
-            NodeType::Space => (0.0, 0.0),
-            NodeType::Empty => (0.0, 0.0),
-            NodeType::Visibility { .. } => {
-                if let Some(&child_id) = node.children.first() {
-                    let child_hash = self.nodes[child_id].content_hash;
-                    self.cache
-                        .constraint_results
-                        .get(&child_hash)
-                        .copied()
-                        .unwrap_or((0.0, 0.0))
-                } else {
-                    (0.0, 0.0)
-                }
-            }
-            NodeType::Coupled { element, .. } => {
-                // For coupled nodes, intrinsic size is determined by the element (main) node
-                let element_id = node.children[*element];
-                let element_hash = self.nodes[element_id].content_hash;
-                self.cache
-                    .constraint_results
-                    .get(&element_hash)
-                    .copied()
-                    .unwrap_or((0.0, 0.0))
-            }
-            NodeType::AreaReader(_) => (0.0, 0.0),
-            NodeType::Dynamic { .. } => (0.0, 0.0),
-        };
-
-        (width, height)
+            _ => SizeConstraints {
+                width: node_width,
+                height: node_height,
+                expand_x: node.constraints.expand_x,
+                expand_y: node.constraints.expand_y,
+            },
+        }
     }
 
     fn allocate_node_area(&mut self, node_id: NodeId, state: &mut T, ui_state: &mut U) {
@@ -963,9 +1081,11 @@ impl<T, U> Layout<T, U> {
 
                     // Get the element's cached constraint results
                     let element_hash = self.nodes[element_id].content_hash;
-                    let mut element_constraints = if let Some(&(width, height)) =
+                    let mut element_constraints = if let Some(&size_constraints) =
                         self.cache.constraint_results.get(&element_hash)
                     {
+                        let width = size_constraints.width.get_lower().unwrap_or(0.0);
+                        let height = size_constraints.height.get_lower().unwrap_or(0.0);
                         // Create constraints based on element's resolved size
                         NodeConstraints {
                             width_min: if width > 0.0 { Some(width) } else { None },
@@ -1078,21 +1198,31 @@ impl<T, U> Layout<T, U> {
             // If no explicit constraints, use intrinsic size from cache (unless expanded)
             if lower.is_none() && upper.is_none() {
                 let child_constraints = &self.nodes[child_id].constraints;
-                let is_expanded = if is_vertical {
-                    child_constraints.expand_y
+                let child_hash = self.nodes[child_id].content_hash;
+
+                let is_expanded = if let Some(&size_constraints) =
+                    self.cache.constraint_results.get(&child_hash)
+                {
+                    if is_vertical {
+                        child_constraints.expand_y || size_constraints.should_expand_y()
+                    } else {
+                        child_constraints.expand_x || size_constraints.should_expand_x()
+                    }
                 } else {
-                    child_constraints.expand_x
+                    if is_vertical {
+                        child_constraints.expand_y || child_constraints.height_max.is_none()
+                    } else {
+                        child_constraints.expand_x || child_constraints.width_max.is_none()
+                    }
                 };
 
                 if !is_expanded {
-                    let child_hash = self.nodes[child_id].content_hash;
-                    if let Some(&(intrinsic_width, intrinsic_height)) =
-                        self.cache.constraint_results.get(&child_hash)
+                    if let Some(&size_constraints) = self.cache.constraint_results.get(&child_hash)
                     {
                         let intrinsic_size = if is_vertical {
-                            intrinsic_height
+                            size_constraints.height.get_lower().unwrap_or(0.0)
                         } else {
-                            intrinsic_width
+                            size_constraints.width.get_lower().unwrap_or(0.0)
                         };
 
                         if intrinsic_size > 0.0 {
@@ -1244,20 +1374,28 @@ impl<T, U> Layout<T, U> {
 
             // For container nodes in cross-axis layout, apply intrinsic size constraints (unless expanded)
             let mut effective_constraints = constraints.clone();
-            if let Some(&(intrinsic_width, intrinsic_height)) = self
+            if let Some(&size_constraints) = self
                 .cache
                 .constraint_results
                 .get(&self.nodes[child_id].content_hash)
             {
                 match &self.nodes[child_id].node_type {
                     NodeType::Row { .. } => {
-                        if is_vertical && !constraints.expand_x {
+                        let intrinsic_width = size_constraints.width.get_lower().unwrap_or(0.0);
+                        let intrinsic_height = size_constraints.height.get_lower().unwrap_or(0.0);
+                        if is_vertical
+                            && !constraints.expand_x
+                            && !size_constraints.should_expand_x()
+                        {
                             // Row in a column should hug its children horizontally (unless expand_x)
                             if intrinsic_width > 0.0 {
                                 effective_constraints.width_min = Some(intrinsic_width);
                                 effective_constraints.width_max = Some(intrinsic_width);
                             }
-                        } else if !is_vertical && !constraints.expand_y {
+                        } else if !is_vertical
+                            && !constraints.expand_y
+                            && !size_constraints.should_expand_y()
+                        {
                             // Row in a row should hug its children vertically (unless expand_y)
                             if intrinsic_height > 0.0 {
                                 effective_constraints.height_min = Some(intrinsic_height);
@@ -1266,14 +1404,22 @@ impl<T, U> Layout<T, U> {
                         }
                     }
                     NodeType::Column { .. } => {
-                        if !is_vertical && !constraints.expand_y {
-                            // Column in a row should hug its children vertically (unless expand_y)
+                        let intrinsic_width = size_constraints.width.get_lower().unwrap_or(0.0);
+                        let intrinsic_height = size_constraints.height.get_lower().unwrap_or(0.0);
+                        if is_vertical
+                            && !constraints.expand_y
+                            && !size_constraints.should_expand_y()
+                        {
+                            // Column in a column should hug its children vertically (unless expand_y)
                             if intrinsic_height > 0.0 {
                                 effective_constraints.height_min = Some(intrinsic_height);
                                 effective_constraints.height_max = Some(intrinsic_height);
                             }
-                        } else if is_vertical && !constraints.expand_x {
-                            // Column in a column should hug its children horizontally (unless expand_x)
+                        } else if !is_vertical
+                            && !constraints.expand_x
+                            && !size_constraints.should_expand_x()
+                        {
+                            // Column in a row should hug its children horizontally (unless expand_x)
                             if intrinsic_width > 0.0 {
                                 effective_constraints.width_min = Some(intrinsic_width);
                                 effective_constraints.width_max = Some(intrinsic_width);
@@ -1281,15 +1427,31 @@ impl<T, U> Layout<T, U> {
                         }
                     }
                     NodeType::Stack { .. } => {
-                        // Stack should expand to fit its children unless explicitly constrained
-                        if !constraints.expand_x && intrinsic_width > 0.0 {
-                            effective_constraints.width_min = Some(intrinsic_width);
-                        }
-                        if !constraints.expand_y && intrinsic_height > 0.0 {
-                            effective_constraints.height_min = Some(intrinsic_height);
+                        let intrinsic_width = size_constraints.width.get_lower().unwrap_or(0.0);
+                        let intrinsic_height = size_constraints.height.get_lower().unwrap_or(0.0);
+                        if is_vertical
+                            && !constraints.expand_x
+                            && !size_constraints.should_expand_x()
+                        {
+                            // Stack in a column should hug its children horizontally (unless expand_x)
+                            if intrinsic_width > 0.0 {
+                                effective_constraints.width_min = Some(intrinsic_width);
+                                effective_constraints.width_max = Some(intrinsic_width);
+                            }
+                        } else if !is_vertical
+                            && !constraints.expand_y
+                            && !size_constraints.should_expand_y()
+                        {
+                            // Stack in a row should hug its children vertically (unless expand_y)
+                            if intrinsic_height > 0.0 {
+                                effective_constraints.height_min = Some(intrinsic_height);
+                                effective_constraints.height_max = Some(intrinsic_height);
+                            }
                         }
                     }
-                    _ => {}
+                    _ => {
+                        // For other node types, don't modify constraints
+                    }
                 }
             }
 
@@ -2666,7 +2828,7 @@ mod tests {
                     .width(50.),
                 ])
                 .attach_under(draw(|a, _, _| {
-                    // assert_eq!(a, Area::new(0., 0., 100., 100.));
+                    assert_eq!(a, Area::new(0., 0., 100., 100.));
                 }))
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());

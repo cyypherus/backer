@@ -23,9 +23,9 @@ async fn main() {
     let mut state = State {
         highlight: HighlightedCase::None,
     };
-    let mut layout = Layout::new(layout_for_highlight());
+    // let mut layout = Layout::new(layout_for_highlight());
     loop {
-        layout.draw(
+        Layout::new(layout_for_highlight()).draw(
             Area {
                 x: 0.,
                 y: 0.,
@@ -86,8 +86,7 @@ fn layout_for_highlight() -> Node<State, ()> {
                                     .width(30.)
                                     .align(Align::CenterCenter)
                                     .offset(-10., -10.),
-                            ])
-                            .expand(),
+                            ]),
                             button("Fullscreen", |ctx: &mut State| {
                                 if ctx.highlight == HighlightedCase::AlignmentOffset {
                                     ctx.highlight = HighlightedCase::None;
@@ -116,8 +115,7 @@ fn rel_abs_seq(_highlight: HighlightedCase) -> Node<State, ()> {
                 rect(BLUE),
                 column_spaced(10., vec![rect(WHITE), rect(WHITE).height(30.), rect(WHITE)])
                     .pad(10.),
-            ])
-            .expand(),
+            ]),
             button("Fullscreen", |state: &mut State| {
                 if state.highlight == HighlightedCase::RelAbsSequence {
                     state.highlight = HighlightedCase::None;
