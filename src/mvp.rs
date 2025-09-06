@@ -266,9 +266,6 @@ pub(crate) enum NodeType<T, U> {
         func: DynamicNodeFn<T, U>,
         computed: Option<NodeId>,
     },
-    Visibility {
-        visible: bool,
-    },
     Coupled {
         over: bool,
         element: NodeId,
@@ -471,10 +468,6 @@ impl<T, U> Node<T, U> {
 
     pub fn offset(self, x: f32, y: f32) -> Node<T, U> {
         Node::new(NodeType::Offset { x, y }).with_children(vec![self])
-    }
-
-    pub fn visible(self, visible: bool) -> Node<T, U> {
-        Node::new(NodeType::Visibility { visible }).with_children(vec![self])
     }
 
     pub fn attach_under(self, node: Node<T, U>) -> Node<T, U> {
@@ -1116,11 +1109,6 @@ impl<T, U> Layout<T, U> {
                     self.nodes[child_id].area = child_area;
                 }
             }
-            NodeType::Visibility { .. } => {
-                if let Some(&child_id) = self.nodes[node_id].children.first() {
-                    self.nodes[child_id].area = available_area;
-                }
-            }
             NodeType::Coupled {
                 over: _,
                 element,
@@ -1688,14 +1676,6 @@ impl<T, U> Layout<T, U> {
                         draw_fn(area, state, ui_state);
                     }
                 }
-                NodeType::Visibility {
-                    visible: node_visible,
-                } => {
-                    let effective_visibility = visible && *node_visible;
-                    for &child_id in children.iter() {
-                        stack.push((child_id, effective_visibility));
-                    }
-                }
                 NodeType::Explicit => {
                     for &child_id in children.iter().rev() {
                         stack.push((child_id, visible));
@@ -1972,29 +1952,6 @@ mod tests {
         let mut mvp_layout = Layout::new(layout_node);
         mvp_layout.draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut draw_count, &mut ());
         assert_eq!(draw_count, 2);
-    }
-
-    #[test]
-    fn test_visibility() {
-        let mut visible_count = 0;
-        let layout_node = column(vec![
-            draw(|_, count: &mut i32, _: &mut ()| {
-                *count += 1;
-            })
-            .visible(true),
-            draw(|_, count: &mut i32, _: &mut ()| {
-                *count += 1;
-            })
-            .visible(false),
-        ]);
-
-        let mut mvp_layout = Layout::new(layout_node);
-        mvp_layout.draw(
-            Area::new(0.0, 0.0, 100.0, 100.0),
-            &mut visible_count,
-            &mut (),
-        );
-        assert_eq!(visible_count, 1);
     }
 
     #[test]
