@@ -1,7 +1,9 @@
 use backer::{
   models::{Align, Area},
   nodes::*,
-  Layout, Node,
+  Layout,
+  Node,
+  // Layout, Node,
 };
 use eframe::egui;
 use egui::{
@@ -97,10 +99,11 @@ impl eframe::App for MyApp {
           area.y = -area.y;
           area.width = viewport.width();
           Layout::new(dynamic(|state: &mut State, _| {
-            column_spaced(
+            column_spaced_aligned(
               10.,
+              Align::Top,
               vec![
-                draw(|area, state: &mut State, _| {
+                vec![draw(|area, state: &mut State, _| {
                   if state
                     .ui
                     .put(rect(area), Button::new("Backer Off"))
@@ -109,93 +112,93 @@ impl eframe::App for MyApp {
                     *state.backer_on = false
                   }
                 })
-                .height(15.),
-                group(
-                  state
-                    .bounties
-                    .iter()
-                    .enumerate()
-                    .map(|(i, item)| {
-                      stack(vec![
-                        draw(|area, state: &mut State, _| {
-                          state.ui.painter().rect_stroke(
-                            rect(area),
-                            10.,
-                            Stroke::new(2., Color32::from_rgb(50, 50, 50)),
-                          );
-                        }),
-                        row_spaced(
+                .height(15.)],
+                state
+                  .bounties
+                  .iter()
+                  .enumerate()
+                  .map(|(i, item)| {
+                    stack(vec![
+                      draw(|area, state: &mut State, _| {
+                        state.ui.painter().rect_stroke(
+                          rect(area),
                           10.,
-                          vec![
-                            draw(|area, state: &mut State, _| {
-                              state.ui.put(
+                          Stroke::new(2., Color32::from_rgb(50, 50, 50)),
+                        );
+                      }),
+                      row_spaced(
+                        10.,
+                        vec![
+                          draw(|area, state: &mut State, _| {
+                            state.ui.put(
+                              rect(area),
+                              Image::new(egui::include_image!("../frs.png"))
+                                .show_loading_spinner(true)
+                                .fit_to_exact_size(egui::Vec2::new(area.width, area.height))
+                                .rounding(4.),
+                            );
+                          })
+                          .aspect_width(1.),
+                          column_spaced_aligned(
+                            3.,
+                            Align::Leading,
+                            vec![
+                              row_spaced(
+                                10.,
+                                vec![
+                                  draw_label(
+                                    state.ui,
+                                    RichText::new(state.bounties[i].title.as_str())
+                                      .color(Color32::WHITE)
+                                      .size(18.),
+                                  )
+                                  .align(Align::Leading),
+                                  draw_label(
+                                    state.ui,
+                                    RichText::new(format!("{}XP", item.points))
+                                      .color(Color32::WHITE),
+                                  ),
+                                ],
+                              ),
+                              draw_label(
+                                state.ui,
+                                RichText::new("EXPIRES IN: 3h 2m")
+                                  .color(Color32::from_rgb(200, 200, 200))
+                                  .size(10.),
+                              )
+                              .align(Align::Leading)
+                              .pad_leading(3.),
+                            ],
+                          )
+                          .width_range(120.0..),
+                          space(),
+                          draw(|area, state: &mut State, _| {
+                            if state
+                              .ui
+                              .put(
                                 rect(area),
-                                Image::new(egui::include_image!("../frs.png"))
-                                  .show_loading_spinner(true)
-                                  .fit_to_exact_size(egui::Vec2::new(area.width, area.height))
+                                Button::new(RichText::new("Open").color(Color32::WHITE))
+                                  .fill(Color32::from_rgb(150, 0, 150))
                                   .rounding(4.),
-                              );
-                            })
-                            .aspect(1.),
-                            column_spaced(
-                              3.,
-                              vec![
-                                row_spaced(
-                                  10.,
-                                  vec![
-                                    draw_label(
-                                      state.ui,
-                                      RichText::new(state.bounties[i].title.as_str())
-                                        .color(Color32::WHITE)
-                                        .size(18.),
-                                    )
-                                    .align(Align::Leading),
-                                    draw_label(
-                                      state.ui,
-                                      RichText::new(format!("{}XP", item.points))
-                                        .color(Color32::WHITE),
-                                    ),
-                                  ],
-                                ),
-                                draw_label(
-                                  state.ui,
-                                  RichText::new("EXPIRES IN: 3h 2m")
-                                    .color(Color32::from_rgb(200, 200, 200))
-                                    .size(10.),
-                                )
-                                .align(Align::Leading)
-                                .pad_leading(3.),
-                              ],
-                            )
-                            .align_contents(Align::Leading)
-                            .width_range(120.0..),
-                            space(),
-                            draw(|area, state: &mut State, _| {
-                              if state
-                                .ui
-                                .put(
-                                  rect(area),
-                                  Button::new(RichText::new("Open").color(Color32::WHITE))
-                                    .fill(Color32::from_rgb(150, 0, 150))
-                                    .rounding(4.),
-                                )
-                                .clicked()
-                              {
-                                dbg!("Click");
-                              }
-                            })
-                            .aspect(1.),
-                          ],
-                        )
-                        .pad(7.),
-                      ])
-                      .height(58.)
-                    })
-                    .collect(),
-                ),
-              ],
+                              )
+                              .clicked()
+                            {
+                              dbg!("Click");
+                            }
+                          })
+                          .aspect_width(1.),
+                        ],
+                      )
+                      .pad(7.),
+                    ])
+                    .height(58.)
+                  })
+                  .collect(),
+              ]
+              .into_iter()
+              .flatten()
+              .collect(),
             )
-            .align_contents(Align::Top)
             .pad(10.)
             .align(Align::Top)
           }))
@@ -266,7 +269,7 @@ impl eframe::App for MyApp {
   }
 }
 
-fn draw_label<'a>(ui: &'_ mut Ui, text: RichText) -> Node<'a, State<'a>, ()> {
+fn draw_label<'a>(ui: &'_ mut Ui, text: RichText) -> Node<State<'a>, ()> {
   let label = egui::Label::new(text.clone());
   let galley = label.layout_in_ui(ui).1.rect;
   let text_area = area_from(galley);

@@ -40,7 +40,7 @@ async fn main() {
 }
 
 const BTN_SIZE: f32 = 50.;
-fn layout_for_highlight<'n>() -> Node<'n, State, ()> {
+fn layout_for_highlight() -> Node<State, ()> {
     dynamic(|ctx: &mut State, _| {
         let highlight = ctx.highlight;
         row_spaced(
@@ -49,11 +49,7 @@ fn layout_for_highlight<'n>() -> Node<'n, State, ()> {
                 if highlight == HighlightedCase::RelAbsSequence
                     || highlight == HighlightedCase::None
                 {
-                    scope(
-                        |state: &mut State| &mut state.highlight,
-                        |x| x,
-                        rel_abs_seq(highlight),
-                    )
+                    rel_abs_seq(highlight)
                 } else {
                     empty()
                 },
@@ -90,7 +86,8 @@ fn layout_for_highlight<'n>() -> Node<'n, State, ()> {
                                     .width(30.)
                                     .align(Align::CenterCenter)
                                     .offset(-10., -10.),
-                            ]),
+                            ])
+                            .expand(),
                             button("Fullscreen", |ctx: &mut State| {
                                 if ctx.highlight == HighlightedCase::AlignmentOffset {
                                     ctx.highlight = HighlightedCase::None;
@@ -110,7 +107,7 @@ fn layout_for_highlight<'n>() -> Node<'n, State, ()> {
     })
 }
 
-fn rel_abs_seq<'n>(_highlight: HighlightedCase) -> Node<'n, HighlightedCase, ()> {
+fn rel_abs_seq(_highlight: HighlightedCase) -> Node<State, ()> {
     column_spaced(
         10.,
         vec![
@@ -119,12 +116,13 @@ fn rel_abs_seq<'n>(_highlight: HighlightedCase) -> Node<'n, HighlightedCase, ()>
                 rect(BLUE),
                 column_spaced(10., vec![rect(WHITE), rect(WHITE).height(30.), rect(WHITE)])
                     .pad(10.),
-            ]),
-            button("Fullscreen", |highlight: &mut HighlightedCase| {
-                if *highlight == HighlightedCase::RelAbsSequence {
-                    *highlight = HighlightedCase::None;
+            ])
+            .expand(),
+            button("Fullscreen", |state: &mut State| {
+                if state.highlight == HighlightedCase::RelAbsSequence {
+                    state.highlight = HighlightedCase::None;
                 } else {
-                    *highlight = HighlightedCase::RelAbsSequence;
+                    state.highlight = HighlightedCase::RelAbsSequence;
                 }
             })
             .height(BTN_SIZE)
@@ -133,7 +131,7 @@ fn rel_abs_seq<'n>(_highlight: HighlightedCase) -> Node<'n, HighlightedCase, ()>
     )
 }
 
-fn text<'n, T>(string: &'static str, font_size: f32, color: Color) -> Node<'n, T, ()> {
+fn text<T>(string: &'static str, font_size: f32, color: Color) -> Node<T, ()> {
     let dimensions = measure_text(string, None, font_size as u16, 1.0);
     draw(move |area: Area, _: &mut T, _| {
         draw_text(
@@ -148,13 +146,13 @@ fn text<'n, T>(string: &'static str, font_size: f32, color: Color) -> Node<'n, T
     .height(dimensions.height)
 }
 
-fn rect<'n, T, U>(color: Color) -> Node<'n, T, U> {
+fn rect<T, U>(color: Color) -> Node<T, U> {
     draw(move |area: Area, _: &mut T, _| {
         draw_rectangle(area.x, area.y, area.width, area.height, color);
     })
 }
 
-fn button<'n, T, U, Action>(label: &'static str, action: Action) -> Node<'n, T, U>
+fn button<T, U, Action>(label: &'static str, action: Action) -> Node<T, U>
 where
     Action: Fn(&mut T) + 'static,
 {

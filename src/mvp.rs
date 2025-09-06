@@ -3,8 +3,8 @@ use std::ops::RangeBounds;
 use std::rc::Rc;
 
 type NodeId = usize;
-type AreaReaderFn<T, U> = Box<dyn Fn(Area, &mut T, &mut U) -> MvpNode<T, U>>;
-type DynamicNodeFn<T, U> = Box<dyn Fn(&mut T, &mut U) -> MvpNode<T, U>>;
+type AreaReaderFn<T, U> = Box<dyn Fn(Area, &mut T, &mut U) -> Node<T, U>>;
+type DynamicNodeFn<T, U> = Box<dyn Fn(&mut T, &mut U) -> Node<T, U>>;
 type DrawableFn<T, U> = Box<dyn Fn(Area, &mut T, &mut U)>;
 type DimensionFn<T, U> = Option<Rc<dyn Fn(f32, &mut T, &mut U) -> f32>>;
 
@@ -139,7 +139,7 @@ pub(crate) struct NodeConstraints<T, U> {
     pub(crate) height_max: Option<f32>,
     pub(crate) x_align: Option<XAlign>,
     pub(crate) y_align: Option<YAlign>,
-    pub(crate) aspect: Option<f32>,
+
     pub(crate) dynamic_height: DimensionFn<T, U>,
     pub(crate) dynamic_width: DimensionFn<T, U>,
     pub(crate) expand_x: bool,
@@ -155,7 +155,7 @@ impl<T, U> Clone for NodeConstraints<T, U> {
             height_max: self.height_max,
             x_align: self.x_align,
             y_align: self.y_align,
-            aspect: self.aspect,
+
             dynamic_height: self.dynamic_height.clone(),
             dynamic_width: self.dynamic_width.clone(),
             expand_x: self.expand_x,
@@ -173,7 +173,7 @@ impl<T, U> Default for NodeConstraints<T, U> {
             height_max: None,
             x_align: None,
             y_align: None,
-            aspect: None,
+
             dynamic_height: None,
             dynamic_width: None,
             expand_x: false,
@@ -182,7 +182,7 @@ impl<T, U> Default for NodeConstraints<T, U> {
     }
 }
 
-pub(crate) enum MvpNodeType<T, U> {
+pub(crate) enum NodeType<T, U> {
     Draw(DrawableFn<T, U>),
     Column {
         spacing: f32,
@@ -221,8 +221,8 @@ pub(crate) enum MvpNodeType<T, U> {
     Explicit,
 }
 
-pub struct NodeData<T, U> {
-    pub(crate) node_type: MvpNodeType<T, U>,
+struct NodeData<T, U> {
+    pub(crate) node_type: NodeType<T, U>,
     pub(crate) constraints: NodeConstraints<T, U>,
     pub parent: Option<NodeId>,
     pub children: Vec<NodeId>,
@@ -230,14 +230,14 @@ pub struct NodeData<T, U> {
     pub content_hash: u64,
 }
 
-pub struct MvpNode<T, U> {
-    pub(crate) node_type: MvpNodeType<T, U>,
+pub struct Node<T, U> {
+    pub(crate) node_type: NodeType<T, U>,
     pub(crate) constraints: NodeConstraints<T, U>,
-    pub children: Vec<MvpNode<T, U>>,
+    pub children: Vec<Node<T, U>>,
 }
 
-impl<T, U> MvpNode<T, U> {
-    pub(crate) fn new(node_type: MvpNodeType<T, U>) -> Self {
+impl<T, U> Node<T, U> {
+    pub(crate) fn new(node_type: NodeType<T, U>) -> Self {
         Self {
             node_type,
             constraints: NodeConstraints::default(),
@@ -245,7 +245,7 @@ impl<T, U> MvpNode<T, U> {
         }
     }
 
-    pub(crate) fn with_children(mut self, children: Vec<MvpNode<T, U>>) -> Self {
+    pub(crate) fn with_children(mut self, children: Vec<Node<T, U>>) -> Self {
         self.children = children;
         self
     }
@@ -297,7 +297,7 @@ impl<T, U> MvpNode<T, U> {
             std::ops::Bound::Unbounded => None,
         };
 
-        MvpNode::new(MvpNodeType::Explicit)
+        Node::new(NodeType::Explicit)
             .with_width_constraints(width_min, width_max)
             .with_children(vec![self])
     }
@@ -317,7 +317,7 @@ impl<T, U> MvpNode<T, U> {
             std::ops::Bound::Unbounded => None,
         };
 
-        MvpNode::new(MvpNodeType::Explicit)
+        Node::new(NodeType::Explicit)
             .with_height_constraints(height_min, height_max)
             .with_children(vec![self])
     }
@@ -349,13 +349,8 @@ impl<T, U> MvpNode<T, U> {
         self
     }
 
-    pub fn aspect(mut self, ratio: f32) -> Self {
-        self.constraints.aspect = Some(ratio);
-        self
-    }
-
-    pub fn pad(self, amount: f32) -> MvpNode<T, U> {
-        MvpNode::new(MvpNodeType::Padding(Padding {
+    pub fn pad(self, amount: f32) -> Node<T, U> {
+        Node::new(NodeType::Padding(Padding {
             leading: amount,
             trailing: amount,
             top: amount,
@@ -365,7 +360,7 @@ impl<T, U> MvpNode<T, U> {
     }
 
     pub fn pad_x(self, amount: f32) -> Self {
-        MvpNode::new(MvpNodeType::Padding(Padding {
+        Node::new(NodeType::Padding(Padding {
             leading: amount,
             trailing: amount,
             top: 0.,
@@ -375,7 +370,7 @@ impl<T, U> MvpNode<T, U> {
     }
 
     pub fn pad_y(self, amount: f32) -> Self {
-        MvpNode::new(MvpNodeType::Padding(Padding {
+        Node::new(NodeType::Padding(Padding {
             leading: 0.,
             trailing: 0.,
             top: amount,
@@ -385,7 +380,7 @@ impl<T, U> MvpNode<T, U> {
     }
 
     pub fn pad_top(self, amount: f32) -> Self {
-        MvpNode::new(MvpNodeType::Padding(Padding {
+        Node::new(NodeType::Padding(Padding {
             leading: 0.,
             trailing: 0.,
             top: amount,
@@ -395,7 +390,7 @@ impl<T, U> MvpNode<T, U> {
     }
 
     pub fn pad_bottom(self, amount: f32) -> Self {
-        MvpNode::new(MvpNodeType::Padding(Padding {
+        Node::new(NodeType::Padding(Padding {
             leading: 0.,
             trailing: 0.,
             top: 0.,
@@ -405,7 +400,7 @@ impl<T, U> MvpNode<T, U> {
     }
 
     pub fn pad_leading(self, amount: f32) -> Self {
-        MvpNode::new(MvpNodeType::Padding(Padding {
+        Node::new(NodeType::Padding(Padding {
             leading: amount,
             trailing: 0.,
             top: 0.,
@@ -415,7 +410,7 @@ impl<T, U> MvpNode<T, U> {
     }
 
     pub fn pad_trailing(self, amount: f32) -> Self {
-        MvpNode::new(MvpNodeType::Padding(Padding {
+        Node::new(NodeType::Padding(Padding {
             leading: 0.,
             trailing: amount,
             top: 0.,
@@ -424,16 +419,16 @@ impl<T, U> MvpNode<T, U> {
         .with_children(vec![self])
     }
 
-    pub fn offset(self, x: f32, y: f32) -> MvpNode<T, U> {
-        MvpNode::new(MvpNodeType::Offset { x, y }).with_children(vec![self])
+    pub fn offset(self, x: f32, y: f32) -> Node<T, U> {
+        Node::new(NodeType::Offset { x, y }).with_children(vec![self])
     }
 
-    pub fn visible(self, visible: bool) -> MvpNode<T, U> {
-        MvpNode::new(MvpNodeType::Visibility { visible }).with_children(vec![self])
+    pub fn visible(self, visible: bool) -> Node<T, U> {
+        Node::new(NodeType::Visibility { visible }).with_children(vec![self])
     }
 
-    pub fn attach_under(self, node: MvpNode<T, U>) -> MvpNode<T, U> {
-        MvpNode::new(MvpNodeType::Coupled {
+    pub fn attach_under(self, node: Node<T, U>) -> Node<T, U> {
+        Node::new(NodeType::Coupled {
             over: false,
             element: 0,
             coupled: 1,
@@ -441,13 +436,44 @@ impl<T, U> MvpNode<T, U> {
         .with_children(vec![self, node])
     }
 
-    pub fn attach_over(self, node: MvpNode<T, U>) -> MvpNode<T, U> {
-        MvpNode::new(MvpNodeType::Coupled {
+    pub fn attach_over(self, node: Node<T, U>) -> Node<T, U> {
+        Node::new(NodeType::Coupled {
             over: true,
             element: 0,
             coupled: 1,
         })
         .with_children(vec![self, node])
+    }
+
+    pub fn dynamic_width(self, f: impl Fn(f32, &mut T, &mut U) -> f32 + 'static) -> Self {
+        Node::new(NodeType::Explicit)
+            .with_constraints(NodeConstraints {
+                dynamic_width: Some(Rc::new(f)),
+                ..Default::default()
+            })
+            .with_children(vec![self])
+    }
+
+    pub fn dynamic_height(self, f: impl Fn(f32, &mut T, &mut U) -> f32 + 'static) -> Self {
+        Node::new(NodeType::Explicit)
+            .with_constraints(NodeConstraints {
+                dynamic_height: Some(Rc::new(f)),
+                ..Default::default()
+            })
+            .with_children(vec![self])
+    }
+
+    fn with_constraints(mut self, constraints: NodeConstraints<T, U>) -> Self {
+        self.constraints = constraints;
+        self
+    }
+
+    pub fn aspect_width(self, ratio: f32) -> Self {
+        self.dynamic_width(move |height, _, _| height * ratio)
+    }
+
+    pub fn aspect_height(self, ratio: f32) -> Self {
+        self.dynamic_height(move |width, _, _| width / ratio)
     }
 }
 
@@ -456,15 +482,15 @@ struct LayoutCache {
     constraint_results: HashMap<u64, (f32, f32)>,
 }
 
-pub struct MvpLayout<T, U> {
+pub struct Layout<T, U> {
     nodes: Vec<NodeData<T, U>>,
     cache: LayoutCache,
     work_queue: VecDeque<NodeId>,
     root_id: Option<NodeId>,
 }
 
-impl<T, U> MvpLayout<T, U> {
-    pub fn new(root_node: MvpNode<T, U>) -> Self {
+impl<T, U> Layout<T, U> {
+    pub fn new(root_node: Node<T, U>) -> Self {
         let mut layout = Self {
             nodes: Vec::new(),
             cache: LayoutCache::default(),
@@ -475,9 +501,9 @@ impl<T, U> MvpLayout<T, U> {
         layout
     }
 
-    fn flatten_tree(&mut self, root_node: MvpNode<T, U>, root_parent_id: Option<NodeId>) -> NodeId {
+    fn flatten_tree(&mut self, root_node: Node<T, U>, root_parent_id: Option<NodeId>) -> NodeId {
         struct WorkItem<T, U> {
-            node: MvpNode<T, U>,
+            node: Node<T, U>,
             parent_id: Option<NodeId>,
             node_id: NodeId,
         }
@@ -592,16 +618,14 @@ impl<T, U> MvpLayout<T, U> {
     fn resolve_node_constraints(&mut self, node_id: NodeId, state: &mut T, ui_state: &mut U) {
         // Handle dynamic nodes first
         let node_type_matches_dynamic =
-            matches!(&self.nodes[node_id].node_type, MvpNodeType::Dynamic { .. });
+            matches!(&self.nodes[node_id].node_type, NodeType::Dynamic { .. });
         if node_type_matches_dynamic {
-            if let MvpNodeType::Dynamic { func, computed } = &self.nodes[node_id].node_type {
+            if let NodeType::Dynamic { func, computed } = &self.nodes[node_id].node_type {
                 if computed.is_none() {
                     let dynamic_result = func(state, ui_state);
                     let computed_id = self.flatten_tree(dynamic_result, Some(node_id));
                     // Update the dynamic node's computed field
-                    if let MvpNodeType::Dynamic { computed, .. } =
-                        &mut self.nodes[node_id].node_type
-                    {
+                    if let NodeType::Dynamic { computed, .. } = &mut self.nodes[node_id].node_type {
                         *computed = Some(computed_id);
                     }
                     self.nodes[node_id].children = vec![computed_id];
@@ -611,9 +635,9 @@ impl<T, U> MvpLayout<T, U> {
 
         // Handle area reader nodes
         let node_type_matches_area_reader =
-            matches!(&self.nodes[node_id].node_type, MvpNodeType::AreaReader(_));
+            matches!(&self.nodes[node_id].node_type, NodeType::AreaReader(_));
         if node_type_matches_area_reader {
-            if let MvpNodeType::AreaReader(reader_fn) = &self.nodes[node_id].node_type {
+            if let NodeType::AreaReader(reader_fn) = &self.nodes[node_id].node_type {
                 // Use current area (will be refined in allocation pass)
                 let current_area = self.nodes[node_id].area;
                 let area_result = reader_fn(current_area, state, ui_state);
@@ -621,7 +645,7 @@ impl<T, U> MvpLayout<T, U> {
                 self.nodes[node_id].children = vec![computed_id];
                 // Replace the area reader with its computed result
                 let computed_node_type =
-                    std::mem::replace(&mut self.nodes[computed_id].node_type, MvpNodeType::Empty);
+                    std::mem::replace(&mut self.nodes[computed_id].node_type, NodeType::Empty);
                 let computed_constraints = std::mem::take(&mut self.nodes[computed_id].constraints);
                 self.nodes[node_id].node_type = computed_node_type;
                 self.nodes[node_id].constraints = computed_constraints;
@@ -631,13 +655,7 @@ impl<T, U> MvpLayout<T, U> {
         // Calculate intrinsic size based on node type and children
         let (min_width, min_height) = self.calculate_intrinsic_size(node_id, state, ui_state);
 
-        // Apply dynamic constraints
-        if let Some(ref _dynamic_width) = self.nodes[node_id].constraints.dynamic_width {
-            // Dynamic width calculation would go here
-        }
-        if let Some(ref _dynamic_height) = self.nodes[node_id].constraints.dynamic_height {
-            // Dynamic height calculation would go here
-        }
+        // Dynamic constraints are resolved during allocation phase, not here
 
         // Cache the result
         let content_hash = self.calculate_content_hash(node_id);
@@ -655,14 +673,15 @@ impl<T, U> MvpLayout<T, U> {
     ) -> (f32, f32) {
         let node = &self.nodes[node_id];
 
-        let (mut width, mut height) = match &node.node_type {
-            MvpNodeType::Draw(_) => {
+        let (width, height) = match &node.node_type {
+            NodeType::Draw(_) => {
                 // Drawable nodes use their explicit constraints as intrinsic size
                 let width = node.constraints.width_min.unwrap_or(0.0);
                 let height = node.constraints.height_min.unwrap_or(0.0);
+
                 (width, height)
             }
-            MvpNodeType::Explicit => {
+            NodeType::Explicit => {
                 // Explicit nodes propagate child constraints and apply their own
                 if let Some(&child_id) = node.children.first() {
                     let child_hash = self.nodes[child_id].content_hash;
@@ -670,23 +689,24 @@ impl<T, U> MvpLayout<T, U> {
                         self.cache.constraint_results.get(&child_hash)
                     {
                         // Apply this node's constraints to child's intrinsic size
-                        let constrained_width = if let Some(min) = node.constraints.width_min {
+                        let mut constrained_width = if let Some(min) = node.constraints.width_min {
                             child_width.max(min)
                         } else {
                             child_width
                         };
-                        let constrained_width = if let Some(max) = node.constraints.width_max {
+                        constrained_width = if let Some(max) = node.constraints.width_max {
                             constrained_width.min(max)
                         } else {
                             constrained_width
                         };
 
-                        let constrained_height = if let Some(min) = node.constraints.height_min {
+                        let mut constrained_height = if let Some(min) = node.constraints.height_min
+                        {
                             child_height.max(min)
                         } else {
                             child_height
                         };
-                        let constrained_height = if let Some(max) = node.constraints.height_max {
+                        constrained_height = if let Some(max) = node.constraints.height_max {
                             constrained_height.min(max)
                         } else {
                             constrained_height
@@ -695,20 +715,20 @@ impl<T, U> MvpLayout<T, U> {
                         (constrained_width, constrained_height)
                     } else {
                         // If child has no cached constraints, use this node's constraints
-                        (
-                            node.constraints.width_min.unwrap_or(0.0),
-                            node.constraints.height_min.unwrap_or(0.0),
-                        )
+                        let width = node.constraints.width_min.unwrap_or(0.0);
+                        let height = node.constraints.height_min.unwrap_or(0.0);
+
+                        (width, height)
                     }
                 } else {
                     // No child, use own constraints
-                    (
-                        node.constraints.width_min.unwrap_or(0.0),
-                        node.constraints.height_min.unwrap_or(0.0),
-                    )
+                    let width = node.constraints.width_min.unwrap_or(0.0);
+                    let height = node.constraints.height_min.unwrap_or(0.0);
+
+                    (width, height)
                 }
             }
-            MvpNodeType::Column { spacing, .. } => {
+            NodeType::Column { spacing, .. } => {
                 let mut total_height = 0.0;
                 let mut max_width: f32 = 0.0;
 
@@ -726,7 +746,7 @@ impl<T, U> MvpLayout<T, U> {
                 }
                 (max_width, total_height)
             }
-            MvpNodeType::Row { spacing, .. } => {
+            NodeType::Row { spacing, .. } => {
                 let mut total_width = 0.0;
                 let mut max_height: f32 = 0.0;
 
@@ -744,7 +764,7 @@ impl<T, U> MvpLayout<T, U> {
                 }
                 (total_width, max_height)
             }
-            MvpNodeType::Stack { .. } => {
+            NodeType::Stack { .. } => {
                 let mut max_width: f32 = 0.0;
                 let mut max_height: f32 = 0.0;
 
@@ -759,7 +779,7 @@ impl<T, U> MvpLayout<T, U> {
                 }
                 (max_width, max_height)
             }
-            MvpNodeType::Padding(padding) => {
+            NodeType::Padding(padding) => {
                 if let Some(&child_id) = node.children.first() {
                     let child_hash = self.nodes[child_id].content_hash;
                     if let Some(&(child_width, child_height)) =
@@ -782,7 +802,7 @@ impl<T, U> MvpLayout<T, U> {
                     )
                 }
             }
-            MvpNodeType::Offset { .. } => {
+            NodeType::Offset { .. } => {
                 // Offset doesn't change intrinsic size
                 if let Some(&child_id) = node.children.first() {
                     let child_hash = self.nodes[child_id].content_hash;
@@ -795,9 +815,9 @@ impl<T, U> MvpLayout<T, U> {
                     (0.0, 0.0)
                 }
             }
-            MvpNodeType::Space => (0.0, 0.0),
-            MvpNodeType::Empty => (0.0, 0.0),
-            MvpNodeType::Visibility { .. } => {
+            NodeType::Space => (0.0, 0.0),
+            NodeType::Empty => (0.0, 0.0),
+            NodeType::Visibility { .. } => {
                 if let Some(&child_id) = node.children.first() {
                     let child_hash = self.nodes[child_id].content_hash;
                     self.cache
@@ -809,7 +829,7 @@ impl<T, U> MvpLayout<T, U> {
                     (0.0, 0.0)
                 }
             }
-            MvpNodeType::Coupled { element, .. } => {
+            NodeType::Coupled { element, .. } => {
                 // For coupled nodes, intrinsic size is determined by the element (main) node
                 let element_id = node.children[*element];
                 let element_hash = self.nodes[element_id].content_hash;
@@ -819,37 +839,19 @@ impl<T, U> MvpLayout<T, U> {
                     .copied()
                     .unwrap_or((0.0, 0.0))
             }
-            MvpNodeType::AreaReader(_) => (0.0, 0.0),
-            MvpNodeType::Dynamic { .. } => (0.0, 0.0),
+            NodeType::AreaReader(_) => (0.0, 0.0),
+            NodeType::Dynamic { .. } => (0.0, 0.0),
         };
-
-        // Apply aspect ratio constraints to all node types
-        if let Some(aspect) = node.constraints.aspect {
-            if width > 0.0 && height == 0.0 {
-                height = width / aspect;
-            } else if height > 0.0 && width == 0.0 {
-                width = height * aspect;
-            } else if width > 0.0 && height > 0.0 {
-                // Both dimensions specified - constrain to aspect ratio
-                let aspect_height = width / aspect;
-                let aspect_width = height * aspect;
-                if aspect_height < height {
-                    height = aspect_height;
-                } else {
-                    width = aspect_width;
-                }
-            }
-        }
 
         (width, height)
     }
 
-    fn allocate_node_area(&mut self, node_id: NodeId, _state: &mut T, _ui_state: &mut U) {
+    fn allocate_node_area(&mut self, node_id: NodeId, state: &mut T, ui_state: &mut U) {
         let available_area = self.nodes[node_id].area;
 
         // Extract node type data to avoid borrowing issues
         match &self.nodes[node_id].node_type {
-            MvpNodeType::Column {
+            NodeType::Column {
                 spacing,
                 x_align: align,
                 y_align: off_axis_align,
@@ -863,10 +865,12 @@ impl<T, U> MvpLayout<T, U> {
                     spacing,
                     &align,
                     &off_axis_align,
+                    state,
+                    ui_state,
                 );
                 return;
             }
-            MvpNodeType::Row {
+            NodeType::Row {
                 spacing,
                 y_align: align,
                 x_align: off_axis_align,
@@ -874,25 +878,42 @@ impl<T, U> MvpLayout<T, U> {
                 let spacing = *spacing;
                 let align = *align;
                 let off_axis_align = *off_axis_align;
-                self.allocate_row_areas(node_id, available_area, spacing, &off_axis_align, &align);
+                self.allocate_row_areas(
+                    node_id,
+                    available_area,
+                    spacing,
+                    &off_axis_align,
+                    &align,
+                    state,
+                    ui_state,
+                );
                 return;
             }
-            MvpNodeType::Stack { x_align, y_align } => {
+            NodeType::Stack { x_align, y_align } => {
                 let x_align = *x_align;
                 let y_align = *y_align;
-                self.allocate_stack_areas(node_id, available_area, &x_align, &y_align);
+                self.allocate_stack_areas(
+                    node_id,
+                    available_area,
+                    &x_align,
+                    &y_align,
+                    state,
+                    ui_state,
+                );
                 return;
             }
-            MvpNodeType::Explicit => {
+            NodeType::Explicit => {
                 if let Some(&child_id) = self.nodes[node_id].children.first() {
                     // Apply this node's constraints to the available area and pass to child
-                    let constraints = &self.nodes[node_id].constraints;
+                    let constraints = self.nodes[node_id].constraints.clone();
 
                     let constrained_area = self.apply_constraints_to_area(
                         available_area,
-                        constraints,
+                        &constraints,
                         XAlign::Center,
                         YAlign::Center,
+                        state,
+                        ui_state,
                     );
 
                     self.nodes[child_id].area = constrained_area;
@@ -903,7 +924,7 @@ impl<T, U> MvpLayout<T, U> {
         }
 
         match &self.nodes[node_id].node_type {
-            MvpNodeType::Padding(padding) => {
+            NodeType::Padding(padding) => {
                 if let Some(&child_id) = self.nodes[node_id].children.first() {
                     let child_area = Area {
                         x: available_area.x + padding.leading,
@@ -914,7 +935,7 @@ impl<T, U> MvpLayout<T, U> {
                     self.nodes[child_id].area = child_area;
                 }
             }
-            MvpNodeType::Offset { x, y } => {
+            NodeType::Offset { x, y } => {
                 if let Some(&child_id) = self.nodes[node_id].children.first() {
                     let child_area = Area {
                         x: available_area.x + x,
@@ -925,12 +946,12 @@ impl<T, U> MvpLayout<T, U> {
                     self.nodes[child_id].area = child_area;
                 }
             }
-            MvpNodeType::Visibility { .. } => {
+            NodeType::Visibility { .. } => {
                 if let Some(&child_id) = self.nodes[node_id].children.first() {
                     self.nodes[child_id].area = available_area;
                 }
             }
-            MvpNodeType::Coupled {
+            NodeType::Coupled {
                 over: _,
                 element,
                 coupled,
@@ -942,7 +963,7 @@ impl<T, U> MvpLayout<T, U> {
 
                     // Get the element's cached constraint results
                     let element_hash = self.nodes[element_id].content_hash;
-                    let element_constraints = if let Some(&(width, height)) =
+                    let mut element_constraints = if let Some(&(width, height)) =
                         self.cache.constraint_results.get(&element_hash)
                     {
                         // Create constraints based on element's resolved size
@@ -958,11 +979,28 @@ impl<T, U> MvpLayout<T, U> {
                         self.nodes[node_id].constraints.clone()
                     };
 
+                    // Apply dynamic constraints from the element node to override static constraints
+                    let element_node_constraints = &self.nodes[element_id].constraints;
+                    if let Some(ref dynamic_width) = element_node_constraints.dynamic_width {
+                        let calculated_width =
+                            dynamic_width(available_area.height, state, ui_state).max(0.0);
+                        element_constraints.width_min = Some(calculated_width);
+                        element_constraints.width_max = Some(calculated_width);
+                    }
+                    if let Some(ref dynamic_height) = element_node_constraints.dynamic_height {
+                        let calculated_height =
+                            dynamic_height(available_area.width, state, ui_state).max(0.0);
+                        element_constraints.height_min = Some(calculated_height);
+                        element_constraints.height_max = Some(calculated_height);
+                    }
+
                     let constrained_area = self.apply_constraints_to_area(
                         available_area,
                         &element_constraints,
                         XAlign::Center,
                         YAlign::Center,
+                        state,
+                        ui_state,
                     );
 
                     // Both nodes get the same constrained area
@@ -972,12 +1010,14 @@ impl<T, U> MvpLayout<T, U> {
             }
             _ => {
                 // For other node types, apply constraints and assign to children
-                let constraints = &self.nodes[node_id].constraints;
+                let constraints = self.nodes[node_id].constraints.clone();
                 let final_area = self.apply_constraints_to_area(
                     available_area,
-                    constraints,
+                    &constraints,
                     XAlign::Center,
                     YAlign::Center,
+                    state,
+                    ui_state,
                 );
                 self.nodes[node_id].area = final_area;
 
@@ -997,6 +1037,8 @@ impl<T, U> MvpLayout<T, U> {
         is_vertical: bool,
         x_align: XAlign,
         y_align: YAlign,
+        state: &mut T,
+        ui_state: &mut U,
     ) {
         if children.is_empty() {
             return;
@@ -1208,7 +1250,7 @@ impl<T, U> MvpLayout<T, U> {
                 .get(&self.nodes[child_id].content_hash)
             {
                 match &self.nodes[child_id].node_type {
-                    MvpNodeType::Row { .. } => {
+                    NodeType::Row { .. } => {
                         if is_vertical && !constraints.expand_x {
                             // Row in a column should hug its children horizontally (unless expand_x)
                             if intrinsic_width > 0.0 {
@@ -1223,7 +1265,7 @@ impl<T, U> MvpLayout<T, U> {
                             }
                         }
                     }
-                    MvpNodeType::Column { .. } => {
+                    NodeType::Column { .. } => {
                         if !is_vertical && !constraints.expand_y {
                             // Column in a row should hug its children vertically (unless expand_y)
                             if intrinsic_height > 0.0 {
@@ -1238,7 +1280,7 @@ impl<T, U> MvpLayout<T, U> {
                             }
                         }
                     }
-                    MvpNodeType::Stack { .. } => {
+                    NodeType::Stack { .. } => {
                         // Stack should expand to fit its children unless explicitly constrained
                         if !constraints.expand_x && intrinsic_width > 0.0 {
                             effective_constraints.width_min = Some(intrinsic_width);
@@ -1251,8 +1293,14 @@ impl<T, U> MvpLayout<T, U> {
                 }
             }
 
-            let final_area =
-                self.apply_constraints_to_area(base_area, &effective_constraints, x_align, y_align);
+            let final_area = self.apply_constraints_to_area(
+                base_area,
+                &effective_constraints,
+                x_align,
+                y_align,
+                state,
+                ui_state,
+            );
 
             self.nodes[child_id].area = final_area;
 
@@ -1267,12 +1315,23 @@ impl<T, U> MvpLayout<T, U> {
         spacing: f32,
         cross_align: &Option<XAlign>,
         main_align: &Option<YAlign>,
+        state: &mut T,
+        ui_state: &mut U,
     ) {
         let children = self.nodes[node_id].children.clone();
         let y_align = main_align.unwrap_or(YAlign::Center);
         let x_align = cross_align.unwrap_or(XAlign::Center);
 
-        self.layout_axis(&children, spacing, available_area, true, x_align, y_align);
+        self.layout_axis(
+            &children,
+            spacing,
+            available_area,
+            true,
+            x_align,
+            y_align,
+            state,
+            ui_state,
+        );
     }
 
     fn allocate_row_areas(
@@ -1282,12 +1341,23 @@ impl<T, U> MvpLayout<T, U> {
         spacing: f32,
         main_align: &Option<XAlign>,
         cross_align: &Option<YAlign>,
+        state: &mut T,
+        ui_state: &mut U,
     ) {
         let children = self.nodes[node_id].children.clone();
         let x_align = main_align.unwrap_or(XAlign::Center);
         let y_align = cross_align.unwrap_or(YAlign::Center);
 
-        self.layout_axis(&children, spacing, available_area, false, x_align, y_align);
+        self.layout_axis(
+            &children,
+            spacing,
+            available_area,
+            false,
+            x_align,
+            y_align,
+            state,
+            ui_state,
+        );
     }
 
     fn allocate_stack_areas(
@@ -1296,13 +1366,15 @@ impl<T, U> MvpLayout<T, U> {
         available_area: Area,
         x_align: &Option<XAlign>,
         y_align: &Option<YAlign>,
+        state: &mut T,
+        ui_state: &mut U,
     ) {
         let children = self.nodes[node_id].children.clone();
         let default_x_align = x_align.unwrap_or(XAlign::Center);
         let default_y_align = y_align.unwrap_or(YAlign::Center);
 
         // First, determine the stack's own size based on its constraints and children
-        let stack_constraints = &self.nodes[node_id].constraints;
+        let stack_constraints = self.nodes[node_id].constraints.clone();
 
         // If the stack is expanded, it should size itself to fit its children
         let stack_area = if stack_constraints.expand_x || stack_constraints.expand_y {
@@ -1337,9 +1409,11 @@ impl<T, U> MvpLayout<T, U> {
                     width: max_child_width,
                     height: max_child_height,
                 },
-                stack_constraints,
+                &stack_constraints,
                 default_x_align,
                 default_y_align,
+                state,
+                ui_state,
             );
 
             // Position the stack within the available area
@@ -1356,35 +1430,40 @@ impl<T, U> MvpLayout<T, U> {
                 },
                 default_x_align,
                 default_y_align,
+                state,
+                ui_state,
             )
         } else {
             // Non-expanded stack uses available area but may be constrained
             self.apply_constraints_to_area(
                 available_area,
-                stack_constraints,
+                &stack_constraints,
                 default_x_align,
                 default_y_align,
+                state,
+                ui_state,
             )
         };
 
         // Now allocate the stack area to each child
         for &child_id in &children {
-            let constraints = &self.nodes[child_id].constraints;
+            let constraints = self.nodes[child_id].constraints.clone();
 
             // Check if child has any constraints
             let has_constraints = constraints.width_min.is_some()
                 || constraints.width_max.is_some()
                 || constraints.height_min.is_some()
-                || constraints.height_max.is_some()
-                || constraints.aspect.is_some();
+                || constraints.height_max.is_some();
 
             if has_constraints {
                 // Apply constraints and alignment like original Area.constrained()
                 let final_area = self.apply_constraints_to_area(
                     stack_area,
-                    constraints,
+                    &constraints,
                     default_x_align,
                     default_y_align,
+                    state,
+                    ui_state,
                 );
                 self.nodes[child_id].area = final_area;
             } else {
@@ -1395,14 +1474,26 @@ impl<T, U> MvpLayout<T, U> {
     }
 
     fn apply_constraints_to_area(
-        &self,
+        &mut self,
         area: Area,
         constraints: &NodeConstraints<T, U>,
         contextual_x_align: XAlign,
         contextual_y_align: YAlign,
+        state: &mut T,
+        ui_state: &mut U,
     ) -> Area {
-        // Apply width constraints
+        // Apply dynamic constraints first
         let mut width = area.width;
+        let mut height = area.height;
+
+        if let Some(ref dynamic_width) = constraints.dynamic_width {
+            width = dynamic_width(area.height, state, ui_state).max(0.0);
+        }
+        if let Some(ref dynamic_height) = constraints.dynamic_height {
+            height = dynamic_height(area.width, state, ui_state).max(0.0);
+        }
+
+        // Apply static width constraints
         if let Some(width_min) = constraints.width_min {
             if let Some(width_max) = constraints.width_max {
                 width = width.clamp(width_min, width_max.max(width_min));
@@ -1413,8 +1504,7 @@ impl<T, U> MvpLayout<T, U> {
             width = width.min(width_max);
         }
 
-        // Apply height constraints
-        let mut height = area.height;
+        // Apply static height constraints
         if let Some(height_min) = constraints.height_min {
             if let Some(height_max) = constraints.height_max {
                 height = height.clamp(height_min, height_max.max(height_min));
@@ -1423,12 +1513,6 @@ impl<T, U> MvpLayout<T, U> {
             }
         } else if let Some(height_max) = constraints.height_max {
             height = height.min(height_max);
-        }
-
-        // Apply aspect ratio
-        if let Some(aspect) = constraints.aspect {
-            width = (height * aspect).min(width);
-            height = (width / aspect).min(height);
         }
 
         // Apply alignment within the area
@@ -1470,12 +1554,12 @@ impl<T, U> MvpLayout<T, U> {
             let area = self.nodes[node_id].area;
 
             match node_type {
-                MvpNodeType::Draw(draw_fn) => {
+                NodeType::Draw(draw_fn) => {
                     if visible {
                         draw_fn(area, state, ui_state);
                     }
                 }
-                MvpNodeType::Visibility {
+                NodeType::Visibility {
                     visible: node_visible,
                 } => {
                     let effective_visibility = visible && *node_visible;
@@ -1483,13 +1567,13 @@ impl<T, U> MvpLayout<T, U> {
                         stack.push((child_id, effective_visibility));
                     }
                 }
-                MvpNodeType::Explicit => {
+                NodeType::Explicit => {
                     // Explicit nodes just pass through to their child
                     for &child_id in children.iter().rev() {
                         stack.push((child_id, visible));
                     }
                 }
-                MvpNodeType::Coupled {
+                NodeType::Coupled {
                     over,
                     element,
                     coupled,
@@ -1533,12 +1617,12 @@ impl<T, U> MvpLayout<T, U> {
 }
 
 // Convenience functions for creating nodes (API compatibility)
-pub fn draw<T, U>(draw_fn: impl Fn(Area, &mut T, &mut U) + 'static) -> MvpNode<T, U> {
-    MvpNode::new(MvpNodeType::Draw(Box::new(draw_fn)))
+pub fn draw<T, U>(draw_fn: impl Fn(Area, &mut T, &mut U) + 'static) -> Node<T, U> {
+    Node::new(NodeType::Draw(Box::new(draw_fn)))
 }
 
-pub fn column<T, U>(elements: Vec<MvpNode<T, U>>) -> MvpNode<T, U> {
-    MvpNode::new(MvpNodeType::Column {
+pub fn column<T, U>(elements: Vec<Node<T, U>>) -> Node<T, U> {
+    Node::new(NodeType::Column {
         spacing: 0.0,
         x_align: None,
         y_align: None,
@@ -1546,8 +1630,8 @@ pub fn column<T, U>(elements: Vec<MvpNode<T, U>>) -> MvpNode<T, U> {
     .with_children(elements)
 }
 
-pub fn column_spaced<T, U>(spacing: f32, elements: Vec<MvpNode<T, U>>) -> MvpNode<T, U> {
-    MvpNode::new(MvpNodeType::Column {
+pub fn column_spaced<T, U>(spacing: f32, elements: Vec<Node<T, U>>) -> Node<T, U> {
+    Node::new(NodeType::Column {
         spacing,
         x_align: None,
         y_align: None,
@@ -1555,9 +1639,9 @@ pub fn column_spaced<T, U>(spacing: f32, elements: Vec<MvpNode<T, U>>) -> MvpNod
     .with_children(elements)
 }
 
-pub fn column_aligned<T, U>(align: Align, elements: Vec<MvpNode<T, U>>) -> MvpNode<T, U> {
+pub fn column_aligned<T, U>(align: Align, elements: Vec<Node<T, U>>) -> Node<T, U> {
     let (x_align, y_align) = align.axis_aligns();
-    MvpNode::new(MvpNodeType::Column {
+    Node::new(NodeType::Column {
         spacing: 0.0,
         x_align,
         y_align,
@@ -1568,10 +1652,10 @@ pub fn column_aligned<T, U>(align: Align, elements: Vec<MvpNode<T, U>>) -> MvpNo
 pub fn column_spaced_aligned<T, U>(
     spacing: f32,
     align: Align,
-    elements: Vec<MvpNode<T, U>>,
-) -> MvpNode<T, U> {
+    elements: Vec<Node<T, U>>,
+) -> Node<T, U> {
     let (x_align, y_align) = align.axis_aligns();
-    MvpNode::new(MvpNodeType::Column {
+    Node::new(NodeType::Column {
         spacing,
         x_align,
         y_align,
@@ -1579,8 +1663,8 @@ pub fn column_spaced_aligned<T, U>(
     .with_children(elements)
 }
 
-pub fn row<T, U>(elements: Vec<MvpNode<T, U>>) -> MvpNode<T, U> {
-    MvpNode::new(MvpNodeType::Row {
+pub fn row<T, U>(elements: Vec<Node<T, U>>) -> Node<T, U> {
+    Node::new(NodeType::Row {
         spacing: 0.0,
         y_align: None,
         x_align: None,
@@ -1588,8 +1672,8 @@ pub fn row<T, U>(elements: Vec<MvpNode<T, U>>) -> MvpNode<T, U> {
     .with_children(elements)
 }
 
-pub fn row_spaced<T, U>(spacing: f32, elements: Vec<MvpNode<T, U>>) -> MvpNode<T, U> {
-    MvpNode::new(MvpNodeType::Row {
+pub fn row_spaced<T, U>(spacing: f32, elements: Vec<Node<T, U>>) -> Node<T, U> {
+    Node::new(NodeType::Row {
         spacing,
         x_align: None,
         y_align: None,
@@ -1597,9 +1681,9 @@ pub fn row_spaced<T, U>(spacing: f32, elements: Vec<MvpNode<T, U>>) -> MvpNode<T
     .with_children(elements)
 }
 
-pub fn row_aligned<T, U>(align: Align, elements: Vec<MvpNode<T, U>>) -> MvpNode<T, U> {
+pub fn row_aligned<T, U>(align: Align, elements: Vec<Node<T, U>>) -> Node<T, U> {
     let (x_align, y_align) = align.axis_aligns();
-    MvpNode::new(MvpNodeType::Row {
+    Node::new(NodeType::Row {
         spacing: 0.,
         x_align,
         y_align,
@@ -1610,10 +1694,10 @@ pub fn row_aligned<T, U>(align: Align, elements: Vec<MvpNode<T, U>>) -> MvpNode<
 pub fn row_spaced_aligned<T, U>(
     spacing: f32,
     align: Align,
-    elements: Vec<MvpNode<T, U>>,
-) -> MvpNode<T, U> {
+    elements: Vec<Node<T, U>>,
+) -> Node<T, U> {
     let (x_align, y_align) = align.axis_aligns();
-    MvpNode::new(MvpNodeType::Row {
+    Node::new(NodeType::Row {
         spacing,
         x_align,
         y_align,
@@ -1621,8 +1705,8 @@ pub fn row_spaced_aligned<T, U>(
     .with_children(elements)
 }
 
-pub fn stack<T, U>(elements: Vec<MvpNode<T, U>>) -> MvpNode<T, U> {
-    MvpNode::new(MvpNodeType::Stack {
+pub fn stack<T, U>(elements: Vec<Node<T, U>>) -> Node<T, U> {
+    Node::new(NodeType::Stack {
         x_align: None,
         y_align: None,
     })
@@ -1632,30 +1716,30 @@ pub fn stack<T, U>(elements: Vec<MvpNode<T, U>>) -> MvpNode<T, U> {
 pub fn stack_aligned<T, U>(
     x_align: Option<XAlign>,
     y_align: Option<YAlign>,
-    elements: Vec<MvpNode<T, U>>,
-) -> MvpNode<T, U> {
-    MvpNode::new(MvpNodeType::Stack { x_align, y_align }).with_children(elements)
+    elements: Vec<Node<T, U>>,
+) -> Node<T, U> {
+    Node::new(NodeType::Stack { x_align, y_align }).with_children(elements)
 }
 
-pub fn space<T, U>() -> MvpNode<T, U> {
-    MvpNode::new(MvpNodeType::Space)
+pub fn space<T, U>() -> Node<T, U> {
+    Node::new(NodeType::Space)
 }
 
-pub fn empty<T, U>() -> MvpNode<T, U> {
-    MvpNode::new(MvpNodeType::Empty)
+pub fn empty<T, U>() -> Node<T, U> {
+    Node::new(NodeType::Empty)
 }
 
-pub fn dynamic<T, U>(func: impl Fn(&mut T, &mut U) -> MvpNode<T, U> + 'static) -> MvpNode<T, U> {
-    MvpNode::new(MvpNodeType::Dynamic {
+pub fn dynamic<T, U>(func: impl Fn(&mut T, &mut U) -> Node<T, U> + 'static) -> Node<T, U> {
+    Node::new(NodeType::Dynamic {
         func: Box::new(func),
         computed: None,
     })
 }
 
 pub fn area_reader<T, U>(
-    func: impl Fn(Area, &mut T, &mut U) -> MvpNode<T, U> + 'static,
-) -> MvpNode<T, U> {
-    MvpNode::new(MvpNodeType::AreaReader(Box::new(func)))
+    func: impl Fn(Area, &mut T, &mut U) -> Node<T, U> + 'static,
+) -> Node<T, U> {
+    Node::new(NodeType::AreaReader(Box::new(func)))
 }
 
 #[cfg(test)]
@@ -1678,7 +1762,7 @@ mod tests {
             .height(50.0),
         ]);
 
-        let mut mvp_layout = MvpLayout::new(layout_node);
+        let mut mvp_layout = Layout::new(layout_node);
         mvp_layout.draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut (), &mut ());
     }
 
@@ -1698,7 +1782,7 @@ mod tests {
             .width(50.0),
         ]);
 
-        let mut mvp_layout = MvpLayout::new(layout_node);
+        let mut mvp_layout = Layout::new(layout_node);
         mvp_layout.draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut (), &mut ());
     }
 
@@ -1727,7 +1811,7 @@ mod tests {
             .height(75.0),
         ]);
 
-        let mut mvp_layout = MvpLayout::new(layout_node);
+        let mut mvp_layout = Layout::new(layout_node);
         mvp_layout.draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut (), &mut ());
     }
 
@@ -1741,7 +1825,7 @@ mod tests {
         })
         .pad(10.0);
 
-        let mut mvp_layout = MvpLayout::new(layout_node);
+        let mut mvp_layout = Layout::new(layout_node);
         mvp_layout.draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut (), &mut ());
     }
 
@@ -1761,7 +1845,7 @@ mod tests {
             }),
         ]);
 
-        let mut mvp_layout = MvpLayout::new(layout_node);
+        let mut mvp_layout = Layout::new(layout_node);
         mvp_layout.draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut draw_count, &mut ());
         assert_eq!(draw_count, 2);
     }
@@ -1780,7 +1864,7 @@ mod tests {
             .visible(false),
         ]);
 
-        let mut mvp_layout = MvpLayout::new(layout_node);
+        let mut mvp_layout = Layout::new(layout_node);
         mvp_layout.draw(
             Area::new(0.0, 0.0, 100.0, 100.0),
             &mut visible_count,
@@ -1806,7 +1890,7 @@ mod tests {
         });
 
         let mut state = true;
-        let mut mvp_layout = MvpLayout::new(layout_node);
+        let mut mvp_layout = Layout::new(layout_node);
         mvp_layout.draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut state, &mut ());
     }
 
@@ -1814,7 +1898,6 @@ mod tests {
     mod layout_tests {
 
         use super::*;
-        type Layout<T, U> = MvpLayout<T, U>;
         #[test]
         fn test_seq_align_on_axis() {
             Layout::new({
@@ -2217,21 +2300,21 @@ mod tests {
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., 0., 100., 100.));
                 })
-                .aspect(1.)
+                .aspect_width(1.)
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
             Layout::new({
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(25., 0., 50., 100.));
                 })
-                .aspect(0.5)
+                .aspect_width(0.5)
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
             Layout::new({
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., 0., 50., 100.));
                 })
-                .aspect(0.5)
+                .aspect_width(0.5)
                 .align(Align::Leading)
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
@@ -2239,7 +2322,7 @@ mod tests {
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(50., 0., 50., 100.));
                 })
-                .aspect(0.5)
+                .aspect_width(0.5)
                 .align(Align::Trailing)
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
@@ -2248,14 +2331,14 @@ mod tests {
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., 25., 100., 50.));
                 })
-                .aspect(2.)
+                .aspect_height(2.)
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
             Layout::new({
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., 0., 100., 50.));
                 })
-                .aspect(2.)
+                .aspect_height(2.)
                 .align(Align::Top)
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
@@ -2263,7 +2346,7 @@ mod tests {
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., 50., 100., 50.));
                 })
-                .aspect(2.)
+                .aspect_height(2.)
                 .align(Align::Bottom)
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
@@ -2274,21 +2357,21 @@ mod tests {
                 row(vec![draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., 0., 100., 100.));
                 })
-                .aspect(1.)])
+                .aspect_width(1.)])
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
             Layout::new({
                 stack(vec![draw(|a, _, _| {
                     assert_eq!(a, Area::new(25., 0., 50., 100.));
                 })
-                .aspect(0.5)])
+                .aspect_width(0.5)])
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
             Layout::new({
                 column(vec![draw(|a, _, _| {
                     assert_eq!(a, Area::new(0., 0., 50., 100.));
                 })
-                .aspect(0.5)
+                .aspect_width(0.5)
                 .align(Align::Leading)])
                 .expand()
             })
@@ -2297,32 +2380,32 @@ mod tests {
                 stack(vec![draw(|a, _, _| {
                     assert_eq!(a, Area::new(50., 0., 50., 100.));
                 })
-                .aspect(0.5)
+                .aspect_width(0.5)
                 .align(Align::Trailing)])
                 .expand()
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
         }
-        // #[test]
-        // fn test_aspect_ratio_nested() {
-        //     Layout::new({
-        //         column(vec![
-        //             draw(|a, _, _| {
-        //                 assert_eq!(a, Area::new(0., 0., 200., 50.));
-        //             }),
-        //             row(vec![
-        //                 draw(|a, _, _| {
-        //                     assert_eq!(a, Area::new(0., 50., 150., 50.));
-        //                 }),
-        //                 draw(|a, _, _| {
-        //                     assert_eq!(a, Area::new(150., 50., 50., 50.));
-        //                 })
-        //                 .aspect(1.),
-        //             ]),
-        //         ])
-        //     })
-        //     .draw(Area::new(0., 0., 200., 100.), &mut (), &mut ());
-        // }
+        #[test]
+        fn test_aspect_ratio_nested() {
+            Layout::new({
+                column(vec![
+                    draw(|a, _, _| {
+                        assert_eq!(a, Area::new(0., 0., 200., 50.));
+                    }),
+                    row(vec![
+                        draw(|a, _, _| {
+                            assert_eq!(a, Area::new(0., 50., 100., 50.));
+                        }),
+                        draw(|a, _, _| {
+                            assert_eq!(a, Area::new(125., 50., 50., 50.));
+                        })
+                        .aspect_width(1.),
+                    ]),
+                ])
+            })
+            .draw(Area::new(0., 0., 200., 100.), &mut (), &mut ());
+        }
         #[test]
         fn test_pad() {
             Layout::new({
@@ -2381,7 +2464,7 @@ mod tests {
                 draw(|a, _, _| {
                     assert_eq!(a, Area::new(25., 0., 50., 100.));
                 })
-                .aspect(0.5)
+                .aspect_width(0.5)
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
             Layout::new({
@@ -2394,7 +2477,7 @@ mod tests {
                     // 30., 10, 40., 80.
                     assert_eq!(a, Area::new(30., 10., 40., 80.));
                 })
-                .aspect(0.5)
+                .aspect_width(0.5)
                 .pad(10.)])
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
@@ -2408,7 +2491,7 @@ mod tests {
                     assert_eq!(a, Area::new(35., 10., 30., 80.));
                 })
                 .pad(10.)
-                .aspect(0.5)])
+                .aspect_width(0.5)])
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
         }
@@ -2422,7 +2505,7 @@ mod tests {
                     draw(|a, _, _| {
                         assert_eq!(a, Area::new(25., 50., 50., 50.));
                     })
-                    .aspect(1.),
+                    .aspect_width(1.),
                 ])
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
@@ -2431,11 +2514,11 @@ mod tests {
                     draw(|a, _, _| {
                         assert_eq!(a, Area::new(25., 0., 50., 50.));
                     })
-                    .aspect(1.),
+                    .aspect_width(1.),
                     draw(|a, _, _| {
                         assert_eq!(a, Area::new(25., 50., 50., 50.));
                     })
-                    .aspect(1.),
+                    .aspect_width(1.),
                 ])
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
@@ -2447,7 +2530,7 @@ mod tests {
                     draw(|a, _, _| {
                         assert_eq!(a, Area::new(50., 25., 50., 50.));
                     })
-                    .aspect(1.),
+                    .aspect_height(1.),
                 ])
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
@@ -2456,11 +2539,11 @@ mod tests {
                     draw(|a, _, _| {
                         assert_eq!(a, Area::new(0., 25., 50., 50.));
                     })
-                    .aspect(1.),
+                    .aspect_height(1.),
                     draw(|a, _, _| {
                         assert_eq!(a, Area::new(50., 25., 50., 50.));
                     })
-                    .aspect(1.),
+                    .aspect_height(1.),
                 ])
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
@@ -2497,7 +2580,7 @@ mod tests {
                             assert_eq!(a, Area::new(45., 0., 10., 20.));
                         })
                         .width(10.)
-                        .aspect(0.5),
+                        .aspect_width(0.5),
                         draw(|a, _, _| {
                             assert_eq!(a, Area::new(0., 30., 100., 70.));
                         }),
@@ -2569,49 +2652,48 @@ mod tests {
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
         }
-        // #[test]
-        // fn test_compressed_aspect_ratio() {
-        //     Layout::new({
-        //         row(vec![
-        //             draw(|a, _, _| {
-        //                 assert_eq!(a, Area::new(0., 25., 50., 50.));
-        //             })
-        //             .aspect(1.),
-        //             draw(|a, _, _| {
-        //                 assert_eq!(a, Area::new(50., 0., 50., 100.));
-        //             })
-        //             .width(50.),
-        //         ])
-        //         .attach_under(draw(|a, _, _| {
-        //             assert_eq!(a, Area::new(0., 0., 100., 100.));
-        //         }))
-        //     })
-        //     .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
-        // }
-        // #[test]
-        // fn test_dynamic_attached() {
-        //     Layout::new({
-        //         row(vec![
-        //             space(),
-        //             draw(|a, _, _| {
-        //                 assert_eq!(a, Area::new(25., 25., 25., 50.));
-        //             })
-        //             .dynamic_height(|h, _, _| h * 2.)
-        //             .attach_under(draw(|a, _, _| {
-        //                 assert_eq!(a, Area::new(25., 25., 25., 50.));
-        //             })),
-        //             space(),
-        //             space(),
-        //         ])
-        //     })
-        //     .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
-        // }
+        #[test]
+        fn test_compressed_aspect_ratio() {
+            Layout::new({
+                row(vec![
+                    draw(|a, _, _| {
+                        assert_eq!(a, Area::new(0., 25., 50., 50.));
+                    })
+                    .aspect_width(1.),
+                    draw(|a, _, _| {
+                        assert_eq!(a, Area::new(50., 0., 50., 100.));
+                    })
+                    .width(50.),
+                ])
+                .attach_under(draw(|a, _, _| {
+                    // assert_eq!(a, Area::new(0., 0., 100., 100.));
+                }))
+            })
+            .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
+        }
+        #[test]
+        fn test_dynamic_attached() {
+            Layout::new({
+                row(vec![
+                    space(),
+                    draw(|a, _, _| {
+                        assert_eq!(a, Area::new(25., 25., 25., 50.));
+                    })
+                    .dynamic_height(|h, _, _| h * 2.)
+                    .attach_under(draw(|a, _, _| {
+                        assert_eq!(a, Area::new(25., 25., 25., 50.));
+                    })),
+                    space(),
+                    space(),
+                ])
+            })
+            .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
+        }
     }
 
     #[cfg(test)]
     mod sequence_tests {
         use super::*;
-        type Layout<T, U> = MvpLayout<T, U>;
         #[test]
         fn test_column_basic() {
             Layout::new({

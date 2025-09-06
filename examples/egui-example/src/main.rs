@@ -1,5 +1,5 @@
-use backer::Layout;
-use backer::Node;
+use backer::{Layout, Node};
+// use backer::Node;
 use backer::{models::*, nodes::*};
 use eframe::egui;
 
@@ -21,7 +21,7 @@ fn main() -> eframe::Result {
     })
 }
 
-fn my_layout_fn<'n>() -> Node<'n, Ui, ()> {
+fn my_layout_fn() -> Node<Ui, ()> {
     dynamic(|ui, _| {
         column_spaced(
             10.,
@@ -41,23 +41,23 @@ fn my_layout_fn<'n>() -> Node<'n, Ui, ()> {
     })
 }
 
-fn draw_a<'n>(ui: &mut Ui) -> Node<'n, Ui, ()> {
+fn draw_a(ui: &mut Ui) -> Node<Ui, ()> {
     labeled_rect(ui, "A".to_string(), Color32::BLUE)
 }
 
-fn draw_b<'n>(ui: &mut Ui) -> Node<'n, Ui, ()> {
+fn draw_b(ui: &mut Ui) -> Node<Ui, ()> {
     labeled_rect(ui, "B".to_string(), Color32::RED)
 }
 
-fn draw_c<'n>(ui: &mut Ui) -> Node<'n, Ui, ()> {
+fn draw_c(ui: &mut Ui) -> Node<Ui, ()> {
     labeled_rect(ui, "C".to_string(), Color32::GOLD)
 }
 
-fn labeled_rect<'n>(ui: &mut Ui, text: String, color: Color32) -> Node<'n, Ui, ()> {
+fn labeled_rect(ui: &mut Ui, text: String, color: Color32) -> Node<Ui, ()> {
     stack(vec![draw_rect(color, true), draw_label(ui, text)])
 }
 
-fn draw_label<'n>(ui: &mut Ui, text: String) -> Node<'n, Ui, ()> {
+fn draw_label(ui: &mut Ui, text: String) -> Node<Ui, ()> {
     let label = egui::Label::new(RichText::new(text.clone()).size(10.));
     let galley = label.layout_in_ui(ui).1.rect;
     let text_area = area_from(galley);
@@ -71,7 +71,7 @@ fn draw_label<'n>(ui: &mut Ui, text: String) -> Node<'n, Ui, ()> {
     .height(text_area.height)
 }
 
-fn draw_rect<'n>(color: Color32, stroke: bool) -> Node<'n, Ui, ()> {
+fn draw_rect(color: Color32, stroke: bool) -> Node<Ui, ()> {
     draw(move |area, ui: &mut Ui, _| {
         if stroke {
             ui.painter()
