@@ -151,7 +151,7 @@ fn bench_simple_column(c: &mut Criterion) {
     group.bench_function("mvp", |b| {
         b.iter(|| {
             let mut layout = create_simple_column_mvp();
-            let area = Area::new(0.0, 0.0, 100.0, 100.0);
+            let area = mvp::Area::new(0.0, 0.0, 100.0, 100.0);
             layout.draw(black_box(area), &mut (), &mut ());
         })
     });
@@ -173,7 +173,7 @@ fn bench_complex_nested(c: &mut Criterion) {
     group.bench_function("mvp", |b| {
         b.iter(|| {
             let mut layout = create_complex_nested_mvp();
-            let area = Area::new(0.0, 0.0, 400.0, 300.0);
+            let area = mvp::Area::new(0.0, 0.0, 400.0, 300.0);
             layout.draw(black_box(area), &mut (), &mut ());
         })
     });
@@ -196,7 +196,7 @@ fn bench_deep_nesting(c: &mut Criterion) {
         group.bench_with_input(format!("mvp_depth_{}", depth), depth, |b, &depth| {
             b.iter(|| {
                 let mut layout = create_deep_nesting_mvp(depth);
-                let area = Area::new(0.0, 0.0, 200.0, 200.0);
+                let area = mvp::Area::new(0.0, 0.0, 200.0, 200.0);
                 layout.draw(black_box(area), &mut (), &mut ());
             })
         });
@@ -220,7 +220,7 @@ fn bench_wide_layout(c: &mut Criterion) {
         group.bench_with_input(format!("mvp_width_{}", width), width, |b, &width| {
             b.iter(|| {
                 let mut layout = create_wide_layout_mvp(width);
-                let area = Area::new(0.0, 0.0, 500.0, 500.0);
+                let area = mvp::Area::new(0.0, 0.0, 500.0, 500.0);
                 layout.draw(black_box(area), &mut (), &mut ());
             })
         });
@@ -234,7 +234,7 @@ fn bench_reuse_scenarios(c: &mut Criterion) {
 
     group.bench_function("mvp_multiple_frames", |b| {
         let mut layout = create_complex_nested_mvp();
-        let area = Area::new(0.0, 0.0, 400.0, 300.0);
+        let area = mvp::Area::new(0.0, 0.0, 400.0, 300.0);
 
         b.iter(|| {
             layout.draw(black_box(area), &mut (), &mut ());
