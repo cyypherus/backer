@@ -1813,11 +1813,8 @@ pub fn stack<T, U>(elements: Vec<Node<T, U>>) -> Node<T, U> {
     .with_children(elements)
 }
 
-pub fn stack_aligned<T, U>(
-    x_align: Option<XAlign>,
-    y_align: Option<YAlign>,
-    elements: Vec<Node<T, U>>,
-) -> Node<T, U> {
+pub fn stack_aligned<T, U>(align: Align, elements: Vec<Node<T, U>>) -> Node<T, U> {
+    let (x_align, y_align) = align.axis_aligns();
     Node::new(NodeType::Stack { x_align, y_align }).with_children(elements)
 }
 
