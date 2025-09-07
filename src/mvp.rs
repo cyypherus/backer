@@ -16,6 +16,8 @@ use std::fmt::Debug;
 use std::ops::RangeBounds;
 use std::rc::Rc;
 
+use crate::mvp::tree::Tree;
+
 type NodeId = usize;
 type AreaReaderFn<T, U> = Box<dyn Fn(Area, &mut T, &mut U) -> Node<T, U>>;
 type DynamicNodeFn<T, U> = Box<dyn Fn(&mut T, &mut U) -> Node<T, U>>;
@@ -23,24 +25,23 @@ type DrawableFn<T, U> = Box<dyn Fn(Area, &mut T, &mut U)>;
 type DimensionFn<T, U> = Option<Rc<dyn Fn(f32, &mut T, &mut U) -> f32>>;
 
 mod tree {
-    pub type NodeId = usize;
+    type NodeId = usize;
 
-    pub struct TreeTraversal<'a, T> {
-        nodes: &'a [T],
+    struct TreeTraversal<'a, F: FlatNode> {
+        nodes: &'a [F],
         node_ids: Vec<NodeId>,
     }
 
-    impl<'a, T> Iterator for TreeTraversal<'a, FlatNode<T>> {
-        type Item = &'a T;
+    impl<'a, F: FlatNode> Iterator for TreeTraversal<'a, F> {
+        type Item = &'a F;
 
         fn next(&mut self) -> Option<Self::Item> {
-            self.node_ids.pop().map(|id| &self.nodes[id].data)
+            self.node_ids.pop().map(|id| &self.nodes[id])
         }
     }
 
-    impl<'a, T> TreeTraversal<'a, T> {
-        fn new(nodes: &'a [T], node_ids: Vec<NodeId>) -> Self {
-            // Reverse so we can pop from the end efficiently
+    impl<'a, F: FlatNode> TreeTraversal<'a, F> {
+        fn new(nodes: &'a [F], node_ids: Vec<NodeId>) -> Self {
             let mut node_ids = node_ids;
             node_ids.reverse();
             Self { nodes, node_ids }
@@ -49,26 +50,29 @@ mod tree {
 
     #[derive(Debug, Clone, Copy)]
     pub enum Order {
-        TopDown,             // depth-first pre-order, left-to-right
-        TopDownReverse,      // depth-first pre-order, right-to-left
-        BottomUp,            // depth-first post-order, left-to-right
-        BottomUpReverse,     // depth-first post-order, right-to-left
-        BreadthFirst,        // breadth-first, left-to-right
-        BreadthFirstReverse, // breadth-first, right-to-left
+        TopDown,
+        TopDownReverse,
+        BottomUp,
+        BottomUpReverse,
+        BreadthFirst,
+        BreadthFirstReverse,
     }
 
-    pub struct Tree<T> {
-        nodes: Vec<FlatNode<T>>,
+    pub struct Tree<F: FlatNode> {
+        nodes: Vec<F>,
         root_id: NodeId,
     }
 
-    impl<T> Tree<T> {
-        pub fn new(root_node: Node<T>) -> Self {
+    impl<F: FlatNode> Tree<F> {
+        pub fn new<C: ConstructionNode>(root_node: C) -> Self
+        where
+            F: for<'a> From<&'a C>,
+        {
             let (nodes, root_id) = flatten(root_node);
             Self { nodes, root_id }
         }
 
-        pub fn traverse(&self, order: Order) -> impl Iterator<Item = &T> {
+        pub fn traverse(&self, order: Order) -> impl Iterator<Item = &F> {
             match order {
                 Order::TopDown => self.top_down(false),
                 Order::TopDownReverse => self.top_down(true),
@@ -78,13 +82,14 @@ mod tree {
                 Order::BreadthFirstReverse => self.breadth_first(true),
             }
         }
-        fn top_down(&self, reverse: bool) -> TreeTraversal<'_, FlatNode<T>> {
+
+        fn top_down(&self, reverse: bool) -> TreeTraversal<'_, F> {
             let mut stack = vec![self.root_id];
             let mut visit_order = Vec::new();
 
             while let Some(node_id) = stack.pop() {
                 visit_order.push(node_id);
-                let children = &self.nodes[node_id].children;
+                let children = &self.nodes[node_id].children();
                 if reverse {
                     for &child_id in children.iter() {
                         stack.push(child_id);
@@ -99,7 +104,7 @@ mod tree {
             TreeTraversal::new(&self.nodes, visit_order)
         }
 
-        fn bottom_up(&self, reverse: bool) -> TreeTraversal<'_, FlatNode<T>> {
+        fn bottom_up(&self, reverse: bool) -> TreeTraversal<'_, F> {
             let mut stack = vec![(self.root_id, false)];
             let mut visit_order = Vec::new();
 
@@ -108,7 +113,7 @@ mod tree {
                     visit_order.push(node_id);
                 } else {
                     stack.push((node_id, true));
-                    let children = &self.nodes[node_id].children;
+                    let children = &self.nodes[node_id].children();
                     if reverse {
                         for &child_id in children.iter() {
                             stack.push((child_id, false));
@@ -124,7 +129,7 @@ mod tree {
             TreeTraversal::new(&self.nodes, visit_order)
         }
 
-        fn breadth_first(&self, reverse: bool) -> TreeTraversal<'_, FlatNode<T>> {
+        fn breadth_first(&self, reverse: bool) -> TreeTraversal<'_, F> {
             use std::collections::VecDeque;
             let mut queue = VecDeque::new();
             let mut visit_order = Vec::new();
@@ -133,7 +138,7 @@ mod tree {
 
             while let Some(node_id) = queue.pop_front() {
                 visit_order.push(node_id);
-                let children = &self.nodes[node_id].children;
+                let children = &self.nodes[node_id].children();
                 if reverse {
                     for &child_id in children.iter().rev() {
                         queue.push_back(child_id);
@@ -149,35 +154,22 @@ mod tree {
         }
     }
 
-    pub struct Node<T> {
-        pub data: T,
-        pub children: Vec<Node<T>>,
+    pub trait FlatNode {
+        fn children(&self) -> &Vec<NodeId>;
+        fn children_mut(&mut self) -> &mut Vec<NodeId>;
+    }
+    pub trait ConstructionNode: Sized {
+        fn children(&self) -> &Vec<Self>;
+        fn children_mut(&mut self) -> &mut Vec<Self>;
     }
 
-    impl<T> Node<T> {
-        pub fn new(data: T) -> Self {
-            Self {
-                data,
-                children: Vec::new(),
-            }
-        }
-
-        pub fn with_children(mut self, children: Vec<Node<T>>) -> Self {
-            self.children = children;
-            self
-        }
-    }
-
-    struct FlatNode<T> {
-        data: T,
-        children: Vec<NodeId>,
-    }
-
-    fn flatten<T>(root_node: Node<T>) -> (Vec<FlatNode<T>>, NodeId) {
+    fn flatten<C: ConstructionNode, F: FlatNode + for<'a> From<&'a C>>(
+        root_node: C,
+    ) -> (Vec<F>, NodeId) {
         use std::collections::{HashMap, VecDeque};
 
-        struct WorkItem<T> {
-            node: Node<T>,
+        struct WorkItem<C> {
+            node: C,
             node_id: NodeId,
         }
 
@@ -191,14 +183,10 @@ mod tree {
             node_id: root_id,
         });
 
-        while let Some(work_item) = work_queue.pop_front() {
-            nodes.push(FlatNode {
-                data: work_item.node.data,
-                children: Vec::new(),
-            });
-
+        while let Some(mut work_item) = work_queue.pop_front() {
+            nodes.push(F::from(&work_item.node));
             let mut child_ids = Vec::new();
-            for child in work_item.node.children {
+            for child in std::mem::take(work_item.node.children_mut()) {
                 let child_id = nodes.len() + work_queue.len();
                 child_ids.push(child_id);
                 work_queue.push_back(WorkItem {
@@ -210,7 +198,7 @@ mod tree {
         }
 
         for (node_id, child_ids) in parent_child_map {
-            nodes[node_id].children = child_ids;
+            *nodes[node_id].children_mut() = child_ids;
         }
 
         (nodes, root_id)
@@ -220,19 +208,57 @@ mod tree {
     mod tests {
         use super::*;
 
-        struct TestData {
-            value: i32,
+        struct TestNode {
+            data: i32,
+            children: Vec<TestNode>,
         }
 
-        fn test_node(value: i32, children: Vec<Node<TestData>>) -> Node<TestData> {
-            Node::new(TestData { value }).with_children(children)
+        impl ConstructionNode for TestNode {
+            fn children(&self) -> &Vec<Self> {
+                &self.children
+            }
+
+            fn children_mut(&mut self) -> &mut Vec<Self> {
+                &mut self.children
+            }
         }
 
-        fn leaf(value: i32) -> Node<TestData> {
+        struct TestFlatNode {
+            data: i32,
+            children: Vec<NodeId>,
+        }
+
+        impl FlatNode for TestFlatNode {
+            fn children(&self) -> &Vec<NodeId> {
+                &self.children
+            }
+
+            fn children_mut(&mut self) -> &mut Vec<NodeId> {
+                &mut self.children
+            }
+        }
+
+        impl From<&TestNode> for TestFlatNode {
+            fn from(node: &TestNode) -> Self {
+                TestFlatNode {
+                    data: node.data,
+                    children: Vec::new(),
+                }
+            }
+        }
+
+        fn test_node(value: i32, children: Vec<TestNode>) -> TestNode {
+            TestNode {
+                data: value,
+                children,
+            }
+        }
+
+        fn leaf(value: i32) -> TestNode {
             test_node(value, vec![])
         }
 
-        fn create_test_tree() -> Tree<TestData> {
+        fn create_test_tree() -> Tree<TestFlatNode> {
             let root = test_node(
                 1,
                 vec![
@@ -258,42 +284,42 @@ mod tree {
             // Test parents first (same as top_down)
             let values: Vec<i32> = tree
                 .traverse(Order::TopDown)
-                .map(|data| data.value)
+                .map(|node| node.data)
                 .collect();
             assert_eq!(values, vec![1, 2, 4, 5, 3]);
 
             // Test parents first reverse
             let values: Vec<i32> = tree
                 .traverse(Order::TopDownReverse)
-                .map(|data| data.value)
+                .map(|node| node.data)
                 .collect();
             assert_eq!(values, vec![1, 3, 2, 5, 4]);
 
             // Test level by level
             let values: Vec<i32> = tree
                 .traverse(Order::BreadthFirst)
-                .map(|data| data.value)
+                .map(|node| node.data)
                 .collect();
             assert_eq!(values, vec![1, 2, 3, 4, 5]);
 
             // Test level by level reverse
             let values: Vec<i32> = tree
                 .traverse(Order::BreadthFirstReverse)
-                .map(|data| data.value)
+                .map(|node| node.data)
                 .collect();
             assert_eq!(values, vec![1, 3, 2, 5, 4]);
 
             // Test children first (bottom-up)
             let values: Vec<i32> = tree
                 .traverse(Order::BottomUp)
-                .map(|data| data.value)
+                .map(|node| node.data)
                 .collect();
             assert_eq!(values, vec![4, 5, 2, 3, 1]);
 
             // Test children first reverse (bottom-up reverse)
             let values: Vec<i32> = tree
                 .traverse(Order::BottomUpReverse)
-                .map(|data| data.value)
+                .map(|node| node.data)
                 .collect();
             assert_eq!(values, vec![3, 5, 4, 2, 1]);
         }
@@ -303,8 +329,8 @@ mod tree {
             let tree = create_test_tree();
             let even_values: Vec<i32> = tree
                 .traverse(Order::TopDown)
-                .filter(|data| data.value % 2 == 0)
-                .map(|data| data.value)
+                .filter(|node| node.data % 2 == 0)
+                .map(|node| node.data)
                 .collect();
             assert_eq!(even_values, vec![2, 4]);
         }
@@ -314,7 +340,7 @@ mod tree {
             let tree = create_test_tree();
             let sum: i32 = tree
                 .traverse(Order::TopDown)
-                .fold(0, |acc, data| acc + data.value);
+                .fold(0, |acc, node| acc + node.data);
             assert_eq!(sum, 15); // 1+2+4+5+3
         }
 
@@ -323,15 +349,15 @@ mod tree {
             let tree = create_test_tree();
 
             // Test the structure matches our intuitive construction
-            assert_eq!(tree.nodes[tree.root_id].data.value, 1);
+            assert_eq!(tree.nodes[tree.root_id].data, 1);
             assert_eq!(tree.nodes[tree.root_id].children.len(), 2);
 
             let child1 = tree.nodes[tree.root_id].children[0];
             let child2 = tree.nodes[tree.root_id].children[1];
 
-            assert_eq!(tree.nodes[child1].data.value, 2);
+            assert_eq!(tree.nodes[child1].data, 2);
             assert_eq!(tree.nodes[child1].children.len(), 2);
-            assert_eq!(tree.nodes[child2].data.value, 3);
+            assert_eq!(tree.nodes[child2].data, 3);
             assert_eq!(tree.nodes[child2].children.len(), 0);
         }
     }
@@ -910,6 +936,7 @@ pub struct Layout<T, U> {
     nodes: Vec<NodeData<T, U>>,
     work_queue: VecDeque<NodeId>,
     root_id: Option<NodeId>,
+    // tree: Tree<NodeData<T, U>>,
 }
 
 impl<T, U> std::fmt::Debug for Layout<T, U> {
@@ -929,6 +956,7 @@ impl<T, U> Layout<T, U> {
             nodes: Vec::new(),
             work_queue: VecDeque::new(),
             root_id: None,
+            // tree: Tree::new(root_node),
         };
         layout.root_id = Some(layout.flatten_tree(root_node));
         layout
@@ -1237,8 +1265,7 @@ impl<T, U> Layout<T, U> {
                 visit_order.push(node_id);
             } else {
                 stack.push((node_id, true));
-
-                for &child_id in &self.nodes[node_id].children.clone() {
+                for &child_id in &self.nodes[node_id].children {
                     stack.push((child_id, false));
                 }
             }
