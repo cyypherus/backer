@@ -776,49 +776,6 @@ impl<T, U> Layout<T, U> {
 
         write!(f, "{}{} [id: {}]", indent, node_type_name, node_id)?;
 
-        // Print area if allocated
-        if let Some(area) = node.area {
-            write!(f, "\n {indent}area: {:?}", area)?;
-        }
-
-        // Print constraints
-        let mut constraint_parts = Vec::new();
-        if let Some(w) = node.constraints.width_min
-            && node.constraints.width_max == Some(w)
-        {
-            constraint_parts.push(format!("width: {}", w));
-        }
-        if let Some(h) = node.constraints.height_min
-            && node.constraints.height_max == Some(h)
-        {
-            constraint_parts.push(format!("height: {}", h));
-        }
-        if node.constraints.expand_x {
-            constraint_parts.push("expand_x".to_string());
-        }
-        if node.constraints.expand_y {
-            constraint_parts.push("expand_y".to_string());
-        }
-        if node.constraints.dynamic_width.is_some() {
-            constraint_parts.push("dynamic_width".to_string());
-        }
-        if node.constraints.dynamic_height.is_some() {
-            constraint_parts.push("dynamic_height".to_string());
-        }
-
-        if !constraint_parts.is_empty() {
-            write!(f, " ({})", constraint_parts.join(", "))?;
-        }
-
-        if let Some(calculated_constraints) = node.calculated_constraints {
-            write!(
-                f,
-                "\n {indent}[calc: w={:?},\n {indent}h={:?}]",
-                calculated_constraints.width, calculated_constraints.height
-            )?;
-        }
-
-        // Print node-specific details
         match &node.node_type {
             NodeType::Column {
                 spacing,
@@ -1136,8 +1093,8 @@ impl<T, U> Layout<T, U> {
                     ),
             ),
             NodeType::Padding(padding) => {
-                if let Some(&child_id) = node.children.first() {
-                    self.nodes[child_id]
+                self_constraints.combine_parent_child(node.children.first().and_then(|child_id| {
+                    self.nodes[*child_id]
                         .calculated_constraints
                         .map(|constraints| SizeConstraints {
                             width: Constraint::new(
@@ -1162,10 +1119,7 @@ impl<T, U> Layout<T, U> {
                             ),
                             ..Default::default()
                         })
-                        .unwrap_or(self_constraints)
-                } else {
-                    self_constraints
-                }
+                }))
             }
             NodeType::Dynamic {
                 computed: Some(child_id),
@@ -1174,36 +1128,7 @@ impl<T, U> Layout<T, U> {
             | NodeType::Coupled {
                 element: child_id, ..
             } => {
-                if let Some(child_constraints) = self.nodes[*child_id].calculated_constraints {
-                    SizeConstraints {
-                        width: Constraint {
-                            lower: self_constraints
-                                .width
-                                .lower
-                                .or(child_constraints.width.lower),
-                            upper: self_constraints
-                                .width
-                                .upper
-                                .or(child_constraints.width.upper),
-                        },
-                        height: Constraint {
-                            lower: self_constraints
-                                .height
-                                .lower
-                                .or(child_constraints.height.lower),
-                            upper: self_constraints
-                                .height
-                                .upper
-                                .or(child_constraints.height.upper),
-                        },
-                        expand_x: self_constraints.expand_x,
-                        expand_y: self_constraints.expand_y,
-                        x_align: self_constraints.x_align,
-                        y_align: self_constraints.y_align,
-                    }
-                } else {
-                    self_constraints
-                }
+                self_constraints.combine_parent_child(self.nodes[*child_id].calculated_constraints)
             }
             _ => self_constraints,
         }
