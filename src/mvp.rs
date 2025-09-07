@@ -2514,7 +2514,7 @@ mod tests {
                 ])
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
-            let mut l = Layout::new({
+            Layout::new({
                 column(vec![
                     draw(|a, _, _| {
                         assert_eq!(a, Area::new(0., 0., 50., 100.));
@@ -2523,9 +2523,8 @@ mod tests {
                     .align(Align::Leading),
                 ])
                 .expand()
-            });
-
-            l.debug_visualize(Area::new(0., 0., 100., 100.), &mut (), &mut ());
+            })
+            .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
             dbg!(&l);
             Layout::new({
                 stack(vec![
