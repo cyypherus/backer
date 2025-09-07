@@ -1,3 +1,16 @@
+//! This is a multipass layout crate
+//!
+//! Zero recursion is used in layout.
+//!
+//! Layout is performed with two types of passes:
+//!
+//! Constraint pass: The constraint pass propagates constraints from child to parent
+//! Area pass: The area allocation pass propagates available area from parent to child using constraints
+//!
+//! The two passes are repeated as necessary to allow for dynamic constraints which depend on proposed area
+//!
+//! Parent constraints *never* override child constraints, parents can only impact child nodes by proposing a different area.
+
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::ops::RangeBounds;
