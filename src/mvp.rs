@@ -2525,7 +2525,6 @@ mod tests {
                 .expand()
             })
             .draw(Area::new(0., 0., 100., 100.), &mut (), &mut ());
-            dbg!(&l);
             Layout::new({
                 stack(vec![
                     draw(|a, _, _| {
