@@ -15,63 +15,27 @@ use std::fmt::Debug;
 use std::ops::RangeBounds;
 use std::rc::Rc;
 
-use crate::mvp::tree::{ConstructionNode, FlatNode, NodeId, Order, Tree};
+use crate::mvp::tree::{ConstructionNode, FlatNode, NodeId, Tree};
 
 type AreaReaderFn<T, U> = Box<dyn Fn(Area, &mut T, &mut U) -> Node<T, U>>;
 type DynamicNodeFn<T, U> = Box<dyn Fn(&mut T, &mut U) -> Node<T, U>>;
 type DrawableFn<T, U> = Box<dyn Fn(Area, &mut T, &mut U)>;
 type DimensionFn<T, U> = Option<Rc<dyn Fn(f32, &mut T, &mut U) -> f32>>;
+type IntermediateBeforeFn<T, U> = Box<dyn Fn(Area, &mut T, &mut U)>;
+type IntermediateAfterFn<T, U> = Box<dyn Fn(&mut T, &mut U)>;
 
 mod tree {
     use std::collections::VecDeque;
 
-    pub type NodeId = usize;
+    pub(crate) type NodeId = usize;
 
-    pub struct TreeTraversal {
-        node_ids: Vec<NodeId>,
-        current_index: usize,
-    }
-
-    impl Iterator for TreeTraversal {
-        type Item = NodeId;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            if self.current_index < self.node_ids.len() {
-                let node_id = self.node_ids[self.current_index];
-                self.current_index += 1;
-                Some(node_id)
-            } else {
-                None
-            }
-        }
-    }
-
-    impl TreeTraversal {
-        fn new(node_ids: Vec<NodeId>) -> Self {
-            Self {
-                node_ids,
-                current_index: 0,
-            }
-        }
-    }
-
-    #[derive(Debug, Clone, Copy)]
-    pub enum Order {
-        TopDown,
-        TopDownReverse,
-        BottomUp,
-        BottomUpReverse,
-        BreadthFirst,
-        BreadthFirstReverse,
-    }
-
-    pub struct Tree<F: FlatNode> {
+    pub(crate) struct Tree<F: FlatNode> {
         nodes: Vec<F>,
         pub root_id: NodeId,
     }
 
     impl<F: FlatNode> Tree<F> {
-        pub fn new<C: ConstructionNode>(root_node: C) -> Self
+        pub(crate) fn new<C: ConstructionNode>(root_node: C) -> Self
         where
             F: From<C>,
         {
@@ -83,40 +47,42 @@ mod tree {
             tree
         }
 
-        pub fn traverse(&self, order: Order) -> TreeTraversal {
-            match order {
-                Order::TopDown => self.top_down(false),
-                Order::TopDownReverse => self.top_down(true),
-                Order::BottomUp => self.bottom_up(false),
-                Order::BottomUpReverse => self.bottom_up(true),
-                Order::BreadthFirst => self.breadth_first(false),
-                Order::BreadthFirstReverse => self.breadth_first(true),
-            }
-        }
+        pub(crate) fn top_down(&self, from: NodeId) -> impl Iterator<Item = NodeId> + use<F> {
+            let mut stack = vec![from];
 
-        fn top_down(&self, reverse: bool) -> TreeTraversal {
-            let mut stack = vec![self.root_id];
             let mut visit_order = Vec::new();
 
             while let Some(node_id) = stack.pop() {
                 visit_order.push(node_id);
                 let children = &self.nodes[node_id].children();
-                if reverse {
-                    for &child_id in children.iter() {
-                        stack.push(child_id);
-                    }
-                } else {
-                    for &child_id in children.iter().rev() {
-                        stack.push(child_id);
-                    }
+                for &child_id in children.iter().rev() {
+                    stack.push(child_id);
                 }
             }
 
-            TreeTraversal::new(visit_order)
+            visit_order.into_iter()
         }
 
-        fn bottom_up(&self, reverse: bool) -> TreeTraversal {
-            let mut stack = vec![(self.root_id, false)];
+        pub(crate) fn top_down_depth(
+            &self,
+            from: NodeId,
+        ) -> impl Iterator<Item = (usize, NodeId)> + use<F> {
+            let mut stack = vec![(0, from)];
+
+            let mut visit_order = Vec::new();
+
+            while let Some((depth, node_id)) = stack.pop() {
+                visit_order.push((depth, node_id));
+                let children = &self.nodes[node_id].children();
+                for &child_id in children.iter().rev() {
+                    stack.push((depth + 1, child_id));
+                }
+            }
+            visit_order.into_iter()
+        }
+
+        pub(crate) fn bottom_up(&self, from: NodeId) -> impl Iterator<Item = NodeId> + use<F> {
+            let mut stack = vec![(from, false)];
             let mut visit_order = Vec::new();
 
             while let Some((node_id, visited)) = stack.pop() {
@@ -125,61 +91,54 @@ mod tree {
                 } else {
                     stack.push((node_id, true));
                     let children = &self.nodes[node_id].children();
-                    if reverse {
-                        for &child_id in children.iter() {
-                            stack.push((child_id, false));
-                        }
-                    } else {
-                        for &child_id in children.iter().rev() {
-                            stack.push((child_id, false));
-                        }
-                    }
-                }
-            }
-
-            TreeTraversal::new(visit_order)
-        }
-
-        fn breadth_first(&self, reverse: bool) -> TreeTraversal {
-            use std::collections::VecDeque;
-            let mut queue = VecDeque::new();
-            let mut visit_order = Vec::new();
-
-            queue.push_back(self.root_id);
-
-            while let Some(node_id) = queue.pop_front() {
-                visit_order.push(node_id);
-                let children = &self.nodes[node_id].children();
-                if reverse {
                     for &child_id in children.iter().rev() {
-                        queue.push_back(child_id);
-                    }
-                } else {
-                    for &child_id in children.iter() {
-                        queue.push_back(child_id);
+                        stack.push((child_id, false));
                     }
                 }
             }
 
-            TreeTraversal::new(visit_order)
+            visit_order.into_iter()
         }
 
-        pub fn get_node(&self, node_id: NodeId) -> &F {
+        pub(crate) fn get_node(&self, node_id: NodeId) -> &F {
             self.nodes.get(node_id).unwrap()
         }
 
-        pub fn get_node_mut(&mut self, node_id: NodeId) -> &mut F {
+        pub(crate) fn get_node_mut(&mut self, node_id: NodeId) -> &mut F {
             self.nodes.get_mut(node_id).unwrap()
         }
-        pub fn add_child<C: ConstructionNode>(&mut self, parent_id: NodeId, child_node: C) -> NodeId
+        pub(crate) fn add_child<C: ConstructionNode>(
+            &mut self,
+            parent_id: NodeId,
+            child_node: C,
+        ) -> NodeId
         where
             F: From<C>,
         {
             self.add_child_internal(Some(parent_id), child_node)
         }
 
+        pub(crate) fn replace_node<C: ConstructionNode>(&mut self, node_id: NodeId, new_node: C)
+        where
+            F: From<C>,
+        {
+            self.flatten_tree(Some(node_id), None, new_node);
+        }
+
         fn add_child_internal<C: ConstructionNode>(
             &mut self,
+            parent_id: Option<NodeId>,
+            root_node: C,
+        ) -> NodeId
+        where
+            F: From<C>,
+        {
+            self.flatten_tree(None, parent_id, root_node)
+        }
+
+        fn flatten_tree<C: ConstructionNode>(
+            &mut self,
+            replace_at: Option<NodeId>,
             parent_id: Option<NodeId>,
             root_node: C,
         ) -> NodeId
@@ -191,7 +150,7 @@ mod tree {
                 parent_id: Option<NodeId>,
             }
 
-            let root_id = self.nodes.len();
+            let root_id = replace_at.unwrap_or(self.nodes.len());
             let mut queue = VecDeque::new();
 
             queue.push_back(WorkItem {
@@ -200,44 +159,41 @@ mod tree {
             });
 
             while let Some(mut work_item) = queue.pop_front() {
-                let node_id = self.nodes.len();
+                let current_node_id = if work_item.parent_id == parent_id {
+                    root_id
+                } else {
+                    self.nodes.len()
+                };
+
                 let children = std::mem::take(work_item.node.children_mut());
 
-                self.nodes.push(F::from(work_item.node));
-                if let Some(parent_id) = work_item.parent_id {
-                    self.nodes[parent_id].children_mut().push(node_id);
+                if replace_at.is_some() && work_item.parent_id == parent_id {
+                    self.nodes[root_id] = F::from(work_item.node);
+                } else {
+                    self.nodes.push(F::from(work_item.node));
+                    if let Some(parent_id) = work_item.parent_id {
+                        self.nodes[parent_id].children_mut().push(current_node_id);
+                    }
                 }
 
                 for child in children {
                     queue.push_back(WorkItem {
                         node: child,
-                        parent_id: Some(node_id),
+                        parent_id: Some(current_node_id),
                     });
                 }
             }
 
             root_id
         }
-
-        pub fn remove_child(&mut self, parent_id: NodeId, child_id: NodeId) -> bool {
-            if let Some(parent) = self.nodes.get_mut(parent_id) {
-                let children = parent.children_mut();
-                if let Some(pos) = children.iter().position(|&x| x == child_id) {
-                    children.remove(pos);
-                    return true;
-                }
-            }
-            false
-        }
     }
 
-    pub trait FlatNode {
+    pub(crate) trait FlatNode {
         fn children(&self) -> &Vec<NodeId>;
         fn children_mut(&mut self) -> &mut Vec<NodeId>;
     }
 
-    pub trait ConstructionNode: Sized {
-        fn children(&self) -> &Vec<Self>;
+    pub(crate) trait ConstructionNode: Sized {
         fn children_mut(&mut self) -> &mut Vec<Self>;
     }
 
@@ -251,10 +207,6 @@ mod tree {
         }
 
         impl ConstructionNode for TestNode {
-            fn children(&self) -> &Vec<Self> {
-                &self.children
-            }
-
             fn children_mut(&mut self) -> &mut Vec<Self> {
                 &mut self.children
             }
@@ -320,52 +272,24 @@ mod tree {
 
             // Test parents first (same as top_down)
             let values: Vec<i32> = tree
-                .traverse(Order::TopDown)
+                .top_down(tree.root_id)
                 .map(|node_id| tree.get_node(node_id).data)
                 .collect();
             assert_eq!(values, vec![1, 2, 4, 5, 3]);
 
-            // Test parents first reverse
-            let values: Vec<i32> = tree
-                .traverse(Order::TopDownReverse)
-                .map(|node_id| tree.get_node(node_id).data)
-                .collect();
-            assert_eq!(values, vec![1, 3, 2, 5, 4]);
-
-            // Test level by level
-            let values: Vec<i32> = tree
-                .traverse(Order::BreadthFirst)
-                .map(|node_id| tree.get_node(node_id).data)
-                .collect();
-            assert_eq!(values, vec![1, 2, 3, 4, 5]);
-
-            // Test level by level reverse
-            let values: Vec<i32> = tree
-                .traverse(Order::BreadthFirstReverse)
-                .map(|node_id| tree.get_node(node_id).data)
-                .collect();
-            assert_eq!(values, vec![1, 3, 2, 5, 4]);
-
             // Test children first (bottom-up)
             let values: Vec<i32> = tree
-                .traverse(Order::BottomUp)
+                .bottom_up(tree.root_id)
                 .map(|node_id| tree.get_node(node_id).data)
                 .collect();
             assert_eq!(values, vec![4, 5, 2, 3, 1]);
-
-            // Test children first reverse (bottom-up reverse)
-            let values: Vec<i32> = tree
-                .traverse(Order::BottomUpReverse)
-                .map(|node_id| tree.get_node(node_id).data)
-                .collect();
-            assert_eq!(values, vec![3, 5, 4, 2, 1]);
         }
 
         #[test]
         fn test_filter_chain() {
             let tree = create_test_tree();
             let even_values: Vec<i32> = tree
-                .traverse(Order::TopDown)
+                .top_down(tree.root_id)
                 .filter_map(|node_id| {
                     let node = tree.get_node(node_id);
                     if node.data % 2 == 0 {
@@ -382,7 +306,7 @@ mod tree {
         fn test_fold_chain() {
             let tree = create_test_tree();
             let sum: i32 = tree
-                .traverse(Order::TopDown)
+                .top_down(tree.root_id)
                 .fold(0, |acc, node_id| acc + tree.get_node(node_id).data);
             assert_eq!(sum, 15); // 1+2+4+5+3
         }
@@ -405,6 +329,54 @@ mod tree {
             assert_eq!(child1_node.children.len(), 2);
             assert_eq!(child2_node.data, 3);
             assert_eq!(child2_node.children.len(), 0);
+        }
+
+        #[test]
+        fn test_replace_node() {
+            let mut tree = create_test_tree();
+
+            let root_node = tree.get_node(tree.root_id);
+            let child1_id = root_node.children[0];
+
+            let original_child1 = tree.get_node(child1_id);
+            assert_eq!(original_child1.data, 2);
+            assert_eq!(original_child1.children.len(), 2);
+
+            let replacement_node =
+                test_node(42, vec![test_node(100, vec![]), test_node(200, vec![])]);
+            tree.replace_node(child1_id, replacement_node);
+
+            let replaced_node = tree.get_node(child1_id);
+            assert_eq!(replaced_node.data, 42);
+            assert_eq!(replaced_node.children.len(), 2);
+
+            let new_child1 = tree.get_node(replaced_node.children[0]);
+            let new_child2 = tree.get_node(replaced_node.children[1]);
+            assert_eq!(new_child1.data, 100);
+            assert_eq!(new_child2.data, 200);
+        }
+
+        #[test]
+        fn test_top_down_depth() {
+            let tree = create_test_tree();
+
+            let depth_values: Vec<(usize, i32)> = tree
+                .top_down_depth(tree.root_id)
+                .map(|(depth, node_id)| (depth, tree.get_node(node_id).data))
+                .collect();
+
+            // Expected: root(1) at depth 0, then children 2,3 at depth 1, then grandchildren 4,5 at depth 2
+            assert_eq!(depth_values, vec![(0, 1), (1, 2), (2, 4), (2, 5), (1, 3)]);
+
+            // Test starting from a different node
+            let child_node = tree.get_node(tree.root_id).children[0]; // node with data=2
+            let depth_values_from_child: Vec<(usize, i32)> = tree
+                .top_down_depth(child_node)
+                .map(|(depth, node_id)| (depth, tree.get_node(node_id).data))
+                .collect();
+
+            // Starting from node 2, it should be depth 0, with children 4,5 at depth 1
+            assert_eq!(depth_values_from_child, vec![(0, 2), (1, 4), (1, 5)]);
         }
     }
 }
@@ -761,6 +733,10 @@ pub(crate) enum NodeType<T, U> {
         element: NodeId,
         coupled: NodeId,
     },
+    Intermediate {
+        before: IntermediateBeforeFn<T, U>,
+        after: IntermediateAfterFn<T, U>,
+    },
 }
 
 impl<T, U> Debug for NodeType<T, U> {
@@ -777,6 +753,7 @@ impl<T, U> Debug for NodeType<T, U> {
             NodeType::AreaReader(_) => write!(f, "AreaReader"),
             NodeType::Dynamic { .. } => write!(f, "Dynamic"),
             NodeType::Coupled { .. } => write!(f, "Coupled"),
+            NodeType::Intermediate { .. } => write!(f, "Intermediate"),
         }
     }
 }
@@ -806,10 +783,6 @@ pub struct Node<T, U> {
 }
 
 impl<T, U> ConstructionNode for Node<T, U> {
-    fn children(&self) -> &Vec<Self> {
-        &self.children
-    }
-
     fn children_mut(&mut self) -> &mut Vec<Self> {
         &mut self.children
     }
@@ -989,6 +962,14 @@ impl<T, U> Node<T, U> {
         Node::new(NodeType::Offset { x, y }).with_children(vec![self])
     }
 
+    pub fn offset_x(self, x: f32) -> Node<T, U> {
+        Node::new(NodeType::Offset { x, y: 0. }).with_children(vec![self])
+    }
+
+    pub fn offset_y(self, y: f32) -> Node<T, U> {
+        Node::new(NodeType::Offset { x: 0., y }).with_children(vec![self])
+    }
+
     pub fn attach_under(self, node: Node<T, U>) -> Node<T, U> {
         Node::new(NodeType::Coupled {
             over: false,
@@ -1025,6 +1006,26 @@ impl<T, U> Node<T, U> {
     pub fn aspect_height(mut self, ratio: f32) -> Self {
         self.constraints.dynamic_height = Some(Rc::new(move |width, _, _| width / ratio));
         self
+    }
+
+    pub fn min_height(self, available_area: Area, t: &mut T, u: &mut U) -> Option<f32> {
+        let mut layout = Layout::new(self);
+        layout.layout_iterative(layout.tree.root_id, available_area, t, u);
+        layout
+            .tree
+            .get_node(layout.tree.root_id)
+            .calculated_constraints
+            .and_then(|constraints| constraints.width.lower)
+    }
+
+    pub fn min_width(self, available_area: Area, t: &mut T, u: &mut U) -> Option<f32> {
+        let mut layout = Layout::new(self);
+        layout.layout_iterative(layout.tree.root_id, available_area, t, u);
+        layout
+            .tree
+            .get_node(layout.tree.root_id)
+            .calculated_constraints
+            .and_then(|constraints| constraints.width.lower)
     }
 }
 
@@ -1104,7 +1105,7 @@ impl<T, U> std::fmt::Debug for Layout<T, U> {
                     computed: Some(computed_id),
                     ..
                 } => {
-                    writeln!(f, "{}Dynamic ->", indent)?;
+                    writeln!(f, "{}Dynamic (expanded)", indent)?;
                     fmt_node_structure(tree, f, *computed_id, indent_level + 1)?;
                 }
                 NodeType::Dynamic { computed: None, .. } => {
@@ -1114,13 +1115,12 @@ impl<T, U> std::fmt::Debug for Layout<T, U> {
                     over,
                     element,
                     coupled,
-                } => {
-                    writeln!(
-                        f,
-                        "{}Coupled(over: {}, element: {}, coupled: {})",
-                        indent, over, element, coupled
-                    )?;
-                }
+                } => writeln!(
+                    f,
+                    "{}Coupled(over: {}, element: {}, coupled: {})",
+                    indent, over, element, coupled
+                )?,
+                NodeType::Intermediate { .. } => writeln!(f, "{}Intermediate", indent,)?,
             }
 
             for &child_id in node.children() {
@@ -1255,39 +1255,48 @@ impl<T, U> Layout<T, U> {
     }
 
     pub fn draw(&mut self, available_area: Area, state: &mut T, ui_state: &mut U) {
-        self.layout_iterative(self.tree.root_id, available_area, state, ui_state);
+        self.layout_and_expand(self.tree.root_id, available_area, state, ui_state);
         self.draw_iterative(state, ui_state);
     }
 
     fn layout_iterative(
         &mut self,
-        root_id: NodeId,
+        from: NodeId,
+        available_area: Area,
+        state: &mut T,
+        ui_state: &mut U,
+    ) {
+        for node_id in self.tree.bottom_up(from) {
+            let constraints = self.calculate_node_constraints(node_id, state, ui_state);
+            self.tree.get_node_mut(node_id).calculated_constraints = Some(constraints);
+        }
+
+        self.tree.get_node_mut(self.tree.root_id).area = Some(available_area.constrained(
+            &self.tree.get_node(self.tree.root_id).calculated_constraints,
+            None,
+            None,
+        ));
+
+        for node_id in self.tree.top_down(from) {
+            self.allocate_node_area(node_id, state, ui_state);
+        }
+    }
+
+    fn layout_and_expand(
+        &mut self,
+        from: NodeId,
         available_area: Area,
         state: &mut T,
         ui_state: &mut U,
     ) {
         for _ in 0..2 {
-            self.expand_dynamic_nodes(root_id, state, ui_state);
-
-            for node_id in self.tree.traverse(Order::BottomUp) {
-                let constraints = self.calculate_node_constraints(node_id, state, ui_state);
-                self.tree.get_node_mut(node_id).calculated_constraints = Some(constraints);
-            }
-
-            self.tree.get_node_mut(root_id).area = Some(available_area.constrained(
-                &self.tree.get_node(root_id).calculated_constraints,
-                None,
-                None,
-            ));
-
-            for node_id in self.tree.traverse(Order::TopDown) {
-                self.allocate_node_area(node_id, state, ui_state);
-            }
+            self.layout_iterative(from, available_area, state, ui_state);
+            self.expand_dynamic_nodes(from, state, ui_state);
         }
     }
 
-    fn expand_dynamic_nodes(&mut self, root_id: NodeId, state: &mut T, ui_state: &mut U) {
-        let mut stack = vec![root_id];
+    fn expand_dynamic_nodes(&mut self, from: NodeId, state: &mut T, ui_state: &mut U) {
+        let mut stack = vec![from];
 
         while let Some(node_id) = stack.pop() {
             let should_expand = match &self.tree.get_node(node_id).node_type {
@@ -1302,22 +1311,22 @@ impl<T, U> Layout<T, U> {
                         func,
                         computed: None,
                     } => {
+                        let area = self.tree.get_node(node_id).area.unwrap();
                         let construction_node = func(state, ui_state);
-                        let computed_id = self.tree.add_child(node_id, construction_node);
-
-                        if let NodeType::Dynamic { computed, .. } =
-                            &mut self.tree.get_node_mut(node_id).node_type
-                        {
-                            *computed = Some(computed_id);
-                        }
-
-                        Some(computed_id)
+                        println!("{:?}", &self);
+                        self.tree.replace_node(node_id, construction_node);
+                        self.layout_iterative(node_id, area, state, ui_state);
+                        self.tree.get_node_mut(node_id).area = Some(area);
+                        println!("{:?}", &self);
+                        Some(node_id)
                     }
                     NodeType::AreaReader(area_fn) => {
                         let area = self.tree.get_node(node_id).area.unwrap();
                         let construction_node = area_fn(area, state, ui_state);
-                        let computed_id = self.tree.add_child(node_id, construction_node);
-                        Some(computed_id)
+                        self.tree.replace_node(node_id, construction_node);
+                        self.layout_iterative(node_id, area, state, ui_state);
+                        self.tree.get_node_mut(node_id).area = Some(area);
+                        Some(node_id)
                     }
                     _ => None,
                 };
@@ -1495,23 +1504,33 @@ impl<T, U> Layout<T, U> {
                     .get_node(self.tree.get_node(node_id).children()[*child_id])
                     .calculated_constraints,
             ),
+            NodeType::Intermediate { .. } => self
+                .tree
+                .get_node(node_id)
+                .children()
+                .first()
+                .map(|child| {
+                    self_constraints
+                        .combine_parent_child(self.tree.get_node(*child).calculated_constraints)
+                })
+                .unwrap_or_default(),
             _ => self_constraints,
         }
     }
 
-    fn allocate_node_area(&mut self, node_id: NodeId, state: &mut T, ui_state: &mut U) {
-        let Some(available_area) = self.tree.get_node(node_id).area else {
+    fn allocate_node_area(&mut self, from: NodeId, state: &mut T, ui_state: &mut U) {
+        let Some(available_area) = self.tree.get_node(from).area else {
             return;
         };
 
-        match &self.tree.get_node(node_id).node_type {
+        match &self.tree.get_node(from).node_type {
             NodeType::Column {
                 spacing,
                 x_align,
                 y_align,
             } => {
                 self.layout_axis(
-                    &self.tree.get_node(node_id).children.clone(),
+                    &self.tree.get_node(from).children.clone(),
                     *spacing,
                     available_area,
                     true,
@@ -1527,7 +1546,7 @@ impl<T, U> Layout<T, U> {
                 x_align,
             } => {
                 self.layout_axis(
-                    &self.tree.get_node(node_id).children.clone(),
+                    &self.tree.get_node(from).children.clone(),
                     *spacing,
                     available_area,
                     false,
@@ -1540,16 +1559,16 @@ impl<T, U> Layout<T, U> {
             NodeType::Stack { x_align, y_align } => {
                 let x_align = *x_align;
                 let y_align = *y_align;
-                for child_id in &self.tree.get_node(node_id).children.clone() {
+                for child_id in &self.tree.get_node(from).children.clone() {
                     let child_constraints = &self.tree.get_node(*child_id).calculated_constraints;
                     self.tree.get_node_mut(*child_id).area =
                         Some(available_area.constrained(child_constraints, x_align, y_align));
                 }
             }
             NodeType::Padding(padding) => {
-                if let Some(&child_id) = self.tree.get_node(node_id).children.first() {
+                if let Some(&child_id) = self.tree.get_node(from).children.first() {
                     let constrained_area = available_area.constrained(
-                        &self.tree.get_node(node_id).calculated_constraints,
+                        &self.tree.get_node(from).calculated_constraints,
                         None,
                         None,
                     );
@@ -1566,7 +1585,7 @@ impl<T, U> Layout<T, U> {
                 }
             }
             NodeType::Offset { x, y } => {
-                if let Some(&child_id) = self.tree.get_node(node_id).children.first() {
+                if let Some(&child_id) = self.tree.get_node(from).children.first() {
                     let child_area = Area {
                         x: available_area.x + x,
                         y: available_area.y + y,
@@ -1581,9 +1600,9 @@ impl<T, U> Layout<T, U> {
                 element,
                 coupled,
             } => {
-                if self.tree.get_node(node_id).children.len() >= 2 {
-                    let element_id = self.tree.get_node(node_id).children[*element];
-                    let coupled_id = self.tree.get_node(node_id).children[*coupled];
+                if self.tree.get_node(from).children.len() >= 2 {
+                    let element_id = self.tree.get_node(from).children[*element];
+                    let coupled_id = self.tree.get_node(from).children[*coupled];
 
                     let constrained_area = available_area.constrained(
                         &self.tree.get_node(element_id).calculated_constraints,
@@ -1597,13 +1616,13 @@ impl<T, U> Layout<T, U> {
             }
             _ => {
                 let final_area = available_area.constrained(
-                    &self.tree.get_node(node_id).calculated_constraints,
+                    &self.tree.get_node(from).calculated_constraints,
                     None,
                     None,
                 );
-                self.tree.get_node_mut(node_id).area = Some(final_area);
+                self.tree.get_node_mut(from).area = Some(final_area);
 
-                let children = self.tree.get_node(node_id).children.clone();
+                let children = self.tree.get_node(from).children.clone();
                 for &child_id in &children {
                     self.tree.get_node_mut(child_id).area = Some(final_area);
                 }
@@ -1854,12 +1873,42 @@ impl<T, U> Layout<T, U> {
     }
 
     fn draw_iterative(&mut self, state: &mut T, ui_state: &mut U) {
-        for node_id in self.tree.traverse(Order::TopDown) {
-            if let NodeType::Draw(draw_fn) = &self.tree.get_node(node_id).node_type
-                && let Some(area) = self.tree.get_node(node_id).area
+        let order: Vec<_> = self.tree.top_down_depth(self.tree.root_id).collect();
+        let mut intermediate_stack: Vec<(usize, NodeId)> = Vec::new();
+        for (depth, node_id) in order {
+            println!("{:?}", self);
+            let area = self.tree.get_node(node_id).area;
+            if let Some((last_intermediate_depth, last_intermediate_id)) = intermediate_stack.last()
+                && depth <= *last_intermediate_depth
+                && let NodeType::Intermediate { after, .. } =
+                    &self.tree.get_node(*last_intermediate_id).node_type
             {
-                draw_fn(area, state, ui_state);
+                after(state, ui_state);
+                intermediate_stack.pop();
             }
+            match &self.tree.get_node(node_id).node_type {
+                NodeType::Intermediate { before, .. } => {
+                    if let Some(area) = area {
+                        before(area, state, ui_state);
+                    }
+                    intermediate_stack.push((depth, node_id));
+                }
+                NodeType::Draw(draw_fn) => {
+                    if let Some(area) = self.tree.get_node(node_id).area {
+                        draw_fn(area, state, ui_state);
+                    } else {
+                        eprintln!("Unexpected draw node without area");
+                    }
+                }
+                _ => {}
+            }
+        }
+        while let Some((_last_intermediate_depth, last_intermediate_id)) = intermediate_stack.last()
+            && let NodeType::Intermediate { after, .. } =
+                &self.tree.get_node(*last_intermediate_id).node_type
+        {
+            after(state, ui_state);
+            intermediate_stack.pop();
         }
     }
 }
@@ -1986,9 +2035,148 @@ pub fn area_reader<T, U>(
     Node::new(NodeType::AreaReader(Box::new(func)))
 }
 
+pub fn intermediate<T, U>(
+    before: impl Fn(Area, &mut T, &mut U) + 'static,
+    after: impl Fn(&mut T, &mut U) + 'static,
+    element: Node<T, U>,
+) -> Node<T, U> {
+    Node::new(NodeType::Intermediate {
+        before: Box::new(before),
+        after: Box::new(after),
+    })
+    .with_children(vec![element])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_intermediate_at_root() {
+        let mut draw_tracker = 0;
+        Layout::new(
+            //
+            intermediate(
+                |a, t, _| {
+                    assert_eq!(a, Area::new(0., 0., 100., 100.));
+                    assert_eq!(*t, 0);
+                    *t = -1;
+                },
+                |t, _| {
+                    assert_eq!(*t, 1);
+                    *t = 3;
+                },
+                draw(|_, t, _: &mut ()| {
+                    assert_eq!(*t, -1);
+                    *t = 1;
+                }),
+            ),
+        )
+        .draw(
+            Area::new(0.0, 0.0, 100.0, 100.0),
+            &mut draw_tracker,
+            &mut (),
+        );
+        assert_eq!(draw_tracker, 3);
+    }
+
+    #[test]
+    fn test_intermediates_nested() {
+        let mut draw_tracker = 0;
+        Layout::new(
+            //
+            intermediate(
+                |a, t, _| {
+                    assert_eq!(a, Area::new(0., 0., 100., 100.));
+                    assert_eq!(*t, 0);
+                    *t = -1;
+                },
+                |t, _| {
+                    assert_eq!(*t, 4);
+                    *t = 3;
+                },
+                intermediate(
+                    |a, t, _| {
+                        assert_eq!(a, Area::new(0., 0., 100., 100.));
+                        assert_eq!(*t, -1);
+                        *t = -2;
+                    },
+                    |t, _| {
+                        assert_eq!(*t, 2);
+                        *t = 4;
+                    },
+                    draw(|_, t, _: &mut ()| {
+                        assert_eq!(*t, -2);
+                        *t = 2;
+                    }),
+                ),
+            ),
+        )
+        .draw(
+            Area::new(0.0, 0.0, 100.0, 100.0),
+            &mut draw_tracker,
+            &mut (),
+        );
+        assert_eq!(draw_tracker, 3);
+    }
+
+    #[test]
+    fn test_expands_nested_nodes() {
+        let mut draw_tracker = 0;
+        Layout::new(
+            //
+            area_reader(|_, _, _| {
+                dynamic(|_, _| {
+                    area_reader(|_, _, _| {
+                        dynamic(|_, _| {
+                            draw(|_, t, _: &mut ()| {
+                                *t += 1;
+                            })
+                        })
+                    })
+                })
+            }),
+        )
+        .draw(
+            Area::new(0.0, 0.0, 100.0, 100.0),
+            &mut draw_tracker,
+            &mut (),
+        );
+        assert_eq!(draw_tracker, 1);
+    }
+
+    #[test]
+    fn test_draws_all_expanded_nodes() {
+        let mut draw_tracker = 0;
+        Layout::new(
+            //
+            area_reader(|_, _, _| {
+                stack(vec![
+                    dynamic(|_, _| {
+                        stack(vec![
+                            area_reader(|_, _, _| {
+                                draw(|_, t, _: &mut ()| {
+                                    *t += 1;
+                                })
+                            }),
+                            draw(|_, t, _: &mut ()| {
+                                *t += 1;
+                            }),
+                        ])
+                    }),
+                    draw(|_, t, _: &mut ()| {
+                        *t += 1;
+                    }),
+                ])
+            }),
+        )
+        .draw(
+            Area::new(0.0, 0.0, 100.0, 100.0),
+            &mut draw_tracker,
+            &mut (),
+        );
+        assert_eq!(draw_tracker, 3);
+    }
 
     #[test]
     fn test_simple_column_layout() {
