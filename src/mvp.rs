@@ -11,7 +11,6 @@
 //!
 //! Parent constraints *never* override child constraints, parents can only impact child nodes by proposing a different area.
 
-use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::ops::RangeBounds;
 use std::rc::Rc;
@@ -24,6 +23,8 @@ type DrawableFn<T, U> = Box<dyn Fn(Area, &mut T, &mut U)>;
 type DimensionFn<T, U> = Option<Rc<dyn Fn(f32, &mut T, &mut U) -> f32>>;
 
 mod tree {
+    use std::collections::VecDeque;
+
     pub type NodeId = usize;
 
     pub struct TreeTraversal {
@@ -74,8 +75,12 @@ mod tree {
         where
             F: From<C>,
         {
-            let (nodes, root_id) = flatten(root_node);
-            Self { nodes, root_id }
+            let mut tree = Self {
+                nodes: Vec::new(),
+                root_id: 0,
+            };
+            tree.add_child_internal(None, root_node);
+            tree
         }
 
         pub fn traverse(&self, order: Order) -> TreeTraversal {
@@ -170,13 +175,48 @@ mod tree {
         where
             F: From<C>,
         {
-            let child_id = self.nodes.len();
-            let (child_nodes, _) = flatten(child_node);
-            for node in child_nodes {
-                self.nodes.push(node);
+            self.add_child_internal(Some(parent_id), child_node)
+        }
+
+        fn add_child_internal<C: ConstructionNode>(
+            &mut self,
+            parent_id: Option<NodeId>,
+            root_node: C,
+        ) -> NodeId
+        where
+            F: From<C>,
+        {
+            struct WorkItem<C> {
+                node: C,
+                parent_id: Option<NodeId>,
             }
-            self.nodes[parent_id].children_mut().push(child_id);
-            child_id
+
+            let root_id = self.nodes.len();
+            let mut queue = VecDeque::new();
+
+            queue.push_back(WorkItem {
+                node: root_node,
+                parent_id,
+            });
+
+            while let Some(mut work_item) = queue.pop_front() {
+                let node_id = self.nodes.len();
+                let children = std::mem::take(work_item.node.children_mut());
+
+                self.nodes.push(F::from(work_item.node));
+                if let Some(parent_id) = work_item.parent_id {
+                    self.nodes[parent_id].children_mut().push(node_id);
+                }
+
+                for child in children {
+                    queue.push_back(WorkItem {
+                        node: child,
+                        parent_id: Some(node_id),
+                    });
+                }
+            }
+
+            root_id
         }
 
         pub fn remove_child(&mut self, parent_id: NodeId, child_id: NodeId) -> bool {
@@ -199,46 +239,6 @@ mod tree {
     pub trait ConstructionNode: Sized {
         fn children(&self) -> &Vec<Self>;
         fn children_mut(&mut self) -> &mut Vec<Self>;
-    }
-
-    fn flatten<C: ConstructionNode, F: FlatNode + From<C>>(root_node: C) -> (Vec<F>, NodeId) {
-        use std::collections::{HashMap, VecDeque};
-
-        struct WorkItem<C> {
-            node: C,
-            node_id: NodeId,
-        }
-
-        let root_id = 0;
-        let mut work_queue = VecDeque::new();
-        let mut nodes = Vec::new();
-        let mut parent_child_map = HashMap::new();
-
-        work_queue.push_back(WorkItem {
-            node: root_node,
-            node_id: root_id,
-        });
-
-        while let Some(mut work_item) = work_queue.pop_front() {
-            let children = std::mem::take(work_item.node.children_mut());
-            nodes.push(F::from(work_item.node));
-            let mut child_ids = Vec::new();
-            for child in children {
-                let child_id = nodes.len() + work_queue.len();
-                child_ids.push(child_id);
-                work_queue.push_back(WorkItem {
-                    node: child,
-                    node_id: child_id,
-                });
-            }
-            parent_child_map.insert(work_item.node_id, child_ids);
-        }
-
-        for (node_id, child_ids) in parent_child_map {
-            *nodes[node_id].children_mut() = child_ids;
-        }
-
-        (nodes, root_id)
     }
 
     #[cfg(test)]
@@ -763,6 +763,24 @@ pub(crate) enum NodeType<T, U> {
     },
 }
 
+impl<T, U> Debug for NodeType<T, U> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NodeType::Draw(_) => write!(f, "Draw"),
+            NodeType::Column { .. } => write!(f, "Column"),
+            NodeType::Row { .. } => write!(f, "Row"),
+            NodeType::Stack { .. } => write!(f, "Stack"),
+            NodeType::Padding(_) => write!(f, "Padding"),
+            NodeType::Offset { .. } => write!(f, "Offset"),
+            NodeType::Space => write!(f, "Space"),
+            NodeType::Empty => write!(f, "Empty"),
+            NodeType::AreaReader(_) => write!(f, "AreaReader"),
+            NodeType::Dynamic { .. } => write!(f, "Dynamic"),
+            NodeType::Coupled { .. } => write!(f, "Coupled"),
+        }
+    }
+}
+
 struct NodeData<T, U> {
     pub(crate) node_type: NodeType<T, U>,
     pub(crate) constraints: NodeConstraints<T, U>,
@@ -974,10 +992,10 @@ impl<T, U> Node<T, U> {
     pub fn attach_under(self, node: Node<T, U>) -> Node<T, U> {
         Node::new(NodeType::Coupled {
             over: false,
-            element: 0,
-            coupled: 1,
+            element: 1,
+            coupled: 0,
         })
-        .with_children(vec![self, node])
+        .with_children(vec![node, self])
     }
 
     pub fn attach_over(self, node: Node<T, U>) -> Node<T, U> {
@@ -1016,7 +1034,102 @@ pub struct Layout<T, U> {
 
 impl<T, U> std::fmt::Debug for Layout<T, U> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Ok(())
+        fn fmt_node_structure<T, U>(
+            tree: &Tree<NodeData<T, U>>,
+            f: &mut std::fmt::Formatter<'_>,
+            node_id: NodeId,
+            indent_level: usize,
+        ) -> std::fmt::Result {
+            let indent = "   |   ".repeat(indent_level);
+            let node = tree.get_node(node_id);
+
+            if let Some(area) = node.area {
+                writeln!(
+                    f,
+                    "{}x:{}, y:{}, w:{}, h:{}",
+                    indent, area.x, area.y, area.width, area.height
+                )?;
+            }
+            if let Some(constraints) = node.calculated_constraints {
+                writeln!(
+                    f,
+                    "{}cwl:{:?}, cwu:{:?}, chl:{:?}, chu:{:?}",
+                    indent,
+                    constraints.width.lower,
+                    constraints.width.upper,
+                    constraints.height.lower,
+                    constraints.height.upper
+                )?;
+            }
+            writeln!(
+                f,
+                "{}wl:{:?}, wu:{:?}, hl:{:?}, hu:{:?}",
+                indent,
+                node.constraints.width_min,
+                node.constraints.width_max,
+                node.constraints.height_min,
+                node.constraints.height_max
+            )?;
+            match &node.node_type {
+                NodeType::Draw(_) => writeln!(f, "{}Draw", indent)?,
+                NodeType::Column {
+                    spacing,
+                    x_align,
+                    y_align,
+                } => writeln!(
+                    f,
+                    "{}Column(spacing: {:?}, x_align: {:?}, y_align: {:?})",
+                    indent, spacing, x_align, y_align
+                )?,
+                NodeType::Row {
+                    spacing,
+                    x_align,
+                    y_align,
+                } => writeln!(
+                    f,
+                    "{}Row(spacing: {:?}, x_align: {:?}, y_align: {:?})",
+                    indent, spacing, x_align, y_align
+                )?,
+                NodeType::Stack { x_align, y_align } => writeln!(
+                    f,
+                    "{}Stack(x_align: {:?}, y_align: {:?})",
+                    indent, x_align, y_align
+                )?,
+                NodeType::Padding(_) => writeln!(f, "{}Padding", indent)?,
+                NodeType::Offset { x, y } => writeln!(f, "{}Offset(x: {}, y: {})", indent, x, y)?,
+                NodeType::Space => writeln!(f, "{}Space", indent)?,
+                NodeType::Empty => writeln!(f, "{}Empty", indent)?,
+                NodeType::AreaReader(_) => writeln!(f, "{}AreaReader", indent)?,
+                NodeType::Dynamic {
+                    computed: Some(computed_id),
+                    ..
+                } => {
+                    writeln!(f, "{}Dynamic ->", indent)?;
+                    fmt_node_structure(tree, f, *computed_id, indent_level + 1)?;
+                }
+                NodeType::Dynamic { computed: None, .. } => {
+                    writeln!(f, "{}Dynamic (unexpanded)", indent)?
+                }
+                NodeType::Coupled {
+                    over,
+                    element,
+                    coupled,
+                } => {
+                    writeln!(
+                        f,
+                        "{}Coupled(over: {}, element: {}, coupled: {})",
+                        indent, over, element, coupled
+                    )?;
+                }
+            }
+
+            for &child_id in node.children() {
+                fmt_node_structure(tree, f, child_id, indent_level + 1)?;
+            }
+
+            Ok(())
+        }
+        fmt_node_structure(&self.tree, f, self.tree.root_id, 0)
     }
 }
 
@@ -1033,18 +1146,17 @@ impl<T, U> Layout<T, U> {
         use std::rc::Rc;
 
         self.layout_iterative(self.tree.root_id, bounds, state, ui_state);
+        println!("{:?}", &self);
 
         fn find_all_draw_nodes<T, U>(
-            nodes: &[NodeData<T, U>],
-            root_id: Option<NodeId>,
+            tree: &Tree<NodeData<T, U>>,
+            root_id: NodeId,
             draw_nodes: &mut Vec<NodeId>,
         ) {
-            fn find_recursive<T, U>(
-                nodes: &[NodeData<T, U>],
-                node_id: NodeId,
-                draw_nodes: &mut Vec<NodeId>,
-            ) {
-                let node = &nodes[node_id];
+            let mut stack = vec![root_id];
+
+            while let Some(node_id) = stack.pop() {
+                let node = tree.get_node(node_id);
                 match &node.node_type {
                     NodeType::Draw(_) => {
                         draw_nodes.push(node_id);
@@ -1053,22 +1165,18 @@ impl<T, U> Layout<T, U> {
                         computed: Some(computed_id),
                         ..
                     } => {
-                        find_recursive(nodes, *computed_id, draw_nodes);
+                        stack.push(*computed_id);
                     }
                     _ => {}
                 }
-                for &child_id in &node.children {
-                    find_recursive(nodes, child_id, draw_nodes);
+                for &child_id in tree.get_node(node_id).children() {
+                    stack.push(child_id);
                 }
-            }
-
-            if let Some(node_id) = root_id {
-                find_recursive(nodes, node_id, draw_nodes);
             }
         }
 
         fn replace_draw_nodes_with_debug<T, U>(
-            nodes: &mut [NodeData<T, U>],
+            tree: &mut Tree<NodeData<T, U>>,
             draw_node_indices: Vec<NodeId>,
             grid: Rc<RefCell<Vec<Vec<char>>>>,
             bounds: Area,
@@ -1081,7 +1189,7 @@ impl<T, U> Layout<T, U> {
                 let grid_clone = grid.clone();
                 let char_counter_clone = char_counter.clone();
 
-                nodes[node_id].node_type =
+                tree.get_node_mut(node_id).node_type =
                     NodeType::Draw(Box::new(move |area, _state, _ui_state| {
                         if area.width > 0.0 && area.height > 0.0 {
                             let start_x = ((area.x - bounds.x) / scale_x) as usize;
@@ -1115,11 +1223,11 @@ impl<T, U> Layout<T, U> {
 
         // Find all Draw nodes recursively, including those in Coupled structures
         let mut draw_node_indices = Vec::new();
-        find_all_draw_nodes(&self.nodes, self.tree.root_id, &mut draw_node_indices);
+        find_all_draw_nodes(&self.tree, self.tree.root_id, &mut draw_node_indices);
 
         // Replace all Draw nodes with debug draw functions
         replace_draw_nodes_with_debug(
-            &mut self.nodes,
+            &mut self.tree,
             draw_node_indices,
             grid.clone(),
             bounds,
@@ -1146,18 +1254,9 @@ impl<T, U> Layout<T, U> {
         println!("└{}┘", "─".repeat(width));
     }
 
-    fn fmt_node_structure(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-        node_id: NodeId,
-        indent_level: usize,
-    ) -> std::fmt::Result {
-        Ok(())
-    }
-
     pub fn draw(&mut self, available_area: Area, state: &mut T, ui_state: &mut U) {
         self.layout_iterative(self.tree.root_id, available_area, state, ui_state);
-        self.draw_iterative(self.tree.root_id, state, ui_state, true);
+        self.draw_iterative(state, ui_state);
     }
 
     fn layout_iterative(
@@ -1191,44 +1290,46 @@ impl<T, U> Layout<T, U> {
         let mut stack = vec![root_id];
 
         while let Some(node_id) = stack.pop() {
-            match &self.tree.get_node(node_id).node_type {
-                NodeType::Dynamic {
-                    func,
-                    computed: None,
-                } => {
-                    let dynamic_result = func(state, ui_state);
-                    let computed_id = self.tree.flatten_tree(dynamic_result);
+            let should_expand = match &self.tree.get_node(node_id).node_type {
+                NodeType::Dynamic { computed: None, .. } => true,
+                NodeType::AreaReader(_) => self.tree.get_node(node_id).area.is_some(),
+                _ => false,
+            };
 
-                    if let NodeType::Dynamic { computed, .. } =
-                        &mut self.tree.get_node_mut(node_id).node_type
-                    {
-                        *computed = Some(computed_id);
+            if should_expand {
+                let expansion_result = match &self.tree.get_node(node_id).node_type {
+                    NodeType::Dynamic {
+                        func,
+                        computed: None,
+                    } => {
+                        let construction_node = func(state, ui_state);
+                        let computed_id = self.tree.add_child(node_id, construction_node);
+
+                        if let NodeType::Dynamic { computed, .. } =
+                            &mut self.tree.get_node_mut(node_id).node_type
+                        {
+                            *computed = Some(computed_id);
+                        }
+
+                        Some(computed_id)
                     }
-                    self.tree.get_node_mut(node_id).children = vec![computed_id];
+                    NodeType::AreaReader(area_fn) => {
+                        let area = self.tree.get_node(node_id).area.unwrap();
+                        let construction_node = area_fn(area, state, ui_state);
+                        let computed_id = self.tree.add_child(node_id, construction_node);
+                        Some(computed_id)
+                    }
+                    _ => None,
+                };
 
+                if let Some(computed_id) = expansion_result {
                     stack.push(computed_id);
                 }
-                NodeType::AreaReader(area_fn) => {
-                    let Some(area) = self.tree.get_node(node_id).area else {
-                        return;
-                    };
-                    let dynamic_result = area_fn(area, state, ui_state);
-                    let computed_id = self.flatten_tree(dynamic_result);
-
-                    if let NodeType::Dynamic { computed, .. } =
-                        &mut self.tree.get_node(node_id).node_type
-                    {
-                        *computed = Some(computed_id);
-                    }
-                    self.tree.get_node(node_id).children = vec![computed_id];
-
-                    stack.push(computed_id);
+            } else {
+                let children = self.tree.get_node(node_id).children().clone();
+                for &child_id in children.iter().rev() {
+                    stack.push(child_id);
                 }
-                _ => {}
-            }
-
-            for &child_id in &self.tree.get_node(node_id).children.clone() {
-                stack.push(child_id);
             }
         }
     }
@@ -1241,36 +1342,35 @@ impl<T, U> Layout<T, U> {
     ) -> SizeConstraints {
         let node = &self.tree.get_node(node_id);
 
-        let node_width = if let Some(node_area) = self.tree.get_node(node_id).area {
-            let dynamic_width = node
-                .constraints
-                .dynamic_width
-                .as_ref()
-                .map(|f| f(node_area.height, state, ui_state));
-            Constraint::new(
-                node.constraints.width_min.or(dynamic_width),
-                node.constraints.width_max.or(dynamic_width),
-            )
-        } else {
-            Constraint::new(node.constraints.width_min, node.constraints.width_max)
-        };
-
-        let node_height = if let Some(node_area) = self.tree.get_node(node_id).area {
-            let dynamic_height = node
-                .constraints
-                .dynamic_height
-                .as_ref()
-                .map(|f| f(node_area.width, state, ui_state));
-            Constraint::new(
-                node.constraints.height_min.or(dynamic_height),
-                node.constraints.height_max.or(dynamic_height),
-            )
-        } else {
-            Constraint::new(node.constraints.height_min, node.constraints.height_max)
-        };
         let self_constraints = SizeConstraints {
-            width: node_width,
-            height: node_height,
+            width: self
+                .tree
+                .get_node(node_id)
+                .area
+                .and_then(|area| {
+                    node.constraints.dynamic_width.as_ref().map(|f| {
+                        let w = f(area.height, state, ui_state);
+                        Constraint::new(Some(w), Some(w))
+                    })
+                })
+                .unwrap_or(Constraint::new(
+                    node.constraints.width_min,
+                    node.constraints.width_max,
+                )),
+            height: self
+                .tree
+                .get_node(node_id)
+                .area
+                .and_then(|area| {
+                    node.constraints.dynamic_height.as_ref().map(|f| {
+                        let h = f(area.width, state, ui_state);
+                        Constraint::new(Some(h), Some(h))
+                    })
+                })
+                .unwrap_or(Constraint::new(
+                    node.constraints.height_min,
+                    node.constraints.height_max,
+                )),
             expand_x: node.constraints.expand_x,
             expand_y: node.constraints.expand_y,
             x_align: node.constraints.x_align,
@@ -1386,11 +1486,15 @@ impl<T, U> Layout<T, U> {
             NodeType::Dynamic {
                 computed: Some(child_id),
                 ..
-            }
-            | NodeType::Coupled {
-                element: child_id, ..
             } => self_constraints
                 .combine_parent_child(self.tree.get_node(*child_id).calculated_constraints),
+            NodeType::Coupled {
+                element: child_id, ..
+            } => self_constraints.combine_parent_child(
+                self.tree
+                    .get_node(self.tree.get_node(node_id).children()[*child_id])
+                    .calculated_constraints,
+            ),
             _ => self_constraints,
         }
     }
@@ -1491,7 +1595,6 @@ impl<T, U> Layout<T, U> {
                     self.tree.get_node_mut(coupled_id).area = Some(constrained_area);
                 }
             }
-
             _ => {
                 let final_area = available_area.constrained(
                     &self.tree.get_node(node_id).calculated_constraints,
@@ -1543,22 +1646,30 @@ impl<T, U> Layout<T, U> {
         for (i, &child_id) in children.iter().enumerate() {
             let constraints = &self.tree.get_node(child_id).constraints;
             let mut lower = if is_vertical {
-                constraints.height_min.or((constraints.dynamic_height)
+                constraints
+                    .dynamic_height
                     .as_ref()
-                    .map(|f| f(available_area.width, state, ui_state)))
+                    .map(|f| f(available_area.width, state, ui_state))
+                    .or(constraints.height_min)
             } else {
-                constraints.width_min.or((constraints.dynamic_width)
+                constraints
+                    .dynamic_width
                     .as_ref()
-                    .map(|f| f(available_area.height, state, ui_state)))
+                    .map(|f| f(available_area.height, state, ui_state))
+                    .or(constraints.width_min)
             };
             let mut upper = if is_vertical {
-                constraints.height_max.or((constraints.dynamic_height)
+                constraints
+                    .dynamic_height
                     .as_ref()
-                    .map(|f| f(available_area.width, state, ui_state)))
+                    .map(|f| f(available_area.width, state, ui_state))
+                    .or(constraints.height_max)
             } else {
-                constraints.width_max.or((constraints.dynamic_width)
+                constraints
+                    .dynamic_width
                     .as_ref()
-                    .map(|f| f(available_area.height, state, ui_state)))
+                    .map(|f| f(available_area.height, state, ui_state))
+                    .or(constraints.width_max)
             };
 
             if lower.is_none() && upper.is_none() {
@@ -1742,53 +1853,12 @@ impl<T, U> Layout<T, U> {
         }
     }
 
-    fn draw_iterative(
-        &mut self,
-        root_id: NodeId,
-        state: &mut T,
-        ui_state: &mut U,
-        contextual_visibility: bool,
-    ) {
-        let mut stack = vec![(root_id, contextual_visibility)];
-
-        while let Some((node_id, visible)) = stack.pop() {
-            let node_type = &self.tree.get_node(node_id).node_type;
-            let children = self.tree.get_node(node_id).children.clone();
-            let area = self.tree.get_node(node_id).area.expect("Area not laid out");
-
-            match node_type {
-                NodeType::Draw(draw_fn) => {
-                    if visible {
-                        draw_fn(area, state, ui_state);
-                    }
-                }
-                NodeType::Dynamic { computed, .. } => {
-                    if let Some(computed_id) = computed {
-                        stack.push((*computed_id, visible));
-                    }
-                }
-
-                NodeType::Coupled {
-                    over,
-                    element,
-                    coupled,
-                } => {
-                    let element_id = children[*element];
-                    let coupled_id = children[*coupled];
-
-                    if *over {
-                        stack.push((coupled_id, visible));
-                        stack.push((element_id, visible));
-                    } else {
-                        stack.push((element_id, visible));
-                        stack.push((coupled_id, visible));
-                    }
-                }
-                _ => {
-                    for &child_id in children.iter().rev() {
-                        stack.push((child_id, visible));
-                    }
-                }
+    fn draw_iterative(&mut self, state: &mut T, ui_state: &mut U) {
+        for node_id in self.tree.traverse(Order::TopDown) {
+            if let NodeType::Draw(draw_fn) = &self.tree.get_node(node_id).node_type
+                && let Some(area) = self.tree.get_node(node_id).area
+            {
+                draw_fn(area, state, ui_state);
             }
         }
     }
