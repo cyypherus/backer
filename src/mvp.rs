@@ -1313,11 +1313,9 @@ impl<T, U> Layout<T, U> {
                     } => {
                         let area = self.tree.get_node(node_id).area.unwrap();
                         let construction_node = func(state, ui_state);
-                        println!("{:?}", &self);
                         self.tree.replace_node(node_id, construction_node);
                         self.layout_iterative(node_id, area, state, ui_state);
                         self.tree.get_node_mut(node_id).area = Some(area);
-                        println!("{:?}", &self);
                         Some(node_id)
                     }
                     NodeType::AreaReader(area_fn) => {
@@ -1876,7 +1874,6 @@ impl<T, U> Layout<T, U> {
         let order: Vec<_> = self.tree.top_down_depth(self.tree.root_id).collect();
         let mut intermediate_stack: Vec<(usize, NodeId)> = Vec::new();
         for (depth, node_id) in order {
-            println!("{:?}", self);
             let area = self.tree.get_node(node_id).area;
             if let Some((last_intermediate_depth, last_intermediate_id)) = intermediate_stack.last()
                 && depth <= *last_intermediate_depth
