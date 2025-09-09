@@ -118,6 +118,7 @@ mod tree {
             self.add_child_internal(Some(parent_id), child_node)
         }
 
+        #[allow(dead_code)]
         pub(crate) fn replace_node<C: ConstructionNode>(&mut self, node_id: NodeId, new_node: C)
         where
             F: From<C>,
@@ -723,10 +724,13 @@ pub(crate) enum NodeType<T, U> {
     },
     Space,
     Empty,
-    AreaReader(AreaReaderFn<T, U>),
+    AreaReader {
+        func: AreaReaderFn<T, U>,
+        expanded: bool,
+    },
     Dynamic {
         func: DynamicNodeFn<T, U>,
-        computed: Option<NodeId>,
+        expanded: bool,
     },
     Coupled {
         over: bool,
@@ -750,7 +754,7 @@ impl<T, U> Debug for NodeType<T, U> {
             NodeType::Offset { .. } => write!(f, "Offset"),
             NodeType::Space => write!(f, "Space"),
             NodeType::Empty => write!(f, "Empty"),
-            NodeType::AreaReader(_) => write!(f, "AreaReader"),
+            NodeType::AreaReader { .. } => write!(f, "AreaReader"),
             NodeType::Dynamic { .. } => write!(f, "Dynamic"),
             NodeType::Coupled { .. } => write!(f, "Coupled"),
             NodeType::Intermediate { .. } => write!(f, "Intermediate"),
@@ -1010,17 +1014,17 @@ impl<T, U> Node<T, U> {
 
     pub fn min_height(self, available_area: Area, t: &mut T, u: &mut U) -> Option<f32> {
         let mut layout = Layout::new(self);
-        layout.layout_iterative(layout.tree.root_id, available_area, t, u);
+        layout.layout_and_expand(layout.tree.root_id, available_area, t, u);
         layout
             .tree
             .get_node(layout.tree.root_id)
             .calculated_constraints
-            .and_then(|constraints| constraints.width.lower)
+            .and_then(|constraints| constraints.height.lower)
     }
 
     pub fn min_width(self, available_area: Area, t: &mut T, u: &mut U) -> Option<f32> {
         let mut layout = Layout::new(self);
-        layout.layout_iterative(layout.tree.root_id, available_area, t, u);
+        layout.layout_and_expand(layout.tree.root_id, available_area, t, u);
         layout
             .tree
             .get_node(layout.tree.root_id)
@@ -1100,16 +1104,9 @@ impl<T, U> std::fmt::Debug for Layout<T, U> {
                 NodeType::Offset { x, y } => writeln!(f, "{}Offset(x: {}, y: {})", indent, x, y)?,
                 NodeType::Space => writeln!(f, "{}Space", indent)?,
                 NodeType::Empty => writeln!(f, "{}Empty", indent)?,
-                NodeType::AreaReader(_) => writeln!(f, "{}AreaReader", indent)?,
-                NodeType::Dynamic {
-                    computed: Some(computed_id),
-                    ..
-                } => {
+                NodeType::AreaReader { .. } => writeln!(f, "{}AreaReader", indent)?,
+                NodeType::Dynamic { .. } => {
                     writeln!(f, "{}Dynamic (expanded)", indent)?;
-                    fmt_node_structure(tree, f, *computed_id, indent_level + 1)?;
-                }
-                NodeType::Dynamic { computed: None, .. } => {
-                    writeln!(f, "{}Dynamic (unexpanded)", indent)?
                 }
                 NodeType::Coupled {
                     over,
@@ -1145,7 +1142,7 @@ impl<T, U> Layout<T, U> {
         use std::cell::RefCell;
         use std::rc::Rc;
 
-        self.layout_iterative(self.tree.root_id, bounds, state, ui_state);
+        self.layout_and_expand(self.tree.root_id, bounds, state, ui_state);
         println!("{:?}", &self);
 
         fn find_all_draw_nodes<T, U>(
@@ -1157,17 +1154,8 @@ impl<T, U> Layout<T, U> {
 
             while let Some(node_id) = stack.pop() {
                 let node = tree.get_node(node_id);
-                match &node.node_type {
-                    NodeType::Draw(_) => {
-                        draw_nodes.push(node_id);
-                    }
-                    NodeType::Dynamic {
-                        computed: Some(computed_id),
-                        ..
-                    } => {
-                        stack.push(*computed_id);
-                    }
-                    _ => {}
+                if matches!(node.node_type, NodeType::Draw(_)) {
+                    draw_nodes.push(node_id);
                 }
                 for &child_id in tree.get_node(node_id).children() {
                     stack.push(child_id);
@@ -1271,8 +1259,8 @@ impl<T, U> Layout<T, U> {
             self.tree.get_node_mut(node_id).calculated_constraints = Some(constraints);
         }
 
-        self.tree.get_node_mut(self.tree.root_id).area = Some(available_area.constrained(
-            &self.tree.get_node(self.tree.root_id).calculated_constraints,
+        self.tree.get_node_mut(from).area = Some(available_area.constrained(
+            &self.tree.get_node(from).calculated_constraints,
             None,
             None,
         ));
@@ -1290,8 +1278,9 @@ impl<T, U> Layout<T, U> {
         ui_state: &mut U,
     ) {
         for _ in 0..2 {
-            self.layout_iterative(from, available_area, state, ui_state);
             self.expand_dynamic_nodes(from, state, ui_state);
+            self.layout_iterative(from, available_area, state, ui_state);
+            self.expand_area_reader_nodes(from, state, ui_state);
         }
     }
 
@@ -1299,39 +1288,56 @@ impl<T, U> Layout<T, U> {
         let mut stack = vec![from];
 
         while let Some(node_id) = stack.pop() {
-            let should_expand = match &self.tree.get_node(node_id).node_type {
-                NodeType::Dynamic { computed: None, .. } => true,
-                NodeType::AreaReader(_) => self.tree.get_node(node_id).area.is_some(),
-                _ => false,
+            let expansion_result = if let NodeType::Dynamic {
+                func,
+                expanded: expanded @ false,
+            } = &mut self.tree.get_node_mut(node_id).node_type
+            {
+                *expanded = true;
+                let construction_node = func(state, ui_state);
+                let new_child = self.tree.add_child(node_id, construction_node);
+                Some(new_child)
+            } else {
+                None
             };
 
-            if should_expand {
-                let expansion_result = match &self.tree.get_node(node_id).node_type {
-                    NodeType::Dynamic {
-                        func,
-                        computed: None,
-                    } => {
-                        let area = self.tree.get_node(node_id).area.unwrap();
-                        let construction_node = func(state, ui_state);
-                        self.tree.replace_node(node_id, construction_node);
-                        self.layout_iterative(node_id, area, state, ui_state);
-                        self.tree.get_node_mut(node_id).area = Some(area);
-                        Some(node_id)
-                    }
-                    NodeType::AreaReader(area_fn) => {
-                        let area = self.tree.get_node(node_id).area.unwrap();
-                        let construction_node = area_fn(area, state, ui_state);
-                        self.tree.replace_node(node_id, construction_node);
-                        self.layout_iterative(node_id, area, state, ui_state);
-                        self.tree.get_node_mut(node_id).area = Some(area);
-                        Some(node_id)
-                    }
-                    _ => None,
-                };
-
-                if let Some(computed_id) = expansion_result {
-                    stack.push(computed_id);
+            if let Some(computed_id) = expansion_result {
+                stack.push(computed_id);
+            } else {
+                let children = self.tree.get_node(node_id).children().clone();
+                for &child_id in children.iter().rev() {
+                    stack.push(child_id);
                 }
+            }
+        }
+    }
+
+    fn expand_area_reader_nodes(&mut self, from: NodeId, state: &mut T, ui_state: &mut U) {
+        let mut stack = vec![from];
+
+        while let Some(node_id) = stack.pop() {
+            let area = self.tree.get_node(node_id).area;
+            let expansion_result = if let NodeType::AreaReader {
+                func,
+                expanded: expanded @ false,
+            } = &mut self.tree.get_node_mut(node_id).node_type
+            {
+                if let Some(area) = area {
+                    *expanded = true;
+                    let construction_node = func(area, state, ui_state);
+                    let new_child = self.tree.add_child(node_id, construction_node);
+                    self.layout_and_expand(new_child, area, state, ui_state);
+                    Some(new_child)
+                } else {
+                    eprintln!("Unexpected area reader expansion without area {:?}", self);
+                    None
+                }
+            } else {
+                None
+            };
+
+            if let Some(computed_id) = expansion_result {
+                stack.push(computed_id);
             } else {
                 let children = self.tree.get_node(node_id).children().clone();
                 for &child_id in children.iter().rev() {
@@ -1490,11 +1496,18 @@ impl<T, U> Layout<T, U> {
                         })
                 }))
             }
-            NodeType::Dynamic {
-                computed: Some(child_id),
-                ..
-            } => self_constraints
-                .combine_parent_child(self.tree.get_node(*child_id).calculated_constraints),
+            NodeType::Dynamic { .. } => {
+                //
+                self.tree
+                    .get_node(node_id)
+                    .children
+                    .first()
+                    .map(|child| {
+                        self_constraints
+                            .combine_parent_child(self.tree.get_node(*child).calculated_constraints)
+                    })
+                    .unwrap_or_default()
+            }
             NodeType::Coupled {
                 element: child_id, ..
             } => self_constraints.combine_parent_child(
@@ -1894,7 +1907,7 @@ impl<T, U> Layout<T, U> {
                     if let Some(area) = self.tree.get_node(node_id).area {
                         draw_fn(area, state, ui_state);
                     } else {
-                        eprintln!("Unexpected draw node without area");
+                        eprintln!("Unexpected draw node without area {:?}", self);
                     }
                 }
                 _ => {}
@@ -2022,14 +2035,17 @@ pub fn empty<T, U>() -> Node<T, U> {
 pub fn dynamic<T, U>(func: impl Fn(&mut T, &mut U) -> Node<T, U> + 'static) -> Node<T, U> {
     Node::new(NodeType::Dynamic {
         func: Box::new(func),
-        computed: None,
+        expanded: false,
     })
 }
 
 pub fn area_reader<T, U>(
     func: impl Fn(Area, &mut T, &mut U) -> Node<T, U> + 'static,
 ) -> Node<T, U> {
-    Node::new(NodeType::AreaReader(Box::new(func)))
+    Node::new(NodeType::AreaReader {
+        func: Box::new(func),
+        expanded: false,
+    })
 }
 
 pub fn intermediate<T, U>(
@@ -2047,6 +2063,17 @@ pub fn intermediate<T, U>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_expanded_constrained() {
+        Layout::new(
+            //
+            dynamic(|_, _| draw(|_, _, _: &mut ()| {}))
+                .height(30.)
+                .width(30.),
+        )
+        .debug_visualize(Area::new(0.0, 0.0, 100.0, 100.0), &mut (), &mut ());
+    }
 
     #[test]
     fn test_intermediate_at_root() {
