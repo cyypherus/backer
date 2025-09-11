@@ -28,6 +28,8 @@ See [`Node`] for layout customization.
 // mod subtree;
 // mod tests;
 
+pub mod functional_layout;
+
 mod mvp;
 
 pub use mvp::{Layout, Node};
