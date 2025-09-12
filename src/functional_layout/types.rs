@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use crate::functional_layout::tree::IntoTreeTrait;
 
 type DimensionFn = Option<&'static dyn Fn(f32) -> f32>;
+type AreaReaderFn<A> = Box<dyn Fn(Area) -> Layout<A>>;
 
-#[derive(Debug, Clone)]
 pub struct Layout<A> {
     pub(crate) layout: LayoutType<A>,
     pub(crate) constraints: Constraints,
@@ -272,7 +272,6 @@ impl Area {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
 pub enum LayoutType<A> {
     Draw(A),
     Column {
@@ -303,5 +302,8 @@ pub enum LayoutType<A> {
     Empty,
     Coupled {
         over: bool,
+    },
+    AreaReader {
+        func: AreaReaderFn<A>,
     },
 }

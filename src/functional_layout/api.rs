@@ -1,17 +1,12 @@
 use crate::functional_layout::{
-    passes::{allocate, collect, resolve},
+    passes::{collect, perform_layout_passes},
     types::*,
 };
 use std::ops::RangeBounds;
 
 impl<T> Layout<T> {
     pub fn draw(self, available_area: Area) -> Vec<T> {
-        let mut tree = self;
-        for _ in 0..2 {
-            tree = resolve(tree);
-            tree = allocate(tree, available_area);
-        }
-        collect(tree)
+        collect(perform_layout_passes(self, available_area))
     }
 }
 
@@ -198,21 +193,18 @@ pub fn empty<A>() -> Layout<A> {
     }
 }
 
-// pub fn dynamic<A>(func: impl Fn(&mut A, &mut A) -> InputTree<A> + 'static) -> InputTree<A> {
-//     Node::new(NodeType::Dynamic {
-//         func: Box::new(func),
-//         expanded: false,
-//     })
-// }
-
-// pub fn area_reader<A>(
-//     func: impl Fn(Area, &mut A, &mut A) -> InputTree<A> + 'static,
-// ) -> InputTree<A> {
-//     Node::new(NodeType::AreaReader {
-//         func: Box::new(func),
-//         expanded: false,
-//     })
-// }
+pub fn area_reader<A>(func: impl Fn(Area) -> Layout<A> + 'static) -> Layout<A> {
+    Layout {
+        layout: LayoutType::AreaReader {
+            func: Box::new(func),
+        },
+        constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
+        children: Vec::new(),
+        resolved: None,
+        allocated: None,
+    }
+}
 
 impl<A> Layout<A> {
     pub fn width(mut self, width: f32) -> Self {

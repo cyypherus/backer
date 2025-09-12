@@ -4,6 +4,16 @@ use crate::functional_layout::{
     types::{Area, AxisConstraint, Constraints, LayoutType, XAlign, YAlign},
 };
 
+pub(crate) fn perform_layout_passes<A>(tree: Layout<A>, available_area: Area) -> Layout<A> {
+    let mut tree = tree;
+    for _ in 0..1 {
+        tree = resolve(tree);
+        tree = allocate(tree, available_area);
+        tree = expand_area_reader_nodes(tree)
+    }
+    tree
+}
+
 pub(crate) fn resolve<A>(input: Layout<A>) -> Layout<A> {
     input.into_fold_bottom_up(|mut node| {
         let self_constraints = node.constraints;
@@ -102,15 +112,15 @@ pub(crate) fn resolve<A>(input: Layout<A>) -> Layout<A> {
                     ..Default::default()
                 }
             })),
-            LayoutType::Offset { .. } => self_constraints
-                .combine_parent_child(node.children.first().map(|child| child.constraints)),
-            LayoutType::Space => self_constraints
-                .combine_parent_child(node.children.first().map(|child| child.constraints)),
             LayoutType::Coupled { over } => self_constraints.combine_parent_child(if over {
                 node.children.first().map(|child| child.constraints)
             } else {
                 node.children.get(1).map(|child| child.constraints)
             }),
+            LayoutType::Offset { .. } | LayoutType::Space | LayoutType::AreaReader { .. } => {
+                self_constraints
+                    .combine_parent_child(node.children.first().map(|child| child.constraints))
+            }
             LayoutType::Draw(_) | LayoutType::Empty => self_constraints,
         });
         node
@@ -167,6 +177,11 @@ pub(crate) fn allocate<A>(constrained: Layout<A>, available_area: Area) -> Layou
                         height: constrained_area.height,
                     };
                     child.allocated = Some(child_area);
+                }
+            }
+            LayoutType::AreaReader { .. } => {
+                if let Some(child) = node.children.first_mut() {
+                    child.allocated = Some(available_area.constrained(&node.resolved, None, None));
                 }
             }
             LayoutType::Coupled { over } => {
@@ -418,39 +433,24 @@ impl<T> Layout<T> {
 }
 
 fn expand_area_reader_nodes<A>(tree: Layout<A>) -> Layout<A> {
-    // let mut stack = vec![from];
-
-    // while let Some(node_id) = stack.pop() {
-    //     let area = self.tree.get_node(node_id).area;
-    //     let expansion_result = if let NodeType::AreaReader {
-    //         func,
-    //         expanded: expanded @ false,
-    //     } = &mut self.tree.get_node_mut(node_id).node_type
-    //     {
-    //         if let Some(area) = area {
-    //             *expanded = true;
-    //             let construction_node = func(area, state, ui_state);
-    //             let new_child = self.tree.add_child(node_id, construction_node);
-    //             self.layout_and_expand(new_child, area, state, ui_state);
-    //             Some(new_child)
-    //         } else {
-    //             eprintln!("Unexpected area reader expansion without area {:?}", self);
-    //             None
-    //         }
-    //     } else {
-    //         None
-    //     };
-
-    //     if let Some(computed_id) = expansion_result {
-    //         stack.push(computed_id);
-    //     } else {
-    //         let children = self.tree.get_node(node_id).children().clone();
-    //         for &child_id in children.iter().rev() {
-    //             stack.push(child_id);
-    //         }
-    //     }
-    // }
-    todo!()
+    tree.into_fold_top_down(|mut node| {
+        let expansion_result = if let LayoutType::AreaReader { func } = &mut node.layout {
+            if let Some(area) = node.allocated {
+                let new_node = func(area);
+                let laid_out = perform_layout_passes(new_node, area);
+                Some(laid_out)
+            } else {
+                eprintln!("Unexpected area reader expansion without area");
+                None
+            }
+        } else {
+            None
+        };
+        if let Some(expansion_result) = expansion_result {
+            node.children.push(expansion_result);
+        }
+        node
+    })
 }
 
 pub(crate) fn collect<A>(constrained: Layout<A>) -> Vec<A> {
