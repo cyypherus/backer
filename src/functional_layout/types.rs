@@ -6,40 +6,12 @@ use crate::functional_layout::tree::IntoTreeTrait;
 pub struct InputTree<A> {
     pub(crate) layout: LayoutType<A>,
     pub(crate) constraints: Constraints,
+    pub(crate) resolved: Option<Constraints>,
+    pub(crate) allocated: Option<Area>,
     pub(crate) children: Vec<InputTree<A>>,
 }
 
 impl<A> IntoTreeTrait for InputTree<A> {
-    fn into_data_and_children(mut self) -> (Self, impl DoubleEndedIterator<Item = Self>) {
-        let children = std::mem::take(&mut self.children);
-        (self, children.into_iter())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct ConstrainedTree<A> {
-    pub(crate) layout: LayoutType<A>,
-    pub(crate) constraints: Constraints,
-    pub(crate) children: Vec<ConstrainedTree<A>>,
-}
-
-impl<A> IntoTreeTrait for ConstrainedTree<A> {
-    fn into_data_and_children(mut self) -> (Self, impl DoubleEndedIterator<Item = Self>) {
-        let children = std::mem::take(&mut self.children);
-        (self, children.into_iter())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct LaidOutTree<A> {
-    pub(crate) layout: LayoutType<A>,
-    pub(crate) constraints: Constraints,
-    pub(crate) resolved: Constraints,
-    pub(crate) area: Area,
-    pub(crate) children: Vec<LaidOutTree<A>>,
-}
-
-impl<A> IntoTreeTrait for LaidOutTree<A> {
     fn into_data_and_children(mut self) -> (Self, impl DoubleEndedIterator<Item = Self>) {
         let children = std::mem::take(&mut self.children);
         (self, children.into_iter())

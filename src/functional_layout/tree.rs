@@ -28,40 +28,33 @@ pub(crate) trait IntoTreeTrait {
         result.unwrap()
     }
 
-    fn into_fold_bottom_up<B, F>(self, f: F) -> B
+    fn into_fold_bottom_up<B, F>(self, f: F) -> Self
     where
         Self: Sized,
-        F: Fn(Self, Vec<B>) -> B,
+        F: Fn(Self) -> Self,
     {
         enum VisitState<T> {
             Visiting(T),
-            Visited((T, usize)),
+            Visited(T),
         }
 
         let mut stack: Vec<VisitState<Self>> = vec![VisitState::Visiting(self)];
-        let mut results: Vec<B> = Vec::new();
+        let mut results: Vec<Self> = Vec::new();
 
         while let Some(state) = stack.pop() {
             match state {
                 VisitState::Visiting(node) => {
                     let (data, children) = node.into_data_and_children();
                     let children: Vec<_> = children.collect();
-                    let child_count = children.len();
 
-                    stack.push(VisitState::Visited((data, child_count)));
+                    stack.push(VisitState::Visited(data));
 
                     for child in children.into_iter().rev() {
                         stack.push(VisitState::Visiting(child));
                     }
                 }
-                VisitState::Visited((data, child_count)) => {
-                    let child_results = if child_count == 0 {
-                        Vec::new()
-                    } else {
-                        results.split_off(results.len() - child_count)
-                    };
-
-                    let result = f(data, child_results);
+                VisitState::Visited(data) => {
+                    let result = f(data);
                     results.push(result);
                 }
             }
@@ -176,28 +169,6 @@ mod tests {
     }
 
     #[test]
-    fn test_into_fold_bottom_up() {
-        let root = TestNode::with_children(
-            1,
-            vec![
-                TestNode::new(2),
-                TestNode::with_children(3, vec![TestNode::new(4)]),
-            ],
-        );
-
-        let sum = root.into_fold_bottom_up(|node, child_sums: Vec<i32>| {
-            node.value + child_sums.into_iter().sum::<i32>()
-        });
-        assert_eq!(sum, 10);
-
-        let root = TestNode::new(5);
-        let single = root.into_fold_bottom_up(|node, child_sums: Vec<i32>| {
-            node.value + child_sums.into_iter().sum::<i32>()
-        });
-        assert_eq!(single, 5);
-    }
-
-    #[test]
     fn test_cata() {
         let root = TestNode::with_children(
             1,
@@ -252,25 +223,6 @@ mod tests {
         assert_eq!(mapped.children[1].children.len(), 2);
         assert_eq!(mapped.children[1].children[0].doubled_value, 8);
         assert_eq!(mapped.children[1].children[1].doubled_value, 10);
-    }
-
-    #[test]
-    fn test_depth_calculation() {
-        let root = TestNode::with_children(
-            1,
-            vec![
-                TestNode::new(2),
-                TestNode::with_children(
-                    3,
-                    vec![TestNode::with_children(4, vec![TestNode::new(5)])],
-                ),
-            ],
-        );
-
-        let depth = root.into_fold_bottom_up(|_node, child_depths: Vec<i32>| {
-            1 + child_depths.into_iter().max().unwrap_or(0)
-        });
-        assert_eq!(depth, 4);
     }
 
     #[test]

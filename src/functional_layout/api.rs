@@ -1,13 +1,13 @@
-use std::ops::RangeBounds;
-
-use crate::functional_layout::tree::IntoTreeTrait;
 use crate::functional_layout::types::*;
+use std::ops::RangeBounds;
 
 pub fn draw<A>(data: A) -> InputTree<A> {
     InputTree {
         layout: LayoutType::Draw(data),
         constraints: Default::default(),
         children: Vec::new(),
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -20,6 +20,8 @@ pub fn column<A>(elements: Vec<InputTree<A>>) -> InputTree<A> {
         },
         constraints: Default::default(),
         children: elements,
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -32,6 +34,8 @@ pub fn column_spaced<A>(spacing: f32, elements: Vec<InputTree<A>>) -> InputTree<
         },
         constraints: Default::default(),
         children: elements,
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -45,6 +49,8 @@ pub fn column_aligned<A>(align: Align, elements: Vec<InputTree<A>>) -> InputTree
         },
         constraints: Default::default(),
         children: elements,
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -62,6 +68,8 @@ pub fn column_spaced_aligned<A>(
         },
         constraints: Default::default(),
         children: elements,
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -74,6 +82,8 @@ pub fn row<A>(elements: Vec<InputTree<A>>) -> InputTree<A> {
         },
         constraints: Default::default(),
         children: elements,
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -86,6 +96,8 @@ pub fn row_spaced<A>(spacing: f32, elements: Vec<InputTree<A>>) -> InputTree<A> 
         },
         constraints: Default::default(),
         children: elements,
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -99,6 +111,8 @@ pub fn row_aligned<A>(align: Align, elements: Vec<InputTree<A>>) -> InputTree<A>
         },
         constraints: Default::default(),
         children: elements,
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -116,6 +130,8 @@ pub fn row_spaced_aligned<A>(
         },
         constraints: Default::default(),
         children: elements,
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -127,6 +143,8 @@ pub fn stack<A>(elements: Vec<InputTree<A>>) -> InputTree<A> {
         },
         constraints: Default::default(),
         children: elements,
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -136,6 +154,8 @@ pub fn stack_aligned<A>(align: Align, elements: Vec<InputTree<A>>) -> InputTree<
         layout: LayoutType::Stack { x_align, y_align },
         constraints: Default::default(),
         children: elements,
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -144,6 +164,8 @@ pub fn space<A>() -> InputTree<A> {
         layout: LayoutType::Space,
         constraints: Default::default(),
         children: Vec::new(),
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -152,6 +174,8 @@ pub fn empty<A>() -> InputTree<A> {
         layout: LayoutType::Empty,
         constraints: Default::default(),
         children: Vec::new(),
+        resolved: None,
+        allocated: None,
     }
 }
 
@@ -251,6 +275,8 @@ impl<A> InputTree<A> {
             },
             constraints: Default::default(),
             children: vec![self],
+            resolved: None,
+            allocated: None,
         }
     }
 
@@ -264,6 +290,8 @@ impl<A> InputTree<A> {
             },
             constraints: Default::default(),
             children: vec![self],
+            resolved: None,
+            allocated: None,
         }
     }
 
@@ -277,6 +305,8 @@ impl<A> InputTree<A> {
             },
             constraints: Default::default(),
             children: vec![self],
+            resolved: None,
+            allocated: None,
         }
     }
 
@@ -290,6 +320,8 @@ impl<A> InputTree<A> {
             },
             constraints: Default::default(),
             children: vec![self],
+            resolved: None,
+            allocated: None,
         }
     }
 
@@ -303,6 +335,8 @@ impl<A> InputTree<A> {
             },
             constraints: Default::default(),
             children: vec![self],
+            resolved: None,
+            allocated: None,
         }
     }
 
@@ -316,6 +350,8 @@ impl<A> InputTree<A> {
             },
             constraints: Default::default(),
             children: vec![self],
+            resolved: None,
+            allocated: None,
         }
     }
 
@@ -329,6 +365,8 @@ impl<A> InputTree<A> {
             },
             constraints: Default::default(),
             children: vec![self],
+            resolved: None,
+            allocated: None,
         }
     }
 
@@ -337,6 +375,8 @@ impl<A> InputTree<A> {
             layout: LayoutType::Offset { x, y },
             constraints: Default::default(),
             children: vec![self],
+            resolved: None,
+            allocated: None,
         }
     }
 
@@ -345,6 +385,8 @@ impl<A> InputTree<A> {
             layout: LayoutType::Offset { x, y: 0. },
             constraints: Default::default(),
             children: vec![self],
+            resolved: None,
+            allocated: None,
         }
     }
 
@@ -353,6 +395,8 @@ impl<A> InputTree<A> {
             layout: LayoutType::Offset { x: 0., y },
             constraints: Default::default(),
             children: vec![self],
+            resolved: None,
+            allocated: None,
         }
     }
 
@@ -361,6 +405,8 @@ impl<A> InputTree<A> {
             layout: LayoutType::Coupled { over: false },
             constraints: Default::default(),
             children: vec![self, node],
+            resolved: None,
+            allocated: None,
         }
     }
 
@@ -369,6 +415,8 @@ impl<A> InputTree<A> {
             layout: LayoutType::Coupled { over: true },
             constraints: Default::default(),
             children: vec![node, self],
+            resolved: None,
+            allocated: None,
         }
     }
 }
