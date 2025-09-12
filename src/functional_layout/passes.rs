@@ -417,6 +417,42 @@ impl<T> Layout<T> {
     }
 }
 
+fn expand_area_reader_nodes<A>(tree: Layout<A>) -> Layout<A> {
+    // let mut stack = vec![from];
+
+    // while let Some(node_id) = stack.pop() {
+    //     let area = self.tree.get_node(node_id).area;
+    //     let expansion_result = if let NodeType::AreaReader {
+    //         func,
+    //         expanded: expanded @ false,
+    //     } = &mut self.tree.get_node_mut(node_id).node_type
+    //     {
+    //         if let Some(area) = area {
+    //             *expanded = true;
+    //             let construction_node = func(area, state, ui_state);
+    //             let new_child = self.tree.add_child(node_id, construction_node);
+    //             self.layout_and_expand(new_child, area, state, ui_state);
+    //             Some(new_child)
+    //         } else {
+    //             eprintln!("Unexpected area reader expansion without area {:?}", self);
+    //             None
+    //         }
+    //     } else {
+    //         None
+    //     };
+
+    //     if let Some(computed_id) = expansion_result {
+    //         stack.push(computed_id);
+    //     } else {
+    //         let children = self.tree.get_node(node_id).children().clone();
+    //         for &child_id in children.iter().rev() {
+    //             stack.push(child_id);
+    //         }
+    //     }
+    // }
+    todo!()
+}
+
 pub(crate) fn collect<A>(constrained: Layout<A>) -> Vec<A> {
     constrained.cata(|node, child_results| {
         if let LayoutType::Draw(value) = node.layout {
