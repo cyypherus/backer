@@ -3,35 +3,35 @@ pub(crate) trait IntoTreeTrait {
     where
         Self: Sized;
 
-    fn into_fold_top_down<U, Context, F>(self, initial_context: Context, f: F) -> U
+    fn into_fold_top_down<F>(self, f: F) -> Self
     where
         Self: Sized,
-        F: Fn(Context, Self) -> (U, Vec<Context>),
+        F: Fn(Self) -> Self,
     {
-        let mut stack = vec![(initial_context, self)];
+        let mut stack = vec![self];
         let mut result = None;
 
-        while let Some((context, node)) = stack.pop() {
+        while let Some(node) = stack.pop() {
             let (data, children) = node.into_data_and_children();
             let children: Vec<_> = children.collect();
-            let (node_result, child_contexts) = f(context, data);
+            let node_result = f(data);
 
             if result.is_none() {
                 result = Some(node_result);
             }
 
-            for (child, child_context) in children.into_iter().zip(child_contexts).rev() {
-                stack.push((child_context, child));
+            for child in children.into_iter().rev() {
+                stack.push(child);
             }
         }
 
         result.unwrap()
     }
 
-    fn into_fold_bottom_up<B, F>(self, f: F) -> Self
+    fn into_fold_bottom_up<F, U>(self, f: F) -> U
     where
         Self: Sized,
-        F: Fn(Self) -> Self,
+        F: Fn(Self) -> U,
     {
         enum VisitState<T> {
             Visiting(T),
@@ -39,7 +39,7 @@ pub(crate) trait IntoTreeTrait {
         }
 
         let mut stack: Vec<VisitState<Self>> = vec![VisitState::Visiting(self)];
-        let mut results: Vec<Self> = Vec::new();
+        let mut results: Vec<U> = Vec::new();
 
         while let Some(state) = stack.pop() {
             match state {
@@ -134,38 +134,6 @@ mod tests {
             let children = std::mem::take(&mut self.children);
             (self, children.into_iter())
         }
-    }
-
-    #[test]
-    fn test_into_fold_top_down() {
-        #[derive(Debug, PartialEq)]
-        struct LayoutNode {
-            value: i32,
-            area: f32,
-        }
-
-        let root = TestNode::with_children(
-            1,
-            vec![
-                TestNode::new(2),
-                TestNode::with_children(3, vec![TestNode::new(4)]),
-            ],
-        );
-
-        let layout = root.into_fold_top_down(100.0, |area, node| {
-            let child_area = area / 2.0;
-            let child_contexts = vec![child_area; node.children.len()];
-
-            let layout_node = LayoutNode {
-                value: node.value,
-                area,
-            };
-
-            (layout_node, child_contexts)
-        });
-
-        assert_eq!(layout.value, 1);
-        assert_eq!(layout.area, 100.0);
     }
 
     #[test]

@@ -2,19 +2,37 @@ use std::fmt::Debug;
 
 use crate::functional_layout::tree::IntoTreeTrait;
 
+type DimensionFn = Option<&'static dyn Fn(f32) -> f32>;
+
 #[derive(Debug, Clone)]
-pub struct InputTree<A> {
+pub struct Layout<A> {
     pub(crate) layout: LayoutType<A>,
     pub(crate) constraints: Constraints,
+    pub(crate) dynamic_constraints: DynamicConstraints,
     pub(crate) resolved: Option<Constraints>,
     pub(crate) allocated: Option<Area>,
-    pub(crate) children: Vec<InputTree<A>>,
+    pub(crate) children: Vec<Layout<A>>,
 }
 
-impl<A> IntoTreeTrait for InputTree<A> {
+impl<A> IntoTreeTrait for Layout<A> {
     fn into_data_and_children(mut self) -> (Self, impl DoubleEndedIterator<Item = Self>) {
         let children = std::mem::take(&mut self.children);
         (self, children.into_iter())
+    }
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct DynamicConstraints {
+    pub(crate) width: DimensionFn,
+    pub(crate) height: DimensionFn,
+}
+
+impl Debug for DynamicConstraints {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DynamicConstraints")
+            .field("width", &"<function>")
+            .field("height", &"<function>")
+            .finish()
     }
 }
 
@@ -189,10 +207,7 @@ impl Area {
             height,
         }
     }
-    pub(crate) fn zero() -> Self {
-        Self::default()
-    }
-    fn constrained(
+    pub(crate) fn constrained(
         &self,
         constraints: &Option<Constraints>,
         contextual_x_align: Option<XAlign>,

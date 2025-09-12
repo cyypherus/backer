@@ -1,178 +1,197 @@
-use crate::functional_layout::types::*;
+use crate::functional_layout::{
+    passes::{allocate, collect, resolve},
+    types::*,
+};
 use std::ops::RangeBounds;
 
-pub fn draw<A>(data: A) -> InputTree<A> {
-    InputTree {
+impl<T> Layout<T> {
+    pub fn draw(self, available_area: Area) -> Vec<T> {
+        let mut tree = self;
+        for _ in 0..2 {
+            tree = resolve(tree);
+            tree = allocate(tree, available_area);
+        }
+        collect(tree)
+    }
+}
+
+pub fn draw<A>(data: A) -> Layout<A> {
+    Layout {
         layout: LayoutType::Draw(data),
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: Vec::new(),
         resolved: None,
         allocated: None,
     }
 }
 
-pub fn column<A>(elements: Vec<InputTree<A>>) -> InputTree<A> {
-    InputTree {
+pub fn column<A>(elements: Vec<Layout<A>>) -> Layout<A> {
+    Layout {
         layout: LayoutType::Column {
             spacing: 0.,
             x_align: None,
             y_align: None,
         },
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: elements,
         resolved: None,
         allocated: None,
     }
 }
 
-pub fn column_spaced<A>(spacing: f32, elements: Vec<InputTree<A>>) -> InputTree<A> {
-    InputTree {
+pub fn column_spaced<A>(spacing: f32, elements: Vec<Layout<A>>) -> Layout<A> {
+    Layout {
         layout: LayoutType::Column {
             spacing,
             x_align: None,
             y_align: None,
         },
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: elements,
         resolved: None,
         allocated: None,
     }
 }
 
-pub fn column_aligned<A>(align: Align, elements: Vec<InputTree<A>>) -> InputTree<A> {
+pub fn column_aligned<A>(align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
     let (x_align, y_align) = align.axis_aligns();
-    InputTree {
+    Layout {
         layout: LayoutType::Column {
             spacing: 0.,
             x_align,
             y_align,
         },
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: elements,
         resolved: None,
         allocated: None,
     }
 }
 
-pub fn column_spaced_aligned<A>(
-    spacing: f32,
-    align: Align,
-    elements: Vec<InputTree<A>>,
-) -> InputTree<A> {
+pub fn column_spaced_aligned<A>(spacing: f32, align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
     let (x_align, y_align) = align.axis_aligns();
-    InputTree {
+    Layout {
         layout: LayoutType::Column {
             spacing,
             x_align,
             y_align,
         },
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: elements,
         resolved: None,
         allocated: None,
     }
 }
 
-pub fn row<A>(elements: Vec<InputTree<A>>) -> InputTree<A> {
-    InputTree {
+pub fn row<A>(elements: Vec<Layout<A>>) -> Layout<A> {
+    Layout {
         layout: LayoutType::Row {
             spacing: 0.0,
             x_align: None,
             y_align: None,
         },
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: elements,
         resolved: None,
         allocated: None,
     }
 }
 
-pub fn row_spaced<A>(spacing: f32, elements: Vec<InputTree<A>>) -> InputTree<A> {
-    InputTree {
+pub fn row_spaced<A>(spacing: f32, elements: Vec<Layout<A>>) -> Layout<A> {
+    Layout {
         layout: LayoutType::Row {
             spacing,
             x_align: None,
             y_align: None,
         },
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: elements,
         resolved: None,
         allocated: None,
     }
 }
 
-pub fn row_aligned<A>(align: Align, elements: Vec<InputTree<A>>) -> InputTree<A> {
+pub fn row_aligned<A>(align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
     let (x_align, y_align) = align.axis_aligns();
-    InputTree {
+    Layout {
         layout: LayoutType::Row {
             spacing: 0.0,
             x_align,
             y_align,
         },
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: elements,
         resolved: None,
         allocated: None,
     }
 }
 
-pub fn row_spaced_aligned<A>(
-    spacing: f32,
-    align: Align,
-    elements: Vec<InputTree<A>>,
-) -> InputTree<A> {
+pub fn row_spaced_aligned<A>(spacing: f32, align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
     let (x_align, y_align) = align.axis_aligns();
-    InputTree {
+    Layout {
         layout: LayoutType::Row {
             spacing,
             x_align,
             y_align,
         },
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: elements,
         resolved: None,
         allocated: None,
     }
 }
 
-pub fn stack<A>(elements: Vec<InputTree<A>>) -> InputTree<A> {
-    InputTree {
+pub fn stack<A>(elements: Vec<Layout<A>>) -> Layout<A> {
+    Layout {
         layout: LayoutType::Stack {
             x_align: None,
             y_align: None,
         },
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: elements,
         resolved: None,
         allocated: None,
     }
 }
 
-pub fn stack_aligned<A>(align: Align, elements: Vec<InputTree<A>>) -> InputTree<A> {
+pub fn stack_aligned<A>(align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
     let (x_align, y_align) = align.axis_aligns();
-    InputTree {
+    Layout {
         layout: LayoutType::Stack { x_align, y_align },
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: elements,
         resolved: None,
         allocated: None,
     }
 }
 
-pub fn space<A>() -> InputTree<A> {
-    InputTree {
+pub fn space<A>() -> Layout<A> {
+    Layout {
         layout: LayoutType::Space,
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: Vec::new(),
         resolved: None,
         allocated: None,
     }
 }
 
-pub fn empty<A>() -> InputTree<A> {
-    InputTree {
+pub fn empty<A>() -> Layout<A> {
+    Layout {
         layout: LayoutType::Empty,
         constraints: Default::default(),
+        dynamic_constraints: DynamicConstraints::default(),
         children: Vec::new(),
         resolved: None,
         allocated: None,
@@ -195,7 +214,7 @@ pub fn empty<A>() -> InputTree<A> {
 //     })
 // }
 
-impl<A> InputTree<A> {
+impl<A> Layout<A> {
     pub fn width(mut self, width: f32) -> Self {
         self.constraints.width.lower = Some(width);
         self.constraints.width.upper = Some(width);
@@ -265,8 +284,8 @@ impl<A> InputTree<A> {
         self
     }
 
-    pub fn pad(self, amount: f32) -> InputTree<A> {
-        InputTree {
+    pub fn pad(self, amount: f32) -> Layout<A> {
+        Layout {
             layout: LayoutType::Padding {
                 leading: amount,
                 trailing: amount,
@@ -274,6 +293,7 @@ impl<A> InputTree<A> {
                 bottom: amount,
             },
             constraints: Default::default(),
+            dynamic_constraints: DynamicConstraints::default(),
             children: vec![self],
             resolved: None,
             allocated: None,
@@ -281,7 +301,7 @@ impl<A> InputTree<A> {
     }
 
     pub fn pad_x(self, amount: f32) -> Self {
-        InputTree {
+        Layout {
             layout: LayoutType::Padding {
                 leading: amount,
                 trailing: amount,
@@ -289,6 +309,7 @@ impl<A> InputTree<A> {
                 bottom: 0.,
             },
             constraints: Default::default(),
+            dynamic_constraints: DynamicConstraints::default(),
             children: vec![self],
             resolved: None,
             allocated: None,
@@ -296,7 +317,7 @@ impl<A> InputTree<A> {
     }
 
     pub fn pad_y(self, amount: f32) -> Self {
-        InputTree {
+        Layout {
             layout: LayoutType::Padding {
                 leading: 0.,
                 trailing: 0.,
@@ -304,6 +325,7 @@ impl<A> InputTree<A> {
                 bottom: amount,
             },
             constraints: Default::default(),
+            dynamic_constraints: DynamicConstraints::default(),
             children: vec![self],
             resolved: None,
             allocated: None,
@@ -311,7 +333,7 @@ impl<A> InputTree<A> {
     }
 
     pub fn pad_top(self, amount: f32) -> Self {
-        InputTree {
+        Layout {
             layout: LayoutType::Padding {
                 leading: 0.,
                 trailing: 0.,
@@ -319,6 +341,7 @@ impl<A> InputTree<A> {
                 bottom: 0.,
             },
             constraints: Default::default(),
+            dynamic_constraints: DynamicConstraints::default(),
             children: vec![self],
             resolved: None,
             allocated: None,
@@ -326,7 +349,7 @@ impl<A> InputTree<A> {
     }
 
     pub fn pad_bottom(self, amount: f32) -> Self {
-        InputTree {
+        Layout {
             layout: LayoutType::Padding {
                 leading: 0.,
                 trailing: 0.,
@@ -334,6 +357,7 @@ impl<A> InputTree<A> {
                 bottom: amount,
             },
             constraints: Default::default(),
+            dynamic_constraints: DynamicConstraints::default(),
             children: vec![self],
             resolved: None,
             allocated: None,
@@ -341,7 +365,7 @@ impl<A> InputTree<A> {
     }
 
     pub fn pad_leading(self, amount: f32) -> Self {
-        InputTree {
+        Layout {
             layout: LayoutType::Padding {
                 leading: amount,
                 trailing: 0.,
@@ -349,6 +373,7 @@ impl<A> InputTree<A> {
                 bottom: 0.,
             },
             constraints: Default::default(),
+            dynamic_constraints: DynamicConstraints::default(),
             children: vec![self],
             resolved: None,
             allocated: None,
@@ -356,7 +381,7 @@ impl<A> InputTree<A> {
     }
 
     pub fn pad_trailing(self, amount: f32) -> Self {
-        InputTree {
+        Layout {
             layout: LayoutType::Padding {
                 leading: 0.,
                 trailing: amount,
@@ -364,56 +389,62 @@ impl<A> InputTree<A> {
                 bottom: 0.,
             },
             constraints: Default::default(),
+            dynamic_constraints: DynamicConstraints::default(),
             children: vec![self],
             resolved: None,
             allocated: None,
         }
     }
 
-    pub fn offset(self, x: f32, y: f32) -> InputTree<A> {
-        InputTree {
+    pub fn offset(self, x: f32, y: f32) -> Layout<A> {
+        Layout {
             layout: LayoutType::Offset { x, y },
             constraints: Default::default(),
+            dynamic_constraints: DynamicConstraints::default(),
             children: vec![self],
             resolved: None,
             allocated: None,
         }
     }
 
-    pub fn offset_x(self, x: f32) -> InputTree<A> {
-        InputTree {
+    pub fn offset_x(self, x: f32) -> Layout<A> {
+        Layout {
             layout: LayoutType::Offset { x, y: 0. },
             constraints: Default::default(),
+            dynamic_constraints: DynamicConstraints::default(),
             children: vec![self],
             resolved: None,
             allocated: None,
         }
     }
 
-    pub fn offset_y(self, y: f32) -> InputTree<A> {
-        InputTree {
+    pub fn offset_y(self, y: f32) -> Layout<A> {
+        Layout {
             layout: LayoutType::Offset { x: 0., y },
             constraints: Default::default(),
+            dynamic_constraints: DynamicConstraints::default(),
             children: vec![self],
             resolved: None,
             allocated: None,
         }
     }
 
-    pub fn attach_under(self, node: InputTree<A>) -> InputTree<A> {
-        InputTree {
+    pub fn attach_under(self, node: Layout<A>) -> Layout<A> {
+        Layout {
             layout: LayoutType::Coupled { over: false },
             constraints: Default::default(),
+            dynamic_constraints: DynamicConstraints::default(),
             children: vec![self, node],
             resolved: None,
             allocated: None,
         }
     }
 
-    pub fn attach_over(self, node: InputTree<A>) -> InputTree<A> {
-        InputTree {
+    pub fn attach_over(self, node: Layout<A>) -> Layout<A> {
+        Layout {
             layout: LayoutType::Coupled { over: true },
             constraints: Default::default(),
+            dynamic_constraints: DynamicConstraints::default(),
             children: vec![node, self],
             resolved: None,
             allocated: None,
