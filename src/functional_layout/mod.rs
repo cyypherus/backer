@@ -1,5 +1,5 @@
 mod api;
-mod area_allocation;
+mod passes;
 mod tree;
 mod types;
 
