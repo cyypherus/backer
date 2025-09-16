@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::tree::IntoTreeTrait;
+use crate::tree::TreeNode;
 
 pub(crate) type DrawFn<A> = Box<dyn Fn(Area) -> A>;
 type DimensionFn = Option<&'static dyn Fn(f32) -> f32>;
@@ -15,10 +15,9 @@ pub struct Layout<A> {
     pub(crate) children: Vec<Layout<A>>,
 }
 
-impl<A> IntoTreeTrait for Layout<A> {
-    fn into_data_and_children(mut self) -> (Self, impl DoubleEndedIterator<Item = Self>) {
-        let children = std::mem::take(&mut self.children);
-        (self, children.into_iter())
+impl<A> TreeNode for Layout<A> {
+    fn children_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Self> {
+        self.children.iter_mut()
     }
 }
 

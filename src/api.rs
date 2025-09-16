@@ -5,8 +5,9 @@ use crate::{
 use std::ops::RangeBounds;
 
 impl<T> Layout<T> {
-    pub fn draw(self, available_area: Area) -> Vec<T> {
-        collect(perform_layout_passes(self, available_area))
+    pub fn draw(mut self, available_area: Area) -> Vec<T> {
+        perform_layout_passes(&mut self, available_area);
+        collect(&mut self)
     }
 }
 

@@ -1,22 +1,20 @@
 use crate::{
     Layout,
-    tree::IntoTreeTrait,
+    tree::TreeNode,
     types::{Area, AxisConstraint, Constraints, LayoutType, XAlign, YAlign},
 };
 
-pub(crate) fn perform_layout_passes<A>(tree: Layout<A>, available_area: Area) -> Layout<A> {
-    let mut tree = tree;
+pub(crate) fn perform_layout_passes<A>(tree: &mut Layout<A>, available_area: Area) {
     tree.allocated = Some(available_area);
     for _ in 0..1 {
-        tree = resolve(tree);
-        tree = allocate(tree, available_area);
-        tree = expand_area_reader_nodes(tree)
+        resolve(tree);
+        allocate(tree, available_area);
+        expand_area_reader_nodes(tree);
     }
-    tree
 }
 
-pub(crate) fn resolve<A>(input: Layout<A>) -> Layout<A> {
-    input.into_fold_bottom_up(|mut node| {
+pub(crate) fn resolve<A>(input: &mut Layout<A>) {
+    input.traverse_bottom_up(|node| {
         let self_constraints = node.constraints;
         node.resolved = Some(match node.layout {
             LayoutType::Column { spacing, .. } => {
@@ -124,12 +122,11 @@ pub(crate) fn resolve<A>(input: Layout<A>) -> Layout<A> {
             }
             LayoutType::Draw(_) | LayoutType::Empty => self_constraints,
         });
-        node
     })
 }
 
-pub(crate) fn allocate<A>(constrained: Layout<A>, available_area: Area) -> Layout<A> {
-    constrained.into_fold_top_down(|mut node| {
+pub(crate) fn allocate<A>(constrained: &mut Layout<A>, available_area: Area) {
+    constrained.traverse_top_down(|node| {
         let available_area = node.allocated.unwrap_or(available_area);
         match node.layout {
             LayoutType::Draw(_) => {
@@ -195,7 +192,6 @@ pub(crate) fn allocate<A>(constrained: Layout<A>, available_area: Area) -> Layou
             }
             LayoutType::Space | LayoutType::Empty => (),
         }
-        node
     })
 }
 
@@ -433,13 +429,13 @@ impl<T> Layout<T> {
     }
 }
 
-fn expand_area_reader_nodes<A>(tree: Layout<A>) -> Layout<A> {
-    tree.into_fold_top_down(|mut node| {
+fn expand_area_reader_nodes<A>(tree: &mut Layout<A>) {
+    tree.traverse_top_down(|node| {
         let expansion_result = if let LayoutType::AreaReader { func } = &mut node.layout {
             if let Some(area) = node.allocated {
-                let new_node = func(area);
-                let laid_out = perform_layout_passes(new_node, area);
-                Some(laid_out)
+                let mut new_node = func(area);
+                perform_layout_passes(&mut new_node, area);
+                Some(new_node)
             } else {
                 eprintln!("Unexpected area reader expansion without area");
                 None
@@ -450,21 +446,22 @@ fn expand_area_reader_nodes<A>(tree: Layout<A>) -> Layout<A> {
         if let Some(expansion_result) = expansion_result {
             node.children.push(expansion_result);
         }
-        node
-    })
+    });
 }
 
-pub(crate) fn collect<A>(constrained: Layout<A>) -> Vec<A> {
-    constrained.cata(|node, child_results| {
-        if let LayoutType::Draw(value) = node.layout {
-            if let Some(area) = node.allocated {
-                vec![value(area)]
+pub(crate) fn collect<A>(constrained: &mut Layout<A>) -> Vec<A> {
+    constrained
+        .cata(|node| {
+            if let LayoutType::Draw(value) = &node.layout
+                && let Some(area) = node.allocated
+            {
+                Some(value(area))
             } else {
                 eprintln!("Unexpected draw without area");
-                vec![]
+                None
             }
-        } else {
-            child_results.into_iter().flatten().collect()
-        }
-    })
+        })
+        .into_iter()
+        .flatten()
+        .collect()
 }
