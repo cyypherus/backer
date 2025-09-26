@@ -1,10 +1,7 @@
-use backer::{
-  Layout,
-  Node,
-  // Layout, Node,
-  models::{Align, Area},
-  nodes::*,
-};
+#![allow(clippy::type_complexity)]
+
+use backer::nodes::*;
+use backer::{Align, Area, Layout};
 use eframe::egui;
 use egui::{
   Button, Color32, Frame, Image, Layout as EguiLayout, Margin, Pos2, Rect, RichText, ScrollArea,
@@ -78,9 +75,15 @@ fn rect(area: Area) -> Rect {
   }
 }
 
-struct State<'a> {
+enum Drawable {
+  Action {
+    area: Area,
+    handler: Box<dyn Fn(&mut CommandState, Area) + 'static>,
+  },
+}
+
+struct CommandState<'a> {
   ui: &'a mut Ui,
-  bounties: &'a mut Vec<Item>,
   backer_on: &'a mut bool,
 }
 
@@ -90,126 +93,21 @@ impl eframe::App for MyApp {
       let viewport = ctx.input(|i| i.screen_rect());
       if self.show_backer {
         ScrollArea::vertical().show_viewport(ui, |ui, scroll_rect| {
-          let mut state = State {
-            ui,
-            bounties: &mut self.items,
-            backer_on: &mut self.show_backer,
-          };
           let mut area = area_from(scroll_rect);
           area.y = -area.y;
           area.width = viewport.width();
-          Layout::new(dynamic(|state: &mut State, _| {
-            column_spaced_aligned(
-              10.,
-              Align::Top,
-              vec![
-                vec![
-                  draw(|area, state: &mut State, _| {
-                    if state
-                      .ui
-                      .put(rect(area), Button::new("Backer Off"))
-                      .clicked()
-                    {
-                      *state.backer_on = false
-                    }
-                  })
-                  .height(15.),
-                ],
-                state
-                  .bounties
-                  .iter()
-                  .enumerate()
-                  .map(|(i, item)| {
-                    stack(vec![
-                      draw(|area, state: &mut State, _| {
-                        state.ui.painter().rect_stroke(
-                          rect(area),
-                          10.,
-                          Stroke::new(2., Color32::from_rgb(50, 50, 50)),
-                        );
-                      }),
-                      row_spaced(
-                        10.,
-                        vec![
-                          draw(|area, state: &mut State, _| {
-                            state.ui.put(
-                              rect(area),
-                              Image::new(egui::include_image!("../frs.png"))
-                                .show_loading_spinner(true)
-                                .fit_to_exact_size(egui::Vec2::new(area.width, area.height))
-                                .rounding(4.),
-                            );
-                          })
-                          .aspect_width(1.),
-                          column_spaced_aligned(
-                            3.,
-                            Align::Leading,
-                            vec![
-                              row_spaced(
-                                10.,
-                                vec![
-                                  draw_label(
-                                    state.ui,
-                                    RichText::new(state.bounties[i].title.as_str())
-                                      .color(Color32::WHITE)
-                                      .size(18.),
-                                  )
-                                  .align(Align::Leading),
-                                  draw_label(
-                                    state.ui,
-                                    RichText::new(format!("{}XP", item.points))
-                                      .color(Color32::WHITE),
-                                  ),
-                                ],
-                              ),
-                              draw_label(
-                                state.ui,
-                                RichText::new("EXPIRES IN: 3h 2m")
-                                  .color(Color32::from_rgb(200, 200, 200))
-                                  .size(10.),
-                              )
-                              .align(Align::Leading)
-                              .pad_leading(3.),
-                            ],
-                          )
-                          .width_range(120.0..),
-                          space(),
-                          draw(|area, state: &mut State, _| {
-                            if state
-                              .ui
-                              .put(
-                                rect(area),
-                                Button::new(RichText::new("Open").color(Color32::WHITE))
-                                  .fill(Color32::from_rgb(150, 0, 150))
-                                  .rounding(4.),
-                              )
-                              .clicked()
-                            {
-                              dbg!("Click");
-                            }
-                          })
-                          .aspect_width(1.),
-                        ],
-                      )
-                      .pad(7.),
-                    ])
-                    .height(58.)
-                  })
-                  .collect(),
-              ]
-              .into_iter()
-              .flatten()
-              .collect(),
-            )
-            .pad(10.)
-            .align(Align::Top)
-          }))
-          .draw(area, &mut state, &mut ());
+          let mut layout = backer_layout(ui, &self.items);
+          let commands = layout.draw(area);
+          let mut state = CommandState {
+            ui,
+            backer_on: &mut self.show_backer,
+          };
+          process_commands(commands, &mut state);
         });
       } else {
         ScrollArea::vertical().show(ui, |ui| {
           ui.vertical_centered_justified(|ui| {
-            if ui.button("Backer On").clicked() {
+            if ui.button("Enable Backer").clicked() {
               self.show_backer = true
             }
             let bounties = &self.items;
@@ -271,13 +169,143 @@ impl eframe::App for MyApp {
   }
 }
 
-fn draw_label<'a>(ui: &'_ mut Ui, text: RichText) -> Node<State<'a>, ()> {
-  let label = egui::Label::new(text.clone());
-  let galley = label.layout_in_ui(ui).1.rect;
-  let text_area = area_from(galley);
-  draw(move |area, state: &mut State, _| {
-    state.ui.put(rect(area), egui::Label::new(text.clone()));
+fn draw_label(ui: &mut Ui, text: RichText) -> Layout<Drawable> {
+  let galley = egui::Label::new(text.clone()).layout_in_ui(ui).1.rect;
+  let width = galley.width();
+  let height = galley.height();
+  draw(move |area: Area| Drawable::Action {
+    area,
+    handler: Box::new({
+      let text = text.clone();
+      move |state: &mut CommandState, area: Area| {
+        state.ui.put(rect(area), egui::Label::new(text.clone()));
+      }
+    }),
   })
-  .width(text_area.width)
-  .height(text_area.height)
+  .width(width)
+  .height(height)
+}
+
+fn backer_layout(ui: &mut Ui, items: &[Item]) -> Layout<Drawable> {
+  let mut elements = Vec::with_capacity(items.len() + 1);
+  elements.push(backer_toggle_button());
+  elements.extend(items.iter().map(|item| bounty_card(ui, item)));
+  column_spaced(10., elements).align(Align::Top).pad(10.)
+}
+
+fn backer_toggle_button() -> Layout<Drawable> {
+  draw(move |area: Area| Drawable::Action {
+    area,
+    handler: Box::new(move |state: &mut CommandState, area: Area| {
+      if state
+        .ui
+        .put(
+          rect(area),
+          Button::new("Disable Backer").min_size(Vec2::new(area.width, area.height)),
+        )
+        .clicked()
+      {
+        *state.backer_on = false;
+      }
+    }),
+  })
+  .height(15.)
+}
+
+fn bounty_card(ui: &mut Ui, item: &Item) -> Layout<Drawable> {
+  let title = RichText::new(item.title.clone())
+    .color(Color32::WHITE)
+    .size(18.);
+  let points = RichText::new(format!("{}XP", item.points)).color(Color32::WHITE);
+  let expires = RichText::new("EXPIRES IN: 3h 2m")
+    .color(Color32::from_rgb(200, 200, 200))
+    .size(10.);
+
+  stack(vec![
+    card_outline(),
+    row_spaced(
+      10.,
+      vec![
+        bounty_image().aspect_width(1.),
+        column_spaced_aligned(
+          3.,
+          Align::Leading,
+          vec![
+            row_spaced(
+              10.,
+              vec![
+                draw_label(ui, title.clone()).align(Align::Leading),
+                draw_label(ui, points.clone()),
+              ],
+            ),
+            draw_label(ui, expires.clone())
+              .align(Align::Leading)
+              .pad_leading(3.),
+          ],
+        )
+        .width_range(120.0..),
+        space(),
+        open_button().aspect_width(1.),
+      ],
+    )
+    .pad(7.),
+  ])
+  .height(58.)
+}
+
+fn card_outline() -> Layout<Drawable> {
+  draw(move |area: Area| Drawable::Action {
+    area,
+    handler: Box::new(move |state: &mut CommandState, area: Area| {
+      state.ui.painter().rect_stroke(
+        rect(area),
+        10.,
+        Stroke::new(2., Color32::from_rgb(50, 50, 50)),
+      );
+    }),
+  })
+}
+
+fn bounty_image() -> Layout<Drawable> {
+  draw(move |area: Area| Drawable::Action {
+    area,
+    handler: Box::new(move |state: &mut CommandState, area: Area| {
+      state.ui.put(
+        rect(area),
+        Image::new(egui::include_image!("../frs.png"))
+          .show_loading_spinner(true)
+          .fit_to_exact_size(Vec2::new(area.width, area.height))
+          .rounding(4.),
+      );
+    }),
+  })
+}
+
+fn open_button() -> Layout<Drawable> {
+  draw(move |area: Area| Drawable::Action {
+    area,
+    handler: Box::new(move |state: &mut CommandState, area: Area| {
+      if state
+        .ui
+        .put(
+          rect(area),
+          Button::new(RichText::new("Open").color(Color32::WHITE))
+            .fill(Color32::from_rgb(150, 0, 150))
+            .min_size(Vec2::new(area.width, area.height))
+            .rounding(4.),
+        )
+        .clicked()
+      {
+        dbg!("Click");
+      }
+    }),
+  })
+}
+
+fn process_commands(commands: Vec<Drawable>, state: &mut CommandState) {
+  for command in commands {
+    match command {
+      Drawable::Action { area, handler } => handler(state, area),
+    }
+  }
 }

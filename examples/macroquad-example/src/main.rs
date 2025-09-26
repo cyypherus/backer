@@ -1,10 +1,7 @@
-use backer::Layout;
-use backer::Node;
-use backer::models::*;
 use backer::nodes::*;
+use backer::{Align, Area, Layout};
 use macroquad::prelude::*;
-use macroquad::ui::root_ui;
-use macroquad::ui::widgets;
+use macroquad::ui::{root_ui, widgets};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HighlightedCase {
@@ -18,95 +15,103 @@ struct State {
     highlight: HighlightedCase,
 }
 
+enum Drawable {
+    Rect {
+        area: Area,
+        color: Color,
+    },
+    Text {
+        area: Area,
+        text: &'static str,
+        font_size: f32,
+        color: Color,
+    },
+    Button {
+        area: Area,
+        label: &'static str,
+        action: Box<dyn Fn(&mut State) + 'static>,
+    },
+}
+
+const BTN_SIZE: f32 = 50.;
+
 #[macroquad::main("Demo")]
 async fn main() {
     let mut state = State {
         highlight: HighlightedCase::None,
     };
-    // let mut layout = Layout::new(layout_for_highlight());
+
     loop {
-        Layout::new(layout_for_highlight()).draw(
-            Area {
-                x: 0.,
-                y: 0.,
-                width: screen_width(),
-                height: screen_height(),
-            },
-            &mut state,
-            &mut (),
-        );
-        next_frame().await
+        clear_background(BLACK);
+
+        let available = Area {
+            x: 0.,
+            y: 0.,
+            width: screen_width(),
+            height: screen_height(),
+        };
+
+        let mut layout = layout_for_highlight(state.highlight);
+        let commands = layout.draw(available);
+        process_commands(commands, &mut state);
+
+        next_frame().await;
     }
 }
 
-const BTN_SIZE: f32 = 50.;
-fn layout_for_highlight() -> Node<State, ()> {
-    dynamic(|ctx: &mut State, _| {
-        let highlight = ctx.highlight;
-        row_spaced(
-            10.,
-            vec![
-                if highlight == HighlightedCase::RelAbsSequence
-                    || highlight == HighlightedCase::None
+fn process_commands(commands: Vec<Drawable>, state: &mut State) {
+    for command in commands {
+        match command {
+            Drawable::Rect { area, color } => {
+                draw_rectangle(area.x, area.y, area.width, area.height, color);
+            }
+            Drawable::Text {
+                area,
+                text,
+                font_size,
+                color,
+            } => {
+                let dimensions = measure_text(text, None, font_size as u16, 1.0);
+                let x = area.x + (area.width - dimensions.width) * 0.5;
+                let y = area.y + (area.height + dimensions.height) * 0.5;
+                draw_text(text, x, y, font_size, color);
+            }
+            Drawable::Button {
+                area,
+                label,
+                action,
+            } => {
+                if widgets::Button::new(label)
+                    .size(vec2(area.width, area.height))
+                    .position(vec2(area.x, area.y))
+                    .ui(&mut root_ui())
                 {
-                    rel_abs_seq(highlight)
-                } else {
-                    empty()
-                },
-                if highlight == HighlightedCase::AlignmentOffset
-                    || highlight == HighlightedCase::None
-                {
-                    column_spaced(
-                        10.,
-                        vec![
-                            text("Alignment & Offset", 15., WHITE),
-                            stack(vec![
-                                rect(BLUE),
-                                rect(WHITE).height(30.).width(30.).align(Align::Leading),
-                                rect(WHITE).height(30.).width(30.).align(Align::Trailing),
-                                rect(WHITE).height(30.).width(30.).align(Align::Top),
-                                rect(WHITE).height(30.).width(30.).align(Align::Bottom),
-                                rect(WHITE).height(30.).width(30.).align(Align::TopLeading),
-                                rect(WHITE)
-                                    .height(30.)
-                                    .width(30.)
-                                    .align(Align::BottomLeading),
-                                rect(WHITE)
-                                    .height(30.)
-                                    .width(30.)
-                                    .align(Align::BottomTrailing),
-                                rect(WHITE).height(30.).width(30.).align(Align::TopTrailing),
-                                rect(WHITE)
-                                    .height(30.)
-                                    .width(30.)
-                                    .align(Align::CenterCenter)
-                                    .offset(10., 10.),
-                                rect(WHITE)
-                                    .height(30.)
-                                    .width(30.)
-                                    .align(Align::CenterCenter)
-                                    .offset(-10., -10.),
-                            ]),
-                            button("Fullscreen", |ctx: &mut State| {
-                                if ctx.highlight == HighlightedCase::AlignmentOffset {
-                                    ctx.highlight = HighlightedCase::None;
-                                } else {
-                                    ctx.highlight = HighlightedCase::AlignmentOffset;
-                                }
-                            })
-                            .height(BTN_SIZE)
-                            .align(Align::Bottom),
-                        ],
-                    )
-                } else {
-                    empty()
-                },
-            ],
-        )
-    })
+                    (action)(state);
+                }
+            }
+        }
+    }
 }
 
-fn rel_abs_seq(_highlight: HighlightedCase) -> Node<State, ()> {
+fn layout_for_highlight(highlight: HighlightedCase) -> Layout<Drawable> {
+    row_spaced(
+        10.,
+        vec![
+            match highlight {
+                HighlightedCase::AlignmentOffset => empty(),
+                HighlightedCase::RelAbsSequence | HighlightedCase::None => rel_abs_seq(),
+            },
+            match highlight {
+                HighlightedCase::RelAbsSequence => empty(),
+                HighlightedCase::AlignmentOffset | HighlightedCase::None => {
+                    alignment_offset_section()
+                }
+            },
+        ],
+    )
+}
+
+fn rel_abs_seq() -> Layout<Drawable> {
     column_spaced(
         10.,
         vec![
@@ -129,38 +134,71 @@ fn rel_abs_seq(_highlight: HighlightedCase) -> Node<State, ()> {
     )
 }
 
-fn text<T>(string: &'static str, font_size: f32, color: Color) -> Node<T, ()> {
+fn alignment_offset_section() -> Layout<Drawable> {
+    column_spaced(
+        10.,
+        vec![
+            text("Alignment & Offset", 15., WHITE),
+            stack(vec![
+                rect(BLUE),
+                rect(WHITE).height(30.).width(30.).align(Align::Leading),
+                rect(WHITE).height(30.).width(30.).align(Align::Trailing),
+                rect(WHITE).height(30.).width(30.).align(Align::Top),
+                rect(WHITE).height(30.).width(30.).align(Align::Bottom),
+                rect(WHITE).height(30.).width(30.).align(Align::TopLeading),
+                rect(WHITE)
+                    .height(30.)
+                    .width(30.)
+                    .align(Align::BottomLeading),
+                rect(WHITE)
+                    .height(30.)
+                    .width(30.)
+                    .align(Align::BottomTrailing),
+                rect(WHITE).height(30.).width(30.).align(Align::TopTrailing),
+                rect(WHITE)
+                    .height(30.)
+                    .width(30.)
+                    .align(Align::CenterCenter)
+                    .offset(10., 10.),
+                rect(WHITE)
+                    .height(30.)
+                    .width(30.)
+                    .align(Align::CenterCenter)
+                    .offset(-10., -10.),
+            ]),
+            button("Fullscreen", |state: &mut State| {
+                if state.highlight == HighlightedCase::AlignmentOffset {
+                    state.highlight = HighlightedCase::None;
+                } else {
+                    state.highlight = HighlightedCase::AlignmentOffset;
+                }
+            })
+            .height(BTN_SIZE)
+            .align(Align::Bottom),
+        ],
+    )
+}
+
+fn text(string: &'static str, font_size: f32, color: Color) -> Layout<Drawable> {
     let dimensions = measure_text(string, None, font_size as u16, 1.0);
-    draw(move |area: Area, _: &mut T, _| {
-        draw_text(
-            string,
-            area.x + ((area.width - dimensions.width) * 0.5),
-            area.y + (area.height * 0.5) + (dimensions.height * 0.5),
-            font_size,
-            color,
-        );
+    draw(move |area: Area| Drawable::Text {
+        area,
+        text: string,
+        font_size,
+        color,
     })
     .width_range(200.0..)
     .height(dimensions.height)
 }
 
-fn rect<T, U>(color: Color) -> Node<T, U> {
-    draw(move |area: Area, _: &mut T, _| {
-        draw_rectangle(area.x, area.y, area.width, area.height, color);
-    })
+fn rect(color: Color) -> Layout<Drawable> {
+    draw(move |area: Area| Drawable::Rect { area, color })
 }
 
-fn button<T, U, Action>(label: &'static str, action: Action) -> Node<T, U>
-where
-    Action: Fn(&mut T) + 'static,
-{
-    draw(move |area: Area, ctx: &mut T, _| {
-        if widgets::Button::new(label)
-            .size(vec2(area.width, area.height))
-            .position(vec2(area.x, area.y))
-            .ui(&mut root_ui())
-        {
-            action(ctx);
-        }
+fn button(label: &'static str, action: impl Fn(&mut State) + 'static) -> Layout<Drawable> {
+    draw(move |area: Area| Drawable::Button {
+        area,
+        label,
+        action: Box::new(action),
     })
 }
