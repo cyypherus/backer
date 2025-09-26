@@ -11,199 +11,270 @@ impl<T> Layout<T> {
     }
 }
 
-pub fn draw<A>(data: impl FnOnce(Area) -> A + 'static) -> Layout<A> {
-    Layout {
-        layout: LayoutType::Draw(Some(Box::new(data))),
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: Vec::new(),
-        resolved: None,
-        allocated: None,
+struct NodeBuilder<A> {
+    layout: LayoutType<A>,
+    constraints: Constraints,
+    dynamic_constraints: DynamicConstraints,
+    children: Vec<Layout<A>>,
+}
+
+impl<A> NodeBuilder<A> {
+    fn new(layout: LayoutType<A>) -> Self {
+        Self {
+            layout,
+            constraints: Constraints::default(),
+            dynamic_constraints: DynamicConstraints::default(),
+            children: Vec::new(),
+        }
     }
+
+    fn children(mut self, children: Vec<Layout<A>>) -> Self {
+        self.children = children;
+        self
+    }
+
+    fn child(mut self, child: Layout<A>) -> Self {
+        self.children.push(child);
+        self
+    }
+
+    fn build(self) -> Layout<A> {
+        Layout {
+            layout: self.layout,
+            constraints: self.constraints,
+            dynamic_constraints: self.dynamic_constraints,
+            resolved: None,
+            allocated: None,
+            children: self.children,
+        }
+    }
+}
+
+pub fn draw<A>(data: impl FnOnce(Area) -> A + 'static) -> Layout<A> {
+    NodeBuilder::new(LayoutType::Draw(Some(Box::new(data)))).build()
 }
 
 pub fn column<A>(elements: Vec<Layout<A>>) -> Layout<A> {
-    Layout {
-        layout: LayoutType::Column {
-            spacing: 0.,
-            x_align: None,
-            y_align: None,
-        },
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: elements,
-        resolved: None,
-        allocated: None,
-    }
+    NodeBuilder::new(LayoutType::Column {
+        spacing: 0.,
+        x_align: None,
+        y_align: None,
+    })
+    .children(elements)
+    .build()
 }
 
 pub fn column_spaced<A>(spacing: f32, elements: Vec<Layout<A>>) -> Layout<A> {
-    Layout {
-        layout: LayoutType::Column {
-            spacing,
-            x_align: None,
-            y_align: None,
-        },
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: elements,
-        resolved: None,
-        allocated: None,
-    }
+    NodeBuilder::new(LayoutType::Column {
+        spacing,
+        x_align: None,
+        y_align: None,
+    })
+    .children(elements)
+    .build()
 }
 
 pub fn column_aligned<A>(align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
     let (x_align, y_align) = align.axis_aligns();
-    Layout {
-        layout: LayoutType::Column {
-            spacing: 0.,
-            x_align,
-            y_align,
-        },
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: elements,
-        resolved: None,
-        allocated: None,
-    }
+    NodeBuilder::new(LayoutType::Column {
+        spacing: 0.,
+        x_align,
+        y_align,
+    })
+    .children(elements)
+    .build()
 }
 
 pub fn column_spaced_aligned<A>(spacing: f32, align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
     let (x_align, y_align) = align.axis_aligns();
-    Layout {
-        layout: LayoutType::Column {
-            spacing,
-            x_align,
-            y_align,
-        },
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: elements,
-        resolved: None,
-        allocated: None,
-    }
+    NodeBuilder::new(LayoutType::Column {
+        spacing,
+        x_align,
+        y_align,
+    })
+    .children(elements)
+    .build()
 }
 
 pub fn row<A>(elements: Vec<Layout<A>>) -> Layout<A> {
-    Layout {
-        layout: LayoutType::Row {
-            spacing: 0.0,
-            x_align: None,
-            y_align: None,
-        },
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: elements,
-        resolved: None,
-        allocated: None,
-    }
+    NodeBuilder::new(LayoutType::Row {
+        spacing: 0.0,
+        x_align: None,
+        y_align: None,
+    })
+    .children(elements)
+    .build()
 }
 
 pub fn row_spaced<A>(spacing: f32, elements: Vec<Layout<A>>) -> Layout<A> {
-    Layout {
-        layout: LayoutType::Row {
-            spacing,
-            x_align: None,
-            y_align: None,
-        },
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: elements,
-        resolved: None,
-        allocated: None,
-    }
+    NodeBuilder::new(LayoutType::Row {
+        spacing,
+        x_align: None,
+        y_align: None,
+    })
+    .children(elements)
+    .build()
 }
 
 pub fn row_aligned<A>(align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
     let (x_align, y_align) = align.axis_aligns();
-    Layout {
-        layout: LayoutType::Row {
-            spacing: 0.0,
-            x_align,
-            y_align,
-        },
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: elements,
-        resolved: None,
-        allocated: None,
-    }
+    NodeBuilder::new(LayoutType::Row {
+        spacing: 0.0,
+        x_align,
+        y_align,
+    })
+    .children(elements)
+    .build()
 }
 
 pub fn row_spaced_aligned<A>(spacing: f32, align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
     let (x_align, y_align) = align.axis_aligns();
-    Layout {
-        layout: LayoutType::Row {
-            spacing,
-            x_align,
-            y_align,
-        },
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: elements,
-        resolved: None,
-        allocated: None,
-    }
+    NodeBuilder::new(LayoutType::Row {
+        spacing,
+        x_align,
+        y_align,
+    })
+    .children(elements)
+    .build()
 }
 
 pub fn stack<A>(elements: Vec<Layout<A>>) -> Layout<A> {
-    Layout {
-        layout: LayoutType::Stack {
-            x_align: None,
-            y_align: None,
-        },
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: elements,
-        resolved: None,
-        allocated: None,
-    }
+    NodeBuilder::new(LayoutType::Stack {
+        x_align: None,
+        y_align: None,
+    })
+    .children(elements)
+    .build()
 }
 
 pub fn stack_aligned<A>(align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
     let (x_align, y_align) = align.axis_aligns();
-    Layout {
-        layout: LayoutType::Stack { x_align, y_align },
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: elements,
-        resolved: None,
-        allocated: None,
-    }
+    NodeBuilder::new(LayoutType::Stack { x_align, y_align })
+        .children(elements)
+        .build()
 }
 
 pub fn space<A>() -> Layout<A> {
-    Layout {
-        layout: LayoutType::Space,
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: Vec::new(),
-        resolved: None,
-        allocated: None,
-    }
+    NodeBuilder::new(LayoutType::Space).build()
 }
 
 pub fn empty<A>() -> Layout<A> {
-    Layout {
-        layout: LayoutType::Empty,
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: Vec::new(),
-        resolved: None,
-        allocated: None,
-    }
+    NodeBuilder::new(LayoutType::Empty).build()
 }
 
 pub fn area_reader<A>(func: impl Fn(Area) -> Layout<A> + 'static) -> Layout<A> {
-    Layout {
-        layout: LayoutType::AreaReader {
-            func: Some(Box::new(func)),
-        },
-        constraints: Default::default(),
-        dynamic_constraints: DynamicConstraints::default(),
-        children: Vec::new(),
-        resolved: None,
-        allocated: None,
+    NodeBuilder::new(LayoutType::AreaReader {
+        func: Some(Box::new(func)),
+    })
+    .build()
+}
+
+impl<A> Layout<A> {
+    pub fn pad(self, amount: f32) -> Layout<A> {
+        NodeBuilder::new(LayoutType::Padding {
+            leading: amount,
+            trailing: amount,
+            top: amount,
+            bottom: amount,
+        })
+        .child(self)
+        .build()
+    }
+
+    pub fn pad_x(self, amount: f32) -> Self {
+        NodeBuilder::new(LayoutType::Padding {
+            leading: amount,
+            trailing: amount,
+            top: 0.,
+            bottom: 0.,
+        })
+        .child(self)
+        .build()
+    }
+
+    pub fn pad_y(self, amount: f32) -> Self {
+        NodeBuilder::new(LayoutType::Padding {
+            leading: 0.,
+            trailing: 0.,
+            top: amount,
+            bottom: amount,
+        })
+        .child(self)
+        .build()
+    }
+
+    pub fn pad_top(self, amount: f32) -> Self {
+        NodeBuilder::new(LayoutType::Padding {
+            leading: 0.,
+            trailing: 0.,
+            top: amount,
+            bottom: 0.,
+        })
+        .child(self)
+        .build()
+    }
+
+    pub fn pad_bottom(self, amount: f32) -> Self {
+        NodeBuilder::new(LayoutType::Padding {
+            leading: 0.,
+            trailing: 0.,
+            top: 0.,
+            bottom: amount,
+        })
+        .child(self)
+        .build()
+    }
+
+    pub fn pad_leading(self, amount: f32) -> Self {
+        NodeBuilder::new(LayoutType::Padding {
+            leading: amount,
+            trailing: 0.,
+            top: 0.,
+            bottom: 0.,
+        })
+        .child(self)
+        .build()
+    }
+
+    pub fn pad_trailing(self, amount: f32) -> Self {
+        NodeBuilder::new(LayoutType::Padding {
+            leading: 0.,
+            trailing: amount,
+            top: 0.,
+            bottom: 0.,
+        })
+        .child(self)
+        .build()
+    }
+
+    pub fn offset(self, x: f32, y: f32) -> Layout<A> {
+        NodeBuilder::new(LayoutType::Offset { x, y })
+            .child(self)
+            .build()
+    }
+
+    pub fn offset_x(self, x: f32) -> Layout<A> {
+        NodeBuilder::new(LayoutType::Offset { x, y: 0. })
+            .child(self)
+            .build()
+    }
+
+    pub fn offset_y(self, y: f32) -> Layout<A> {
+        NodeBuilder::new(LayoutType::Offset { x: 0., y })
+            .child(self)
+            .build()
+    }
+
+    pub fn attach_under(self, node: Layout<A>) -> Layout<A> {
+        NodeBuilder::new(LayoutType::Coupled { over: false })
+            .children(vec![self, node])
+            .build()
+    }
+
+    pub fn attach_over(self, node: Layout<A>) -> Layout<A> {
+        NodeBuilder::new(LayoutType::Coupled { over: true })
+            .children(vec![node, self])
+            .build()
     }
 }
 
@@ -275,173 +346,6 @@ impl<A> Layout<A> {
             self.constraints.y_align = Some(y);
         }
         self
-    }
-
-    pub fn pad(self, amount: f32) -> Layout<A> {
-        Layout {
-            layout: LayoutType::Padding {
-                leading: amount,
-                trailing: amount,
-                top: amount,
-                bottom: amount,
-            },
-            constraints: Default::default(),
-            dynamic_constraints: DynamicConstraints::default(),
-            children: vec![self],
-            resolved: None,
-            allocated: None,
-        }
-    }
-
-    pub fn pad_x(self, amount: f32) -> Self {
-        Layout {
-            layout: LayoutType::Padding {
-                leading: amount,
-                trailing: amount,
-                top: 0.,
-                bottom: 0.,
-            },
-            constraints: Default::default(),
-            dynamic_constraints: DynamicConstraints::default(),
-            children: vec![self],
-            resolved: None,
-            allocated: None,
-        }
-    }
-
-    pub fn pad_y(self, amount: f32) -> Self {
-        Layout {
-            layout: LayoutType::Padding {
-                leading: 0.,
-                trailing: 0.,
-                top: amount,
-                bottom: amount,
-            },
-            constraints: Default::default(),
-            dynamic_constraints: DynamicConstraints::default(),
-            children: vec![self],
-            resolved: None,
-            allocated: None,
-        }
-    }
-
-    pub fn pad_top(self, amount: f32) -> Self {
-        Layout {
-            layout: LayoutType::Padding {
-                leading: 0.,
-                trailing: 0.,
-                top: amount,
-                bottom: 0.,
-            },
-            constraints: Default::default(),
-            dynamic_constraints: DynamicConstraints::default(),
-            children: vec![self],
-            resolved: None,
-            allocated: None,
-        }
-    }
-
-    pub fn pad_bottom(self, amount: f32) -> Self {
-        Layout {
-            layout: LayoutType::Padding {
-                leading: 0.,
-                trailing: 0.,
-                top: 0.,
-                bottom: amount,
-            },
-            constraints: Default::default(),
-            dynamic_constraints: DynamicConstraints::default(),
-            children: vec![self],
-            resolved: None,
-            allocated: None,
-        }
-    }
-
-    pub fn pad_leading(self, amount: f32) -> Self {
-        Layout {
-            layout: LayoutType::Padding {
-                leading: amount,
-                trailing: 0.,
-                top: 0.,
-                bottom: 0.,
-            },
-            constraints: Default::default(),
-            dynamic_constraints: DynamicConstraints::default(),
-            children: vec![self],
-            resolved: None,
-            allocated: None,
-        }
-    }
-
-    pub fn pad_trailing(self, amount: f32) -> Self {
-        Layout {
-            layout: LayoutType::Padding {
-                leading: 0.,
-                trailing: amount,
-                top: 0.,
-                bottom: 0.,
-            },
-            constraints: Default::default(),
-            dynamic_constraints: DynamicConstraints::default(),
-            children: vec![self],
-            resolved: None,
-            allocated: None,
-        }
-    }
-
-    pub fn offset(self, x: f32, y: f32) -> Layout<A> {
-        Layout {
-            layout: LayoutType::Offset { x, y },
-            constraints: Default::default(),
-            dynamic_constraints: DynamicConstraints::default(),
-            children: vec![self],
-            resolved: None,
-            allocated: None,
-        }
-    }
-
-    pub fn offset_x(self, x: f32) -> Layout<A> {
-        Layout {
-            layout: LayoutType::Offset { x, y: 0. },
-            constraints: Default::default(),
-            dynamic_constraints: DynamicConstraints::default(),
-            children: vec![self],
-            resolved: None,
-            allocated: None,
-        }
-    }
-
-    pub fn offset_y(self, y: f32) -> Layout<A> {
-        Layout {
-            layout: LayoutType::Offset { x: 0., y },
-            constraints: Default::default(),
-            dynamic_constraints: DynamicConstraints::default(),
-            children: vec![self],
-            resolved: None,
-            allocated: None,
-        }
-    }
-
-    pub fn attach_under(self, node: Layout<A>) -> Layout<A> {
-        Layout {
-            layout: LayoutType::Coupled { over: false },
-            constraints: Default::default(),
-            dynamic_constraints: DynamicConstraints::default(),
-            children: vec![self, node],
-            resolved: None,
-            allocated: None,
-        }
-    }
-
-    pub fn attach_over(self, node: Layout<A>) -> Layout<A> {
-        Layout {
-            layout: LayoutType::Coupled { over: true },
-            constraints: Default::default(),
-            dynamic_constraints: DynamicConstraints::default(),
-            children: vec![node, self],
-            resolved: None,
-            allocated: None,
-        }
     }
 
     pub fn dynamic_width(mut self, f: impl Fn(f32) -> f32 + 'static) -> Layout<A> {

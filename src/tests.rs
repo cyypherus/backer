@@ -5,7 +5,7 @@ mod tests_module {
 
     impl<A> Layout<A> {
         fn debug_visualize(&mut self, available_area: Area) {
-            fn visualize_areas(areas: &Vec<Area>, bounds: Area) {
+            fn visualize_areas(areas: &[Area], bounds: Area) {
                 if areas.is_empty() {
                     return;
                 }

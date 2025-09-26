@@ -1,9 +1,9 @@
 use backer::{
-  models::{Align, Area},
-  nodes::*,
   Layout,
   Node,
   // Layout, Node,
+  models::{Align, Area},
+  nodes::*,
 };
 use eframe::egui;
 use egui::{
@@ -103,16 +103,18 @@ impl eframe::App for MyApp {
               10.,
               Align::Top,
               vec![
-                vec![draw(|area, state: &mut State, _| {
-                  if state
-                    .ui
-                    .put(rect(area), Button::new("Backer Off"))
-                    .clicked()
-                  {
-                    *state.backer_on = false
-                  }
-                })
-                .height(15.)],
+                vec![
+                  draw(|area, state: &mut State, _| {
+                    if state
+                      .ui
+                      .put(rect(area), Button::new("Backer Off"))
+                      .clicked()
+                    {
+                      *state.backer_on = false
+                    }
+                  })
+                  .height(15.),
+                ],
                 state
                   .bounties
                   .iter()

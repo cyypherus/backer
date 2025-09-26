@@ -6,7 +6,7 @@ use crate::{
 
 pub(crate) fn perform_layout_passes<A>(tree: &mut Layout<A>, available_area: Area) {
     for _ in 0..2 {
-        dbg!(&tree);
+        tree.allocated = Some(available_area);
         resolve(tree);
         allocate(tree, available_area);
         expand_area_reader_nodes(tree);
@@ -160,6 +160,7 @@ pub(crate) fn allocate<A>(constrained: &mut Layout<A>, available_area: Area) {
             node.allocated
                 .unwrap_or(available_area)
                 .constrained(&node.resolved, None, None);
+
         match node.layout {
             LayoutType::Draw(_) => {
                 node.allocated = Some(available_area);
@@ -211,12 +212,12 @@ pub(crate) fn allocate<A>(constrained: &mut Layout<A>, available_area: Area) {
             }
             LayoutType::AreaReader { .. } => {
                 if let Some(child) = node.children.first_mut() {
-                    child.allocated = Some(available_area.constrained(&node.resolved, None, None));
+                    child.allocated = Some(available_area.constrained(&child.resolved, None, None));
                 }
             }
-            LayoutType::Coupled { over } => {
-                let element = if over { 0 } else { 1 };
-                let coupled = if over { 1 } else { 0 };
+            LayoutType::Coupled { .. } => {
+                let element = 0;
+                let coupled = 1;
                 let constrained_area =
                     available_area.constrained(&node.children[element].resolved, None, None);
                 node.children[element].allocated = Some(constrained_area);
