@@ -5,8 +5,8 @@ use crate::{
 };
 
 pub(crate) fn perform_layout_passes<A>(tree: &mut Layout<A>, available_area: Area) {
-    tree.allocated = Some(available_area);
-    for _ in 0..1 {
+    for _ in 0..2 {
+        dbg!(&tree);
         resolve(tree);
         allocate(tree, available_area);
         expand_area_reader_nodes(tree);
@@ -15,7 +15,36 @@ pub(crate) fn perform_layout_passes<A>(tree: &mut Layout<A>, available_area: Are
 
 pub(crate) fn resolve<A>(input: &mut Layout<A>) {
     input.traverse_bottom_up(|node| {
-        let self_constraints = node.constraints;
+        let self_constraints = Constraints {
+            width: node
+                .allocated
+                .and_then(|area| {
+                    node.dynamic_constraints.width.as_ref().map(|f| {
+                        let w = f(area.height);
+                        AxisConstraint::new(Some(w), Some(w))
+                    })
+                })
+                .unwrap_or(AxisConstraint::new(
+                    node.constraints.width.lower,
+                    node.constraints.width.upper,
+                )),
+            height: node
+                .allocated
+                .and_then(|area| {
+                    node.dynamic_constraints.height.as_ref().map(|f| {
+                        let h = f(area.width);
+                        AxisConstraint::new(Some(h), Some(h))
+                    })
+                })
+                .unwrap_or(AxisConstraint::new(
+                    node.constraints.height.lower,
+                    node.constraints.height.upper,
+                )),
+            expand_x: node.constraints.expand_x,
+            expand_y: node.constraints.expand_y,
+            x_align: node.constraints.x_align,
+            y_align: node.constraints.y_align,
+        };
         node.resolved = Some(match node.layout {
             LayoutType::Column { spacing, .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
@@ -127,7 +156,10 @@ pub(crate) fn resolve<A>(input: &mut Layout<A>) {
 
 pub(crate) fn allocate<A>(constrained: &mut Layout<A>, available_area: Area) {
     constrained.traverse_top_down(|node| {
-        let available_area = node.allocated.unwrap_or(available_area);
+        let available_area =
+            node.allocated
+                .unwrap_or(available_area)
+                .constrained(&node.resolved, None, None);
         match node.layout {
             LayoutType::Draw(_) => {
                 node.allocated = Some(available_area);
@@ -237,6 +269,7 @@ impl<T> Layout<T> {
                 child
                     .dynamic_constraints
                     .width
+                    .as_ref()
                     .map(|f| f(available_area.height))
                     .or(child.constraints.width.lower)
             };
@@ -431,7 +464,10 @@ impl<T> Layout<T> {
 
 fn expand_area_reader_nodes<A>(tree: &mut Layout<A>) {
     tree.traverse_top_down(|node| {
-        let expansion_result = if let LayoutType::AreaReader { func } = &mut node.layout {
+        let expansion_result = if let LayoutType::AreaReader { func } = &mut node.layout
+            && node.children.is_empty()
+            && let Some(func) = func.take()
+        {
             if let Some(area) = node.allocated {
                 let mut new_node = func(area);
                 perform_layout_passes(&mut new_node, area);
@@ -452,14 +488,17 @@ fn expand_area_reader_nodes<A>(tree: &mut Layout<A>) {
 pub(crate) fn collect<A>(constrained: &mut Layout<A>) -> Vec<A> {
     constrained
         .cata(|node| {
-            if let LayoutType::Draw(value) = &node.layout
-                && let Some(area) = node.allocated
-            {
-                Some(value(area))
-            } else {
-                eprintln!("Unexpected draw without area");
-                None
+            if let LayoutType::Draw(value) = &mut node.layout {
+                if let Some(area) = node.allocated
+                    && let Some(func) = value.take()
+                {
+                    return Some(func(area));
+                } else {
+                    eprintln!("Unexpected draw without area");
+                    return None;
+                }
             }
+            None
         })
         .into_iter()
         .flatten()

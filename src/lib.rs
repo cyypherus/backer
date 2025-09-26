@@ -16,6 +16,7 @@ See [`Node`] for layout customization.
 */
 
 mod api;
+mod debug;
 mod passes;
 mod tests;
 mod tree;

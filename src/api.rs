@@ -5,15 +5,15 @@ use crate::{
 use std::ops::RangeBounds;
 
 impl<T> Layout<T> {
-    pub fn draw(mut self, available_area: Area) -> Vec<T> {
-        perform_layout_passes(&mut self, available_area);
-        collect(&mut self)
+    pub fn draw(&mut self, available_area: Area) -> Vec<T> {
+        perform_layout_passes(self, available_area);
+        collect(self)
     }
 }
 
-pub fn draw<A>(data: impl Fn(Area) -> A + 'static) -> Layout<A> {
+pub fn draw<A>(data: impl FnOnce(Area) -> A + 'static) -> Layout<A> {
     Layout {
-        layout: LayoutType::Draw(Box::new(data)),
+        layout: LayoutType::Draw(Some(Box::new(data))),
         constraints: Default::default(),
         dynamic_constraints: DynamicConstraints::default(),
         children: Vec::new(),
@@ -197,7 +197,7 @@ pub fn empty<A>() -> Layout<A> {
 pub fn area_reader<A>(func: impl Fn(Area) -> Layout<A> + 'static) -> Layout<A> {
     Layout {
         layout: LayoutType::AreaReader {
-            func: Box::new(func),
+            func: Some(Box::new(func)),
         },
         constraints: Default::default(),
         dynamic_constraints: DynamicConstraints::default(),
@@ -442,5 +442,25 @@ impl<A> Layout<A> {
             resolved: None,
             allocated: None,
         }
+    }
+
+    pub fn dynamic_width(mut self, f: impl Fn(f32) -> f32 + 'static) -> Layout<A> {
+        self.dynamic_constraints.width = Some(Box::new(f));
+        self
+    }
+
+    pub fn dynamic_height(mut self, f: impl Fn(f32) -> f32 + 'static) -> Layout<A> {
+        self.dynamic_constraints.height = Some(Box::new(f));
+        self
+    }
+
+    pub fn aspect_width(mut self, ratio: f32) -> Self {
+        self.dynamic_constraints.width = Some(Box::new(move |height| height * ratio));
+        self
+    }
+
+    pub fn aspect_height(mut self, ratio: f32) -> Self {
+        self.dynamic_constraints.height = Some(Box::new(move |width| width / ratio));
+        self
     }
 }

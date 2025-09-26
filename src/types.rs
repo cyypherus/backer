@@ -2,9 +2,9 @@ use std::fmt::Debug;
 
 use crate::tree::TreeNode;
 
-pub(crate) type DrawFn<A> = Box<dyn Fn(Area) -> A>;
-type DimensionFn = Option<&'static dyn Fn(f32) -> f32>;
-pub(crate) type AreaReaderFn<A> = Box<dyn Fn(Area) -> Layout<A>>;
+pub(crate) type DrawFn<A> = Box<dyn FnOnce(Area) -> A>;
+pub(crate) type DimensionFn = Option<Box<dyn Fn(f32) -> f32>>;
+pub(crate) type AreaReaderFn<A> = Box<dyn FnOnce(Area) -> Layout<A>>;
 
 pub struct Layout<A> {
     pub(crate) layout: LayoutType<A>,
@@ -21,19 +21,10 @@ impl<A> TreeNode for Layout<A> {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub(crate) struct DynamicConstraints {
     pub(crate) width: DimensionFn,
     pub(crate) height: DimensionFn,
-}
-
-impl Debug for DynamicConstraints {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DynamicConstraints")
-            .field("width", &"<function>")
-            .field("height", &"<function>")
-            .finish()
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -273,7 +264,7 @@ impl Area {
 }
 
 pub enum LayoutType<A> {
-    Draw(DrawFn<A>),
+    Draw(Option<DrawFn<A>>),
     Column {
         spacing: f32,
         x_align: Option<XAlign>,
@@ -304,6 +295,6 @@ pub enum LayoutType<A> {
         over: bool,
     },
     AreaReader {
-        func: AreaReaderFn<A>,
+        func: Option<AreaReaderFn<A>>,
     },
 }
