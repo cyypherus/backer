@@ -29,13 +29,15 @@ impl<A> NodeBuilder<A> {
     }
 
     fn children(mut self, children: Vec<Layout<A>>) -> Self {
-        self.children = children;
+        self.children = children
+            .into_iter()
+            .filter(|child| !matches!(child.layout, LayoutType::Empty))
+            .collect();
         self
     }
 
-    fn child(mut self, child: Layout<A>) -> Self {
-        self.children.push(child);
-        self
+    fn child(self, child: Layout<A>) -> Self {
+        self.children(vec![child])
     }
 
     fn build(self) -> Layout<A> {
