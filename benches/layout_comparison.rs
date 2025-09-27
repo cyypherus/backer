@@ -31,11 +31,7 @@ fn create_nested_column(depth: usize) -> BenchLayout {
     if depth == 0 {
         draw_noop().height(20.0)
     } else {
-        column(vec![
-            create_nested_column(depth - 1),
-            create_nested_column(depth - 1),
-            create_nested_column(depth - 1),
-        ])
+        column(vec![create_nested_column(depth - 1)])
     }
 }
 
@@ -79,7 +75,7 @@ fn bench_complex_nested(c: &mut Criterion) {
 fn bench_deep_nesting(c: &mut Criterion) {
     let mut group = c.benchmark_group("deep_nesting");
 
-    for depth in [3, 5, 7] {
+    for depth in [10, 50, 100] {
         group.bench_with_input(format!("mvp_depth_{}", depth), &depth, |b, &depth| {
             b.iter(|| {
                 let mut layout = create_deep_nesting_mvp(depth);

@@ -1567,5 +1567,20 @@ mod tests_module {
             ])
             .draw(Area::new(0., 0., 100., 100.));
         }
+
+        #[test]
+        fn test_configurable_depth_tree() {
+            fn build_tree(depth: usize) -> Layout<Area> {
+                if depth == 0 {
+                    draw(|area| area)
+                } else {
+                    column(vec![draw(|area| area), build_tree(depth - 1)])
+                }
+            }
+
+            let mut layout = build_tree(500);
+            let leaves = layout.draw(Area::new(0., 0., 300., 300.));
+            assert_eq!(leaves.len(), 501);
+        }
     }
 }
