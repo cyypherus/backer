@@ -1,10 +1,10 @@
 use backer::{Area, Layout, nodes::*};
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
-type BenchLayout = Layout<Area>;
+type BenchLayout = Layout<Area, ()>;
 
 fn draw_noop() -> BenchLayout {
-    draw(|area: Area| area)
+    draw(|area: Area, _| area)
 }
 
 fn create_simple_column_mvp() -> BenchLayout {

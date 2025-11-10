@@ -2,29 +2,37 @@ use std::fmt::Debug;
 
 use crate::tree::TreeNode;
 
-pub(crate) type DrawFn<A> = Box<dyn FnOnce(Area) -> A>;
-pub(crate) type DimensionFn = Option<Box<dyn Fn(f32) -> f32>>;
-pub(crate) type AreaReaderFn<A> = Box<dyn FnOnce(Area) -> Layout<A>>;
+pub(crate) type DrawFn<A, C> = Box<dyn FnOnce(Area, &mut C) -> A>;
+pub(crate) type DimensionFn<C> = Option<Box<dyn Fn(f32, &mut C) -> f32>>;
+pub(crate) type AreaReaderFn<A, C> = Box<dyn FnOnce(Area, &mut C) -> Layout<A, C>>;
 
-pub struct Layout<A> {
-    pub(crate) layout: LayoutType<A>,
+pub struct Layout<A, C> {
+    pub(crate) layout: LayoutType<A, C>,
     pub(crate) constraints: Constraints,
-    pub(crate) dynamic_constraints: DynamicConstraints,
+    pub(crate) dynamic_constraints: DynamicConstraints<C>,
     pub(crate) resolved: Option<Constraints>,
     pub(crate) allocated: Option<Area>,
-    pub(crate) children: Vec<Layout<A>>,
+    pub(crate) children: Vec<Layout<A, C>>,
 }
 
-impl<A> TreeNode for Layout<A> {
+impl<A, C> TreeNode for Layout<A, C> {
     fn children_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Self> {
         self.children.iter_mut()
     }
 }
 
-#[derive(Default)]
-pub(crate) struct DynamicConstraints {
-    pub(crate) width: DimensionFn,
-    pub(crate) height: DimensionFn,
+pub(crate) struct DynamicConstraints<C> {
+    pub(crate) width: DimensionFn<C>,
+    pub(crate) height: DimensionFn<C>,
+}
+
+impl<C> Default for DynamicConstraints<C> {
+    fn default() -> Self {
+        Self {
+            width: None,
+            height: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -263,8 +271,8 @@ impl Area {
     }
 }
 
-pub enum LayoutType<A> {
-    Draw(Option<DrawFn<A>>),
+pub enum LayoutType<A, C> {
+    Draw(Option<DrawFn<A, C>>),
     Column {
         spacing: f32,
         x_align: Option<XAlign>,
@@ -295,6 +303,6 @@ pub enum LayoutType<A> {
         over: bool,
     },
     AreaReader {
-        func: Option<AreaReaderFn<A>>,
+        func: Option<AreaReaderFn<A, C>>,
     },
 }

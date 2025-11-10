@@ -4,23 +4,27 @@ use crate::{
     types::{Area, AxisConstraint, Constraints, LayoutType, XAlign, YAlign},
 };
 
-pub(crate) fn perform_layout_passes<A>(tree: &mut Layout<A>, available_area: Area) {
+pub(crate) fn perform_layout_passes<A, C>(
+    tree: &mut Layout<A, C>,
+    available_area: Area,
+    c: &mut C,
+) {
     for _ in 0..2 {
         tree.allocated = Some(available_area);
-        resolve(tree);
-        allocate(tree, available_area);
-        expand_area_reader_nodes(tree);
+        resolve(tree, c);
+        allocate(tree, available_area, c);
+        expand_area_reader_nodes(tree, c);
     }
 }
 
-pub(crate) fn resolve<A>(input: &mut Layout<A>) {
-    input.traverse_bottom_up(|node| {
+pub(crate) fn resolve<A, C>(input: &mut Layout<A, C>, c: &mut C) {
+    input.traverse_bottom_up(c, |node: &mut Layout<A, C>, c: &mut C| {
         let self_constraints = Constraints {
             width: node
                 .allocated
                 .and_then(|area| {
                     node.dynamic_constraints.width.as_ref().map(|f| {
-                        let w = f(area.height);
+                        let w = f(area.height, c);
                         AxisConstraint::new(Some(w), Some(w))
                     })
                 })
@@ -32,7 +36,7 @@ pub(crate) fn resolve<A>(input: &mut Layout<A>) {
                 .allocated
                 .and_then(|area| {
                     node.dynamic_constraints.height.as_ref().map(|f| {
-                        let h = f(area.width);
+                        let h = f(area.width, c);
                         AxisConstraint::new(Some(h), Some(h))
                     })
                 })
@@ -49,7 +53,7 @@ pub(crate) fn resolve<A>(input: &mut Layout<A>) {
             LayoutType::Column { spacing, .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
                     Option::<Constraints>::None,
-                    |current: Option<Constraints>, child_constrained: &Layout<A>| {
+                    |current: Option<Constraints>, child_constrained: &Layout<A, C>| {
                         if let Some(current) = current {
                             Some(Constraints {
                                 width: current
@@ -69,7 +73,7 @@ pub(crate) fn resolve<A>(input: &mut Layout<A>) {
             LayoutType::Row { spacing, .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
                     Option::<Constraints>::None,
-                    |current: Option<Constraints>, child_constrained: &Layout<A>| {
+                    |current: Option<Constraints>, child_constrained: &Layout<A, C>| {
                         if let Some(current) = current {
                             Some(Constraints {
                                 width: current
@@ -89,7 +93,7 @@ pub(crate) fn resolve<A>(input: &mut Layout<A>) {
             LayoutType::Stack { .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
                     Option::<Constraints>::None,
-                    |current: Option<Constraints>, child_constrained: &Layout<A>| {
+                    |current: Option<Constraints>, child_constrained: &Layout<A, C>| {
                         if let Some(current) = current {
                             Some(Constraints {
                                 width: current
@@ -154,8 +158,8 @@ pub(crate) fn resolve<A>(input: &mut Layout<A>) {
     })
 }
 
-pub(crate) fn allocate<A>(constrained: &mut Layout<A>, available_area: Area) {
-    constrained.traverse_top_down(|node| {
+pub(crate) fn allocate<A, C>(constrained: &mut Layout<A, C>, available_area: Area, c: &mut C) {
+    constrained.traverse_top_down(c, |node, c| {
         let available_area =
             node.allocated
                 .unwrap_or(available_area)
@@ -169,12 +173,12 @@ pub(crate) fn allocate<A>(constrained: &mut Layout<A>, available_area: Area) {
                 spacing,
                 x_align,
                 y_align,
-            } => node.layout_axis(spacing, available_area, true, x_align, y_align),
+            } => node.layout_axis(c, spacing, available_area, true, x_align, y_align),
             LayoutType::Row {
                 spacing,
                 x_align,
                 y_align,
-            } => node.layout_axis(spacing, available_area, false, x_align, y_align),
+            } => node.layout_axis(c, spacing, available_area, false, x_align, y_align),
             LayoutType::Stack { x_align, y_align } => {
                 node.children.iter_mut().for_each(|child| {
                     child.allocated =
@@ -228,9 +232,10 @@ pub(crate) fn allocate<A>(constrained: &mut Layout<A>, available_area: Area) {
     })
 }
 
-impl<T> Layout<T> {
+impl<T, C> Layout<T, C> {
     fn layout_axis(
         &mut self,
+        c: &mut C,
         spacing: f32,
         available_area: Area,
         is_vertical: bool,
@@ -264,14 +269,14 @@ impl<T> Layout<T> {
                     .dynamic_constraints
                     .height
                     .as_ref()
-                    .map(|f| f(available_area.width))
+                    .map(|f| f(available_area.width, c))
                     .or(child.constraints.height.lower)
             } else {
                 child
                     .dynamic_constraints
                     .width
                     .as_ref()
-                    .map(|f| f(available_area.height))
+                    .map(|f| f(available_area.height, c))
                     .or(child.constraints.width.lower)
             };
             let mut upper = if is_vertical {
@@ -279,14 +284,14 @@ impl<T> Layout<T> {
                     .dynamic_constraints
                     .height
                     .as_ref()
-                    .map(|f| f(available_area.width))
+                    .map(|f| f(available_area.width, c))
                     .or(child.constraints.height.upper)
             } else {
                 child
                     .dynamic_constraints
                     .width
                     .as_ref()
-                    .map(|f| f(available_area.height))
+                    .map(|f| f(available_area.height, c))
                     .or(child.constraints.width.upper)
             };
 
@@ -463,15 +468,15 @@ impl<T> Layout<T> {
     }
 }
 
-fn expand_area_reader_nodes<A>(tree: &mut Layout<A>) {
-    tree.traverse_top_down(|node| {
+fn expand_area_reader_nodes<A, C>(tree: &mut Layout<A, C>, c: &mut C) {
+    tree.traverse_top_down(c, |node, c| {
         let expansion_result = if let LayoutType::AreaReader { func } = &mut node.layout
             && node.children.is_empty()
             && let Some(func) = func.take()
         {
             if let Some(area) = node.allocated {
-                let mut new_node = func(area);
-                perform_layout_passes(&mut new_node, area);
+                let mut new_node = func(area, c);
+                perform_layout_passes(&mut new_node, area, c);
                 Some(new_node)
             } else {
                 eprintln!("Unexpected area reader expansion without area");
@@ -486,14 +491,14 @@ fn expand_area_reader_nodes<A>(tree: &mut Layout<A>) {
     });
 }
 
-pub(crate) fn collect<A>(constrained: &mut Layout<A>) -> Vec<A> {
+pub(crate) fn collect<A, C>(constrained: &mut Layout<A, C>, c: &mut C) -> Vec<A> {
     constrained
-        .cata(|node| {
+        .cata(c, |node, c| {
             if let LayoutType::Draw(value) = &mut node.layout {
                 if let Some(area) = node.allocated
                     && let Some(func) = value.take()
                 {
-                    return Some(func(area));
+                    return Some(func(area, c));
                 } else {
                     eprintln!("Unexpected draw without area");
                     return None;
