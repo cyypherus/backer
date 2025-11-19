@@ -4,22 +4,22 @@ use crate::{
 };
 use std::ops::RangeBounds;
 
-impl<T> Layout<T> {
-    pub fn draw(&mut self, available_area: Area) -> Vec<T> {
-        perform_layout_passes(self, available_area);
-        collect(self)
+impl<State, A> Layout<State, A> {
+    pub fn draw(&mut self, available_area: Area, state: &mut State) -> Vec<A> {
+        perform_layout_passes(self, available_area, state);
+        collect(self, state)
     }
 }
 
-struct NodeBuilder<A> {
-    layout: LayoutType<A>,
+struct NodeBuilder<State, A> {
+    layout: LayoutType<State, A>,
     constraints: Constraints,
     dynamic_constraints: DynamicConstraints,
-    children: Vec<Layout<A>>,
+    children: Vec<Layout<State, A>>,
 }
 
-impl<A> NodeBuilder<A> {
-    fn new(layout: LayoutType<A>) -> Self {
+impl<State, A> NodeBuilder<State, A> {
+    fn new(layout: LayoutType<State, A>) -> Self {
         Self {
             layout,
             constraints: Constraints::default(),
@@ -28,7 +28,7 @@ impl<A> NodeBuilder<A> {
         }
     }
 
-    fn children(mut self, children: Vec<Layout<A>>) -> Self {
+    fn children(mut self, children: Vec<Layout<State, A>>) -> Self {
         self.children = children
             .into_iter()
             .filter(|child| !matches!(child.layout, LayoutType::Empty))
@@ -36,15 +36,16 @@ impl<A> NodeBuilder<A> {
         self
     }
 
-    fn child(self, child: Layout<A>) -> Self {
+    fn child(self, child: Layout<State, A>) -> Self {
         self.children(vec![child])
     }
 
-    fn build(self) -> Layout<A> {
+    fn build(self) -> Layout<State, A> {
         Layout {
             layout: self.layout,
             constraints: self.constraints,
             dynamic_constraints: self.dynamic_constraints,
+            layer: None,
             resolved: None,
             allocated: None,
             children: self.children,
@@ -52,11 +53,11 @@ impl<A> NodeBuilder<A> {
     }
 }
 
-pub fn draw<A>(data: impl FnOnce(Area) -> A + 'static) -> Layout<A> {
+pub fn draw<State, A>(data: impl FnOnce(&mut State, Area) -> A + 'static) -> Layout<State, A> {
     NodeBuilder::new(LayoutType::Draw(Some(Box::new(data)))).build()
 }
 
-pub fn column<A>(elements: Vec<Layout<A>>) -> Layout<A> {
+pub fn column<State, A>(elements: Vec<Layout<State, A>>) -> Layout<State, A> {
     NodeBuilder::new(LayoutType::Column {
         spacing: 0.,
         x_align: None,
@@ -66,7 +67,7 @@ pub fn column<A>(elements: Vec<Layout<A>>) -> Layout<A> {
     .build()
 }
 
-pub fn column_spaced<A>(spacing: f32, elements: Vec<Layout<A>>) -> Layout<A> {
+pub fn column_spaced<State, A>(spacing: f32, elements: Vec<Layout<State, A>>) -> Layout<State, A> {
     NodeBuilder::new(LayoutType::Column {
         spacing,
         x_align: None,
@@ -76,7 +77,7 @@ pub fn column_spaced<A>(spacing: f32, elements: Vec<Layout<A>>) -> Layout<A> {
     .build()
 }
 
-pub fn column_aligned<A>(align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
+pub fn column_aligned<State, A>(align: Align, elements: Vec<Layout<State, A>>) -> Layout<State, A> {
     let (x_align, y_align) = align.axis_aligns();
     NodeBuilder::new(LayoutType::Column {
         spacing: 0.,
@@ -87,7 +88,11 @@ pub fn column_aligned<A>(align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
     .build()
 }
 
-pub fn column_spaced_aligned<A>(spacing: f32, align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
+pub fn column_spaced_aligned<State, A>(
+    spacing: f32,
+    align: Align,
+    elements: Vec<Layout<State, A>>,
+) -> Layout<State, A> {
     let (x_align, y_align) = align.axis_aligns();
     NodeBuilder::new(LayoutType::Column {
         spacing,
@@ -98,7 +103,7 @@ pub fn column_spaced_aligned<A>(spacing: f32, align: Align, elements: Vec<Layout
     .build()
 }
 
-pub fn row<A>(elements: Vec<Layout<A>>) -> Layout<A> {
+pub fn row<State, A>(elements: Vec<Layout<State, A>>) -> Layout<State, A> {
     NodeBuilder::new(LayoutType::Row {
         spacing: 0.0,
         x_align: None,
@@ -108,7 +113,7 @@ pub fn row<A>(elements: Vec<Layout<A>>) -> Layout<A> {
     .build()
 }
 
-pub fn row_spaced<A>(spacing: f32, elements: Vec<Layout<A>>) -> Layout<A> {
+pub fn row_spaced<State, A>(spacing: f32, elements: Vec<Layout<State, A>>) -> Layout<State, A> {
     NodeBuilder::new(LayoutType::Row {
         spacing,
         x_align: None,
@@ -118,7 +123,7 @@ pub fn row_spaced<A>(spacing: f32, elements: Vec<Layout<A>>) -> Layout<A> {
     .build()
 }
 
-pub fn row_aligned<A>(align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
+pub fn row_aligned<State, A>(align: Align, elements: Vec<Layout<State, A>>) -> Layout<State, A> {
     let (x_align, y_align) = align.axis_aligns();
     NodeBuilder::new(LayoutType::Row {
         spacing: 0.0,
@@ -129,7 +134,11 @@ pub fn row_aligned<A>(align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
     .build()
 }
 
-pub fn row_spaced_aligned<A>(spacing: f32, align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
+pub fn row_spaced_aligned<State, A>(
+    spacing: f32,
+    align: Align,
+    elements: Vec<Layout<State, A>>,
+) -> Layout<State, A> {
     let (x_align, y_align) = align.axis_aligns();
     NodeBuilder::new(LayoutType::Row {
         spacing,
@@ -140,7 +149,7 @@ pub fn row_spaced_aligned<A>(spacing: f32, align: Align, elements: Vec<Layout<A>
     .build()
 }
 
-pub fn stack<A>(elements: Vec<Layout<A>>) -> Layout<A> {
+pub fn stack<State, A>(elements: Vec<Layout<State, A>>) -> Layout<State, A> {
     NodeBuilder::new(LayoutType::Stack {
         x_align: None,
         y_align: None,
@@ -149,30 +158,32 @@ pub fn stack<A>(elements: Vec<Layout<A>>) -> Layout<A> {
     .build()
 }
 
-pub fn stack_aligned<A>(align: Align, elements: Vec<Layout<A>>) -> Layout<A> {
+pub fn stack_aligned<State, A>(align: Align, elements: Vec<Layout<State, A>>) -> Layout<State, A> {
     let (x_align, y_align) = align.axis_aligns();
     NodeBuilder::new(LayoutType::Stack { x_align, y_align })
         .children(elements)
         .build()
 }
 
-pub fn space<A>() -> Layout<A> {
+pub fn space<State, A>() -> Layout<State, A> {
     NodeBuilder::new(LayoutType::Space).build()
 }
 
-pub fn empty<A>() -> Layout<A> {
+pub fn empty<State, A>() -> Layout<State, A> {
     NodeBuilder::new(LayoutType::Empty).build()
 }
 
-pub fn area_reader<A>(func: impl Fn(Area) -> Layout<A> + 'static) -> Layout<A> {
+pub fn area_reader<State, A>(
+    func: impl Fn(&mut State, Area) -> Layout<State, A> + 'static,
+) -> Layout<State, A> {
     NodeBuilder::new(LayoutType::AreaReader {
         func: Some(Box::new(func)),
     })
     .build()
 }
 
-impl<A> Layout<A> {
-    pub fn pad(self, amount: f32) -> Layout<A> {
+impl<State, A> Layout<State, A> {
+    pub fn pad(self, amount: f32) -> Layout<State, A> {
         NodeBuilder::new(LayoutType::Padding {
             leading: amount,
             trailing: amount,
@@ -249,38 +260,43 @@ impl<A> Layout<A> {
         .build()
     }
 
-    pub fn offset(self, x: f32, y: f32) -> Layout<A> {
+    pub fn offset(self, x: f32, y: f32) -> Layout<State, A> {
         NodeBuilder::new(LayoutType::Offset { x, y })
             .child(self)
             .build()
     }
 
-    pub fn offset_x(self, x: f32) -> Layout<A> {
+    pub fn offset_x(self, x: f32) -> Layout<State, A> {
         NodeBuilder::new(LayoutType::Offset { x, y: 0. })
             .child(self)
             .build()
     }
 
-    pub fn offset_y(self, y: f32) -> Layout<A> {
+    pub fn offset_y(self, y: f32) -> Layout<State, A> {
         NodeBuilder::new(LayoutType::Offset { x: 0., y })
             .child(self)
             .build()
     }
 
-    pub fn attach_under(self, node: Layout<A>) -> Layout<A> {
+    pub fn attach_under(self, node: Layout<State, A>) -> Layout<State, A> {
         NodeBuilder::new(LayoutType::Coupled { over: false })
             .children(vec![self, node])
             .build()
     }
 
-    pub fn attach_over(self, node: Layout<A>) -> Layout<A> {
+    pub fn attach_over(self, node: Layout<State, A>) -> Layout<State, A> {
         NodeBuilder::new(LayoutType::Coupled { over: true })
             .children(vec![node, self])
             .build()
     }
 }
 
-impl<A> Layout<A> {
+impl<State, A> Layout<State, A> {
+    pub fn layer(mut self, layer: i32) -> Layout<State, A> {
+        self.layer = Some(layer);
+        self
+    }
+
     pub fn width(mut self, width: f32) -> Self {
         self.constraints.width.lower = Some(width);
         self.constraints.width.upper = Some(width);
@@ -350,12 +366,12 @@ impl<A> Layout<A> {
         self
     }
 
-    pub fn dynamic_width(mut self, f: impl Fn(f32) -> f32 + 'static) -> Layout<A> {
+    pub fn dynamic_width(mut self, f: impl Fn(f32) -> f32 + 'static) -> Layout<State, A> {
         self.dynamic_constraints.width = Some(Box::new(f));
         self
     }
 
-    pub fn dynamic_height(mut self, f: impl Fn(f32) -> f32 + 'static) -> Layout<A> {
+    pub fn dynamic_height(mut self, f: impl Fn(f32) -> f32 + 'static) -> Layout<State, A> {
         self.dynamic_constraints.height = Some(Box::new(f));
         self
     }

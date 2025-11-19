@@ -1,22 +1,6 @@
 pub trait TreeNode: Sized {
     fn children_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Self>;
 
-    fn cata<T, F>(&mut self, mut extract: F) -> Vec<T>
-    where
-        F: FnMut(&mut Self) -> T,
-    {
-        let mut result = Vec::new();
-        let mut stack = vec![self];
-        while let Some(node) = stack.pop() {
-            result.push(extract(node));
-            let children = node.children_mut();
-            for child in children.rev() {
-                stack.push(child);
-            }
-        }
-        result
-    }
-
     fn traverse_top_down<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut Self),
@@ -118,12 +102,5 @@ mod tests {
         let mut vals = vec![];
         root.traverse_top_down(|n| vals.push(n.val));
         assert_eq!(vals, vec![10, 20, 40, 30, 50]);
-    }
-
-    #[test]
-    fn test_catamorphism() {
-        let mut root = make_tree();
-        let vals = root.cata(|n| n.val);
-        assert_eq!(vals, vec![1, 2, 4, 3, 5]);
     }
 }

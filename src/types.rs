@@ -2,20 +2,21 @@ use std::fmt::Debug;
 
 use crate::tree::TreeNode;
 
-pub(crate) type DrawFn<A> = Box<dyn FnOnce(Area) -> A>;
+pub(crate) type DrawFn<State, A> = Box<dyn FnOnce(&mut State, Area) -> A>;
 pub(crate) type DimensionFn = Option<Box<dyn Fn(f32) -> f32>>;
-pub(crate) type AreaReaderFn<A> = Box<dyn FnOnce(Area) -> Layout<A>>;
+pub(crate) type AreaReaderFn<State, A> = Box<dyn FnOnce(&mut State, Area) -> Layout<State, A>>;
 
-pub struct Layout<A> {
-    pub(crate) layout: LayoutType<A>,
+pub struct Layout<State, A> {
+    pub(crate) layout: LayoutType<State, A>,
     pub(crate) constraints: Constraints,
     pub(crate) dynamic_constraints: DynamicConstraints,
+    pub(crate) layer: Option<i32>,
     pub(crate) resolved: Option<Constraints>,
     pub(crate) allocated: Option<Area>,
-    pub(crate) children: Vec<Layout<A>>,
+    pub(crate) children: Vec<Layout<State, A>>,
 }
 
-impl<A> TreeNode for Layout<A> {
+impl<State, A> TreeNode for Layout<State, A> {
     fn children_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Self> {
         self.children.iter_mut()
     }
@@ -263,8 +264,8 @@ impl Area {
     }
 }
 
-pub enum LayoutType<A> {
-    Draw(Option<DrawFn<A>>),
+pub enum LayoutType<State, A> {
+    Draw(Option<DrawFn<State, A>>),
     Column {
         spacing: f32,
         x_align: Option<XAlign>,
@@ -295,6 +296,6 @@ pub enum LayoutType<A> {
         over: bool,
     },
     AreaReader {
-        func: Option<AreaReaderFn<A>>,
+        func: Option<AreaReaderFn<State, A>>,
     },
 }
