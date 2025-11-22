@@ -3,11 +3,77 @@ mod tests_module {
     use crate::nodes::*;
     use crate::*;
 
+    macro_rules! assert_area {
+        ($expected:expr) => {
+            draw(move |_, a| assert_eq!(a, $expected))
+        };
+    }
+
     // RULES
     // Containers (stack, row, column) are only as big as their children require via constraints, unless explicitly marked for expansion using `.expand`
     // Non-containers (draw, space) take as much space as is available, unless they are constrained to specific dimensions
     // Sequences (row, column) distribute space to immediate constrained children according to their constraints, & split the remainder among the rest of their children.
     // The alignment of a node defines how it will be placed when there is less *or* more space available than it requires along a given axis.
+
+    #[test]
+    fn test_containers_hug_children_column() {
+        column(vec![
+            assert_area!(Area::new(45., 40., 10., 10.))
+                .width(10.)
+                .height(10.),
+            assert_area!(Area::new(45., 50., 10., 10.))
+                .width(10.)
+                .height(10.),
+        ])
+        .attach_under(assert_area!(Area::new(45., 40., 10., 20.)))
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+    }
+
+    #[test]
+    fn test_containers_hug_children_row() {
+        row(vec![
+            assert_area!(Area::new(40., 45., 10., 10.))
+                .width(10.)
+                .height(10.),
+            assert_area!(Area::new(50., 45., 10., 10.))
+                .width(10.)
+                .height(10.),
+        ])
+        .attach_under(assert_area!(Area::new(40., 45., 20., 10.)))
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+    }
+
+    #[test]
+    fn test_containers_hug_children_stack() {
+        stack(vec![
+            assert_area!(Area::new(49., 49., 2., 2.))
+                .width(2.)
+                .height(2.),
+            assert_area!(Area::new(45., 45., 10., 10.))
+                .width(10.)
+                .height(10.),
+        ])
+        .attach_under(assert_area!(Area::new(45., 45., 10., 10.)))
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+    }
+
+    #[test]
+    fn test_containers_hug_children_column_nested() {
+        column(vec![
+            column(vec![
+                assert_area!(Area::new(45., 40., 10., 10.))
+                    .width(10.)
+                    .height(10.),
+            ]),
+            row(vec![
+                assert_area!(Area::new(45., 50., 10., 10.))
+                    .width(10.)
+                    .height(10.),
+            ]), // .attach_under(assert_area!(Area::new(45., 40., 10., 20.))),
+        ])
+        .attach_under(assert_area!(Area::new(45., 40., 10., 20.)))
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+    }
 
     impl<State, A> Layout<State, A> {
         fn debug_visualize(&mut self, available_area: Area, state: &mut State) {

@@ -462,6 +462,7 @@ impl<State, A> Layout<State, A> {
             }
             .constrained(&child.resolved, x_align, y_align);
 
+            dbg!(final_area, i);
             child.allocated = Some(final_area);
 
             current_pos += child_size + spacing;
