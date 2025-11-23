@@ -38,7 +38,7 @@ fn main() -> eframe::Result {
     })
 }
 
-fn my_layout(ui: &mut Ui) -> Layout<(), Drawable> {
+fn my_layout(ui: &mut Ui) -> Layout<Drawable> {
     column_spaced(
         10.,
         vec![
@@ -56,28 +56,28 @@ fn my_layout(ui: &mut Ui) -> Layout<(), Drawable> {
     .pad(10.)
 }
 
-fn draw_a(ui: &mut Ui) -> Layout<(), Drawable> {
+fn draw_a(ui: &mut Ui) -> Layout<Drawable> {
     labeled_rect(ui, "A".to_string(), Color32::BLUE)
 }
 
-fn draw_b(ui: &mut Ui) -> Layout<(), Drawable> {
+fn draw_b(ui: &mut Ui) -> Layout<Drawable> {
     labeled_rect(ui, "B".to_string(), Color32::RED)
 }
 
-fn draw_c(ui: &mut Ui) -> Layout<(), Drawable> {
+fn draw_c(ui: &mut Ui) -> Layout<Drawable> {
     labeled_rect(ui, "C".to_string(), Color32::GOLD)
 }
 
-fn labeled_rect(ui: &mut Ui, text: String, color: Color32) -> Layout<(), Drawable> {
+fn labeled_rect(ui: &mut Ui, text: String, color: Color32) -> Layout<Drawable> {
     stack(vec![draw_rect(color, true), draw_label(ui, text)])
 }
 
-fn draw_label(ui: &mut Ui, text: String) -> Layout<(), Drawable> {
+fn draw_label(ui: &mut Ui, text: String) -> Layout<Drawable> {
     let rich_text = RichText::new(text).size(10.);
     let text_rect = egui::Label::new(rich_text.clone()).layout_in_ui(ui).1.rect;
     let width = text_rect.width();
     let height = text_rect.height();
-    draw(move |_, area: Area| Drawable::Label {
+    draw(move |area: Area| Drawable::Label {
         area,
         text: rich_text.clone(),
     })
@@ -85,8 +85,8 @@ fn draw_label(ui: &mut Ui, text: String) -> Layout<(), Drawable> {
     .height(height)
 }
 
-fn draw_rect(color: Color32, stroke: bool) -> Layout<(), Drawable> {
-    draw(move |_, area: Area| {
+fn draw_rect(color: Color32, stroke: bool) -> Layout<Drawable> {
+    draw(move |area: Area| {
         if stroke {
             Drawable::RectStroke {
                 area,

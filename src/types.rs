@@ -88,6 +88,33 @@ impl AxisConstraint {
         AxisConstraint::new(lower, upper)
     }
 
+    pub(crate) fn combine_parent_child(&self, child: Option<Self>) -> Self {
+        let Some(child) = child else { return *self };
+        // If child lower bound is higher than parent upper bound
+        // the parent's upper bound should be used as the upper AND lower bound
+        // This behavior applies to an upper bound being lower than a lower bound
+        // in the same way. The parent's bounds should always override the child's
+        let lower = match (self.lower, self.upper, child.lower) {
+            (_, Some(parent_upper), Some(child_lower)) if child_lower > parent_upper => {
+                Some(parent_upper)
+            }
+            (Some(parent_lower), _, _) => Some(parent_lower),
+            (None, _, Some(child_lower)) => Some(child_lower),
+            _ => None,
+        };
+
+        let upper = match (self.upper, self.lower, child.upper) {
+            (Some(parent_upper), _, _) => Some(parent_upper),
+            (None, Some(parent_lower), Some(child_upper)) if child_upper < parent_lower => {
+                Some(parent_lower)
+            }
+            (None, _, Some(child_upper)) => Some(child_upper),
+            _ => None,
+        };
+
+        AxisConstraint::new(lower, upper)
+    }
+
     fn check_constraints(lower: Option<f32>, upper: Option<f32>) -> bool {
         if let (Some(lower_unwrapped), Some(upper_unwrapped)) = (lower, upper) {
             lower_unwrapped <= upper_unwrapped
@@ -107,14 +134,8 @@ impl Constraints {
 
     pub(crate) fn combine_parent_child(&self, child: Option<Self>) -> Self {
         Constraints {
-            width: AxisConstraint {
-                lower: self.width.lower.or(child.and_then(|c| c.width.lower)),
-                upper: self.width.upper.or(child.and_then(|c| c.width.upper)),
-            },
-            height: AxisConstraint {
-                lower: self.height.lower.or(child.and_then(|c| c.height.lower)),
-                upper: self.height.upper.or(child.and_then(|c| c.height.upper)),
-            },
+            width: self.width.combine_parent_child(child.map(|c| c.width)),
+            height: self.height.combine_parent_child(child.map(|c| c.height)),
             ..*self
         }
     }

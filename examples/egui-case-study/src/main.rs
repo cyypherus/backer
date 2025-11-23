@@ -5,7 +5,7 @@ use backer::{Align, Area, Layout};
 use eframe::egui;
 use egui::{
   Button, Color32, Frame, Image, Layout as EguiLayout, Margin, Pos2, Rect, RichText, ScrollArea,
-  Stroke, Ui, Vec2,
+  Stroke, StrokeKind, Ui, Vec2,
 };
 
 fn main() -> eframe::Result {
@@ -90,7 +90,7 @@ struct CommandState<'a> {
 impl eframe::App for MyApp {
   fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     egui::CentralPanel::default().show(ctx, |ui| {
-      let viewport = ctx.input(|i| i.screen_rect());
+      let viewport = ctx.input(|i| i.content_rect());
       if self.show_backer {
         ScrollArea::vertical().show_viewport(ui, |ui, scroll_rect| {
           let mut area = area_from(scroll_rect);
@@ -113,8 +113,8 @@ impl eframe::App for MyApp {
             let bounties = &self.items;
             for bounty in bounties.iter() {
               Frame::group(ui.style())
-                .rounding(10.)
-                .outer_margin(Margin::same(3.))
+                .corner_radius(10.)
+                .outer_margin(Margin::same(3))
                 .show(ui, |ui| {
                   ui.set_width(ui.available_width());
                   ui.horizontal(|ui| {
@@ -122,7 +122,7 @@ impl eframe::App for MyApp {
                       Image::new(egui::include_image!("../frs.png"))
                         .show_loading_spinner(true)
                         .fit_to_exact_size(egui::Vec2::new(45., 45.))
-                        .rounding(4.),
+                        .corner_radius(4.),
                     );
                     ui.vertical(|ui| {
                       ui.add_space(5.);
@@ -151,7 +151,7 @@ impl eframe::App for MyApp {
                           Button::new(RichText::new("Open").color(Color32::WHITE))
                             .fill(Color32::from_rgb(150, 0, 150))
                             .min_size(Vec2::new(45., 45.))
-                            .rounding(4.),
+                            .corner_radius(4.),
                         )
                         .clicked()
                       {
@@ -190,7 +190,7 @@ fn backer_layout(ui: &mut Ui, items: &[Item]) -> Layout<Drawable> {
   let mut elements = Vec::with_capacity(items.len() + 1);
   elements.push(backer_toggle_button());
   elements.extend(items.iter().map(|item| bounty_card(ui, item)));
-  column_spaced(10., elements).align(Align::Top).pad(10.)
+  column_spaced(10., elements).pad(10.).align(Align::Top)
 }
 
 fn backer_toggle_button() -> Layout<Drawable> {
@@ -242,8 +242,7 @@ fn bounty_card(ui: &mut Ui, item: &Item) -> Layout<Drawable> {
               .align(Align::Leading)
               .pad_leading(3.),
           ],
-        )
-        .width_range(120.0..),
+        ),
         space(),
         open_button().aspect_width(1.),
       ],
@@ -261,6 +260,7 @@ fn card_outline() -> Layout<Drawable> {
         rect(area),
         10.,
         Stroke::new(2., Color32::from_rgb(50, 50, 50)),
+        StrokeKind::Middle,
       );
     }),
   })
@@ -275,7 +275,7 @@ fn bounty_image() -> Layout<Drawable> {
         Image::new(egui::include_image!("../frs.png"))
           .show_loading_spinner(true)
           .fit_to_exact_size(Vec2::new(area.width, area.height))
-          .rounding(4.),
+          .corner_radius(4.),
       );
     }),
   })
@@ -292,7 +292,7 @@ fn open_button() -> Layout<Drawable> {
           Button::new(RichText::new("Open").color(Color32::WHITE))
             .fill(Color32::from_rgb(150, 0, 150))
             .min_size(Vec2::new(area.width, area.height))
-            .rounding(4.),
+            .corner_radius(4.),
         )
         .clicked()
       {
