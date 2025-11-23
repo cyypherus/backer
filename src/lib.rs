@@ -1,4 +1,4 @@
-// #![warn(missing_docs)]
+#![warn(missing_docs)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
@@ -24,6 +24,7 @@ mod types;
 
 pub use types::{Align, Area, Layout};
 
+/// All available node constructors
 pub mod nodes {
     pub use crate::api::{
         area_reader, column, column_aligned, column_spaced, column_spaced_aligned, draw, empty,

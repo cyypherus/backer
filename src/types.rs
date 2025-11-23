@@ -6,6 +6,9 @@ pub(crate) type DrawFn<A> = Box<dyn FnOnce(Area) -> A>;
 pub(crate) type DimensionFn = Option<Box<dyn Fn(f32) -> f32>>;
 pub(crate) type AreaReaderFn<A> = Box<dyn FnOnce(Area) -> Layout<A>>;
 
+/// The tree structure which represents a layout.
+/// Use methods in [`crate::nodes`] to create nodes.
+/// Call `Layout::draw` to produce laid-out values to be rendered
 pub struct Layout<A> {
     pub(crate) layout: LayoutType<A>,
     pub(crate) constraints: Constraints,
@@ -168,22 +171,40 @@ pub enum YAlign {
     Bottom,
 }
 
+/// An alignment along the X and/or Y axis
 #[derive(Debug, Clone, Copy)]
 pub enum Align {
+    /// Aligns to the top
     Top,
+    /// Aligns to the vertical center
     CenterY,
+    /// Aligns to the bottom
     Bottom,
+
+    /// Aligns to the left in LTR layout
     Leading,
+    /// Aligns to the horizontal center
     CenterX,
+    /// Aligns to the right in LTR layout
     Trailing,
+
+    /// Aligns to the top left in LTR layout
     TopLeading,
+    /// Aligns to the top center
     TopCenter,
+    /// Aligns to the top right in LTR layout
     TopTrailing,
+    /// Aligns to the middle right in LTR layout
     CenterTrailing,
+    /// Aligns to the bottom right in LTR layout
     BottomTrailing,
+    /// Aligns to the bottom middle
     BottomCenter,
+    /// Aligns to the bottom left in LTR layout
     BottomLeading,
+    /// Aligns to the middle left in LTR layout
     CenterLeading,
+    /// Aligns to the center in LTR layout - the default alignment
     CenterCenter,
 }
 
@@ -209,15 +230,21 @@ impl Align {
     }
 }
 
+/// An allocation of screen space as a rectangle
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Area {
+    /// Origin - usually the left-most X
     pub x: f32,
+    /// Origin - usually the upper-most Y
     pub y: f32,
+    /// Available width, starting at `x`
     pub width: f32,
+    /// Available height, starting at `y`
     pub height: f32,
 }
 
 impl Area {
+    /// Creates a new [`Area`].
     pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
         Self {
             x,
