@@ -7,8 +7,32 @@ pub(crate) type DimensionFn = Option<Box<dyn Fn(f32) -> f32>>;
 pub(crate) type AreaReaderFn<A> = Box<dyn FnOnce(Area) -> Layout<A>>;
 
 /// The tree structure which represents a layout.
+///
 /// Use methods in [`crate::nodes`] to create nodes.
+///
 /// Call `Layout::draw` to produce laid-out values to be rendered
+///
+/// # Example
+///
+/// ```
+/// use backer::nodes::*;
+/// use backer::{Layout, Area};
+///
+/// enum View {
+///     Button(Button),
+///     Label(Label),
+/// }
+/// struct Button { area: Area }
+/// struct Label { area: Area, text: &'static str }
+///
+/// let mut layout = column(vec![
+///     draw(|area| View::Button(Button { area })).width(100.0).height(50.0),
+///     draw(|area| View::Label(Label { area, text: "Hello world!" })).width(100.0).height(50.0),
+/// ]);
+///
+/// let views = layout.draw(Area::new(0.0, 0.0, 200.0, 150.0));
+/// // views is now a Vec of Button values with their laid-out areas
+/// ```
 pub struct Layout<A> {
     pub(crate) layout: LayoutType<A>,
     pub(crate) constraints: Constraints,
@@ -230,7 +254,7 @@ impl Align {
     }
 }
 
-/// An allocation of screen space as a rectangle
+/// An allocation of space as a rectangle
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Area {
     /// Origin - usually the left-most X

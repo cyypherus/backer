@@ -12,7 +12,7 @@ _This library **only** implements layout & could be integrated with a range of U
 # Quick Start
 See [`Layout`] for setup.
 
-See [`Node`] for layout customization.
+See [`crate::nodes`] for available layout components.
 */
 
 mod api;
