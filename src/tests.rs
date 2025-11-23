@@ -77,6 +77,57 @@ mod tests_module {
         .draw(Area::new(0.0, 0.0, 100.0, 100.0));
     }
 
+    #[test]
+    fn test_layer_sorts_by_value() {
+        let values = stack(vec![
+            draw(|_| 1).layer(5),
+            draw(|_| 2).layer(-5),
+            draw(|_| 3).layer(0),
+        ])
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
+        
+        assert_eq!(values, vec![2, 3, 1], "Draws sorted by layer value ascending");
+    }
+
+    #[test]
+    fn test_layer_same_value_preserves_order() {
+        let values = stack(vec![
+            draw(|_| 1).layer(5),
+            draw(|_| 2).layer(5),
+            draw(|_| 3).layer(5),
+        ])
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
+        
+        assert_eq!(values, vec![1, 2, 3], "Same layer values preserve insertion order");
+    }
+
+    #[test]
+    fn test_layer_child_overrides_parent() {
+        let values = stack(vec![
+            stack(vec![draw(|_| 1).layer(10)])
+                .layer(1),
+            draw(|_| 2).layer(5),
+        ])
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
+        
+        assert_eq!(values, vec![2, 1], "Child layer values override parent context");
+    }
+
+    #[test]
+    fn test_layer_nested_inherits_context() {
+        let values = stack(vec![
+            stack(vec![
+                draw(|_| 1),
+                draw(|_| 2),
+            ])
+            .layer(1),
+            draw(|_| 3).layer(2),
+        ])
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
+        
+        assert_eq!(values, vec![1, 2, 3], "Nested draws inherit parent layer when not explicitly set");
+    }
+
     impl<A> Layout<A> {
         fn debug_visualize(&mut self, available_area: Area) {
             fn visualize_areas(areas: &[Area], bounds: Area) {
