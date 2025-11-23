@@ -13,20 +13,20 @@ pub(crate) fn perform_layout_passes<State, A>(
 ) {
     for _ in 0..2 {
         tree.allocated = Some(available_area);
-        resolve(tree, c);
-        allocate(tree, available_area, c);
+        resolve(tree);
+        allocate(tree, available_area);
         expand_area_reader_nodes(tree, state);
     }
 }
 
 pub(crate) fn resolve<State, A>(input: &mut Layout<State, A>) {
-    input.traverse_bottom_up(c, |node: &mut Layout<A, C>, c: &mut C| {
+    input.traverse_bottom_up(|node| {
         let self_constraints = Constraints {
             width: node
                 .allocated
                 .and_then(|area| {
                     node.dynamic_constraints.width.as_ref().map(|f| {
-                        let w = f(area.height, c);
+                        let w = f(area.height);
                         AxisConstraint::new(Some(w), Some(w))
                     })
                 })
@@ -38,7 +38,7 @@ pub(crate) fn resolve<State, A>(input: &mut Layout<State, A>) {
                 .allocated
                 .and_then(|area| {
                     node.dynamic_constraints.height.as_ref().map(|f| {
-                        let h = f(area.width, c);
+                        let h = f(area.width);
                         AxisConstraint::new(Some(h), Some(h))
                     })
                 })
@@ -161,7 +161,7 @@ pub(crate) fn resolve<State, A>(input: &mut Layout<State, A>) {
 }
 
 pub(crate) fn allocate<State, A>(constrained: &mut Layout<State, A>, available_area: Area) {
-    constrained.traverse_top_down(c, |node, c| {
+    constrained.traverse_top_down(|node| {
         let available_area =
             node.allocated
                 .unwrap_or(available_area)
@@ -175,12 +175,12 @@ pub(crate) fn allocate<State, A>(constrained: &mut Layout<State, A>, available_a
                 spacing,
                 x_align,
                 y_align,
-            } => node.layout_axis(c, spacing, available_area, true, x_align, y_align),
+            } => node.layout_axis(spacing, available_area, true, x_align, y_align),
             LayoutType::Row {
                 spacing,
                 x_align,
                 y_align,
-            } => node.layout_axis(c, spacing, available_area, false, x_align, y_align),
+            } => node.layout_axis(spacing, available_area, false, x_align, y_align),
             LayoutType::Stack { x_align, y_align } => {
                 node.children.iter_mut().for_each(|child| {
                     child.allocated =
@@ -237,7 +237,6 @@ pub(crate) fn allocate<State, A>(constrained: &mut Layout<State, A>, available_a
 impl<State, A> Layout<State, A> {
     fn layout_axis(
         &mut self,
-        c: &mut C,
         spacing: f32,
         available_area: Area,
         is_vertical: bool,
@@ -271,14 +270,14 @@ impl<State, A> Layout<State, A> {
                     .dynamic_constraints
                     .height
                     .as_ref()
-                    .map(|f| f(available_area.width, c))
+                    .map(|f| f(available_area.width))
                     .or(child.constraints.height.lower)
             } else {
                 child
                     .dynamic_constraints
                     .width
                     .as_ref()
-                    .map(|f| f(available_area.height, c))
+                    .map(|f| f(available_area.height))
                     .or(child.constraints.width.lower)
             };
             let mut upper = if is_vertical {
@@ -286,14 +285,14 @@ impl<State, A> Layout<State, A> {
                     .dynamic_constraints
                     .height
                     .as_ref()
-                    .map(|f| f(available_area.width, c))
+                    .map(|f| f(available_area.width))
                     .or(child.constraints.height.upper)
             } else {
                 child
                     .dynamic_constraints
                     .width
                     .as_ref()
-                    .map(|f| f(available_area.height, c))
+                    .map(|f| f(available_area.height))
                     .or(child.constraints.width.upper)
             };
 
@@ -472,7 +471,7 @@ impl<State, A> Layout<State, A> {
 }
 
 fn expand_area_reader_nodes<State, A>(tree: &mut Layout<State, A>, state: &mut State) {
-    tree.traverse_top_down(c, |node, c| {
+    tree.traverse_top_down(|node| {
         let expansion_result = if let LayoutType::AreaReader { func } = &mut node.layout
             && node.children.is_empty()
             && let Some(func) = func.take()

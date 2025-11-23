@@ -1,13 +1,13 @@
 pub trait TreeNode: Sized {
     fn children_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Self>;
 
-    fn traverse_top_down<F, C>(&mut self, c: &mut C, mut f: F)
+    fn traverse_top_down<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut Self, &mut C),
+        F: FnMut(&mut Self),
     {
         let mut stack = vec![self];
         while let Some(node) = stack.pop() {
-            f(node, c);
+            f(node);
             let children = node.children_mut();
             for child in children.rev() {
                 stack.push(child);
@@ -15,9 +15,9 @@ pub trait TreeNode: Sized {
         }
     }
 
-    fn traverse_bottom_up<F, C>(&mut self, c: &mut C, mut f: F)
+    fn traverse_bottom_up<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut Self, &mut C),
+        F: FnMut(&mut Self),
     {
         let mut stack: Vec<(*mut Self, bool)> = vec![(self, false)];
 
@@ -27,7 +27,7 @@ pub trait TreeNode: Sized {
             while let Some((node_ptr, visited)) = stack.pop() {
                 let node = &mut *node_ptr;
                 if visited {
-                    f(node, c);
+                    f(node);
                 } else {
                     // First push node marked as visited
                     stack.push((node_ptr, true));
@@ -83,7 +83,7 @@ mod tests {
     fn test_top_down() {
         let mut root = make_tree();
         let mut vals = vec![];
-        root.traverse_top_down(&mut (), |n, _| vals.push(n.val));
+        root.traverse_top_down(|n| vals.push(n.val));
         assert_eq!(vals, vec![1, 2, 4, 3, 5]);
     }
 
@@ -91,16 +91,16 @@ mod tests {
     fn test_bottom_up() {
         let mut root = make_tree();
         let mut vals = vec![];
-        root.traverse_bottom_up(&mut (), |n, _| vals.push(n.val));
+        root.traverse_bottom_up(|n| vals.push(n.val));
         assert_eq!(vals, vec![4, 2, 5, 3, 1]);
     }
 
     #[test]
     fn test_mutation() {
         let mut root = make_tree();
-        root.traverse_top_down(&mut (), |n, _| n.val *= 10);
+        root.traverse_top_down(|n| n.val *= 10);
         let mut vals = vec![];
-        root.traverse_top_down(&mut (), |n, _| vals.push(n.val));
+        root.traverse_top_down(|n| vals.push(n.val));
         assert_eq!(vals, vec![10, 20, 40, 30, 50]);
     }
 }

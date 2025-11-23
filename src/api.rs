@@ -11,14 +11,10 @@ impl<State, A> Layout<State, A> {
     }
 }
 
-impl<T> Layout<T, ()> {
-    }
-}
-
 struct NodeBuilder<State, A> {
     layout: LayoutType<State, A>,
     constraints: Constraints,
-    dynamic_constraints: DynamicConstraints<C>,
+    dynamic_constraints: DynamicConstraints,
     children: Vec<Layout<State, A>>,
 }
 
@@ -381,12 +377,12 @@ impl<State, A> Layout<State, A> {
     }
 
     pub fn aspect_width(mut self, ratio: f32) -> Self {
-        self.dynamic_constraints.width = Some(Box::new(move |height, _| height * ratio));
+        self.dynamic_constraints.width = Some(Box::new(move |height| height * ratio));
         self
     }
 
     pub fn aspect_height(mut self, ratio: f32) -> Self {
-        self.dynamic_constraints.height = Some(Box::new(move |width, _| width / ratio));
+        self.dynamic_constraints.height = Some(Box::new(move |width| width / ratio));
         self
     }
 }

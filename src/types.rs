@@ -3,13 +3,13 @@ use std::fmt::Debug;
 use crate::tree::TreeNode;
 
 pub(crate) type DrawFn<State, A> = Box<dyn FnOnce(&mut State, Area) -> A>;
-pub(crate) type DimensionFn<C> = Option<Box<dyn Fn(f32, &mut C) -> f32>>;
+pub(crate) type DimensionFn = Option<Box<dyn Fn(f32) -> f32>>;
 pub(crate) type AreaReaderFn<State, A> = Box<dyn FnOnce(&mut State, Area) -> Layout<State, A>>;
 
 pub struct Layout<State, A> {
     pub(crate) layout: LayoutType<State, A>,
     pub(crate) constraints: Constraints,
-    pub(crate) dynamic_constraints: DynamicConstraints<C>,
+    pub(crate) dynamic_constraints: DynamicConstraints,
     pub(crate) layer: Option<i32>,
     pub(crate) resolved: Option<Constraints>,
     pub(crate) allocated: Option<Area>,
@@ -22,18 +22,10 @@ impl<State, A> TreeNode for Layout<State, A> {
     }
 }
 
-pub(crate) struct DynamicConstraints<C> {
-    pub(crate) width: DimensionFn<C>,
-    pub(crate) height: DimensionFn<C>,
-}
-
-impl<C> Default for DynamicConstraints<C> {
-    fn default() -> Self {
-        Self {
-            width: None,
-            height: None,
-        }
-    }
+#[derive(Default)]
+pub(crate) struct DynamicConstraints {
+    pub(crate) width: DimensionFn,
+    pub(crate) height: DimensionFn,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
