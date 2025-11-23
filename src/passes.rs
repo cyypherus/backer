@@ -1,23 +1,25 @@
+use std::collections::HashMap;
+
 use crate::{
     Layout,
     tree::TreeNode,
-    types::{Area, AxisConstraint, Constraints, LayoutType, XAlign, YAlign},
+    types::{Area, AxisConstraint, Constraints, DrawFn, LayoutType, XAlign, YAlign},
 };
 
-pub(crate) fn perform_layout_passes<A, C>(
-    tree: &mut Layout<A, C>,
+pub(crate) fn perform_layout_passes<State, A>(
+    tree: &mut Layout<State, A>,
     available_area: Area,
-    c: &mut C,
+    state: &mut State,
 ) {
     for _ in 0..2 {
         tree.allocated = Some(available_area);
         resolve(tree, c);
         allocate(tree, available_area, c);
-        expand_area_reader_nodes(tree, c);
+        expand_area_reader_nodes(tree, state);
     }
 }
 
-pub(crate) fn resolve<A, C>(input: &mut Layout<A, C>, c: &mut C) {
+pub(crate) fn resolve<State, A>(input: &mut Layout<State, A>) {
     input.traverse_bottom_up(c, |node: &mut Layout<A, C>, c: &mut C| {
         let self_constraints = Constraints {
             width: node
@@ -53,7 +55,7 @@ pub(crate) fn resolve<A, C>(input: &mut Layout<A, C>, c: &mut C) {
             LayoutType::Column { spacing, .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
                     Option::<Constraints>::None,
-                    |current: Option<Constraints>, child_constrained: &Layout<A, C>| {
+                    |current: Option<Constraints>, child_constrained: &Layout<State, A>| {
                         if let Some(current) = current {
                             Some(Constraints {
                                 width: current
@@ -73,7 +75,7 @@ pub(crate) fn resolve<A, C>(input: &mut Layout<A, C>, c: &mut C) {
             LayoutType::Row { spacing, .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
                     Option::<Constraints>::None,
-                    |current: Option<Constraints>, child_constrained: &Layout<A, C>| {
+                    |current: Option<Constraints>, child_constrained: &Layout<State, A>| {
                         if let Some(current) = current {
                             Some(Constraints {
                                 width: current
@@ -93,7 +95,7 @@ pub(crate) fn resolve<A, C>(input: &mut Layout<A, C>, c: &mut C) {
             LayoutType::Stack { .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
                     Option::<Constraints>::None,
-                    |current: Option<Constraints>, child_constrained: &Layout<A, C>| {
+                    |current: Option<Constraints>, child_constrained: &Layout<State, A>| {
                         if let Some(current) = current {
                             Some(Constraints {
                                 width: current
@@ -158,7 +160,7 @@ pub(crate) fn resolve<A, C>(input: &mut Layout<A, C>, c: &mut C) {
     })
 }
 
-pub(crate) fn allocate<A, C>(constrained: &mut Layout<A, C>, available_area: Area, c: &mut C) {
+pub(crate) fn allocate<State, A>(constrained: &mut Layout<State, A>, available_area: Area) {
     constrained.traverse_top_down(c, |node, c| {
         let available_area =
             node.allocated
@@ -232,7 +234,7 @@ pub(crate) fn allocate<A, C>(constrained: &mut Layout<A, C>, available_area: Are
     })
 }
 
-impl<T, C> Layout<T, C> {
+impl<State, A> Layout<State, A> {
     fn layout_axis(
         &mut self,
         c: &mut C,
@@ -461,6 +463,7 @@ impl<T, C> Layout<T, C> {
             }
             .constrained(&child.resolved, x_align, y_align);
 
+            dbg!(final_area, i);
             child.allocated = Some(final_area);
 
             current_pos += child_size + spacing;
@@ -468,15 +471,15 @@ impl<T, C> Layout<T, C> {
     }
 }
 
-fn expand_area_reader_nodes<A, C>(tree: &mut Layout<A, C>, c: &mut C) {
+fn expand_area_reader_nodes<State, A>(tree: &mut Layout<State, A>, state: &mut State) {
     tree.traverse_top_down(c, |node, c| {
         let expansion_result = if let LayoutType::AreaReader { func } = &mut node.layout
             && node.children.is_empty()
             && let Some(func) = func.take()
         {
             if let Some(area) = node.allocated {
-                let mut new_node = func(area, c);
-                perform_layout_passes(&mut new_node, area, c);
+                let mut new_node = func(state, area);
+                perform_layout_passes(&mut new_node, area, state);
                 Some(new_node)
             } else {
                 eprintln!("Unexpected area reader expansion without area");
@@ -491,22 +494,35 @@ fn expand_area_reader_nodes<A, C>(tree: &mut Layout<A, C>, c: &mut C) {
     });
 }
 
-pub(crate) fn collect<A, C>(constrained: &mut Layout<A, C>, c: &mut C) -> Vec<A> {
-    constrained
-        .cata(c, |node, c| {
-            if let LayoutType::Draw(value) = &mut node.layout {
-                if let Some(area) = node.allocated
-                    && let Some(func) = value.take()
-                {
-                    return Some(func(area, c));
-                } else {
-                    eprintln!("Unexpected draw without area");
-                    return None;
-                }
+pub(crate) fn collect<State, A>(constrained: &mut Layout<State, A>, state: &mut State) -> Vec<A> {
+    let mut layers = HashMap::<i32, Vec<(Option<Area>, DrawFn<State, A>)>>::new();
+    let mut stack = vec![(constrained, 0)];
+    while let Some((node, mut contextual_layer)) = stack.pop() {
+        if let Some(node_layer) = node.layer {
+            contextual_layer = node_layer
+        }
+        if let LayoutType::Draw(draw_fn) = &mut node.layout
+            && let Some(draw_fn) = draw_fn.take()
+        {
+            layers
+                .entry(contextual_layer)
+                .or_default()
+                .push((node.allocated, draw_fn));
+        }
+        let children = node.children_mut();
+        for child in children.rev() {
+            stack.push((child, contextual_layer));
+        }
+    }
+    let mut keys: Vec<i32> = layers.keys().cloned().collect();
+    keys.sort();
+    let mut result = Vec::<A>::new();
+    for key in keys {
+        for (area, drawable) in layers.remove(&key).unwrap_or_default() {
+            if let Some(area) = area {
+                result.push(drawable(state, area));
             }
-            None
-        })
-        .into_iter()
-        .flatten()
-        .collect()
+        }
+    }
+    result
 }

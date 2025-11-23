@@ -1,10 +1,10 @@
 use backer::{Area, Layout, nodes::*};
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
-type BenchLayout = Layout<Area, ()>;
+type BenchLayout = Layout<(), Area>;
 
 fn draw_noop() -> BenchLayout {
-    draw(|area: Area, _| area)
+    draw(|_, area: Area| area)
 }
 
 fn create_simple_column_mvp() -> BenchLayout {
@@ -51,7 +51,7 @@ fn bench_simple_column(c: &mut Criterion) {
         b.iter(|| {
             let mut layout = create_simple_column_mvp();
             let area = Area::new(0.0, 0.0, 100.0, 100.0);
-            black_box(&mut layout).draw(black_box(area));
+            black_box(&mut layout).draw(black_box(area), &mut ());
         })
     });
 
@@ -65,7 +65,7 @@ fn bench_complex_nested(c: &mut Criterion) {
         b.iter(|| {
             let mut layout = create_complex_nested_mvp();
             let area = Area::new(0.0, 0.0, 400.0, 300.0);
-            black_box(&mut layout).draw(black_box(area));
+            black_box(&mut layout).draw(black_box(area), &mut ());
         })
     });
 
@@ -80,7 +80,7 @@ fn bench_deep_nesting(c: &mut Criterion) {
             b.iter(|| {
                 let mut layout = create_deep_nesting_mvp(depth);
                 let area = Area::new(0.0, 0.0, 200.0, 200.0);
-                black_box(&mut layout).draw(black_box(area));
+                black_box(&mut layout).draw(black_box(area), &mut ());
             })
         });
     }
@@ -96,7 +96,7 @@ fn bench_wide_layout(c: &mut Criterion) {
             b.iter(|| {
                 let mut layout = create_wide_layout_mvp(width);
                 let area = Area::new(0.0, 0.0, 300.0, 300.0);
-                black_box(&mut layout).draw(black_box(area));
+                black_box(&mut layout).draw(black_box(area), &mut ());
             })
         });
     }
