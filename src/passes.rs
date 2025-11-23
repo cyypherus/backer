@@ -58,16 +58,16 @@ pub(crate) fn resolve<State, A>(input: &mut Layout<State, A>) {
                     |current: Option<Constraints>, child_constrained: &Layout<State, A>| {
                         if let Some(current) = current {
                             Some(Constraints {
-                                width: current
-                                    .width
-                                    .combine_adjacent_priority(child_constrained.constraints.width),
+                                width: current.width.combine_adjacent_priority(
+                                    child_constrained.constraints().width,
+                                ),
                                 height: current
                                     .height
-                                    .combine_sum(child_constrained.constraints.height, spacing),
+                                    .combine_sum(child_constrained.constraints().height, spacing),
                                 ..Default::default()
                             })
                         } else {
-                            Some(child_constrained.constraints)
+                            Some(child_constrained.constraints())
                         }
                     },
                 ))
@@ -80,14 +80,14 @@ pub(crate) fn resolve<State, A>(input: &mut Layout<State, A>) {
                             Some(Constraints {
                                 width: current
                                     .width
-                                    .combine_sum(child_constrained.constraints.width, spacing),
+                                    .combine_sum(child_constrained.constraints().width, spacing),
                                 height: current.height.combine_adjacent_priority(
-                                    child_constrained.constraints.height,
+                                    child_constrained.constraints().height,
                                 ),
                                 ..Default::default()
                             })
                         } else {
-                            Some(child_constrained.constraints)
+                            Some(child_constrained.constraints())
                         }
                     },
                 ))
@@ -98,16 +98,16 @@ pub(crate) fn resolve<State, A>(input: &mut Layout<State, A>) {
                     |current: Option<Constraints>, child_constrained: &Layout<State, A>| {
                         if let Some(current) = current {
                             Some(Constraints {
-                                width: current
-                                    .width
-                                    .combine_adjacent_priority(child_constrained.constraints.width),
+                                width: current.width.combine_adjacent_priority(
+                                    child_constrained.constraints().width,
+                                ),
                                 height: current.height.combine_adjacent_priority(
-                                    child_constrained.constraints.height,
+                                    child_constrained.constraints().height,
                                 ),
                                 ..Default::default()
                             })
                         } else {
-                            Some(child_constrained.constraints)
+                            Some(child_constrained.constraints())
                         }
                     },
                 ))
@@ -121,24 +121,24 @@ pub(crate) fn resolve<State, A>(input: &mut Layout<State, A>) {
                 Constraints {
                     width: AxisConstraint::new(
                         child
-                            .constraints
+                            .constraints()
                             .width
                             .lower
                             .map(|lower| lower + leading + trailing),
                         child
-                            .constraints
+                            .constraints()
                             .width
                             .upper
                             .map(|upper| upper + leading + trailing),
                     ),
                     height: AxisConstraint::new(
                         child
-                            .constraints
+                            .constraints()
                             .height
                             .lower
                             .map(|lower| lower + top + bottom),
                         child
-                            .constraints
+                            .constraints()
                             .height
                             .upper
                             .map(|upper| upper + top + bottom),
@@ -147,13 +147,13 @@ pub(crate) fn resolve<State, A>(input: &mut Layout<State, A>) {
                 }
             })),
             LayoutType::Coupled { over } => self_constraints.combine_parent_child(if over {
-                node.children.first().map(|child| child.constraints)
+                node.children.get(1).map(|child| child.constraints())
             } else {
-                node.children.get(1).map(|child| child.constraints)
+                node.children.first().map(|child| child.constraints())
             }),
             LayoutType::Offset { .. } | LayoutType::Space | LayoutType::AreaReader { .. } => {
                 self_constraints
-                    .combine_parent_child(node.children.first().map(|child| child.constraints))
+                    .combine_parent_child(node.children.first().map(|child| child.constraints()))
             }
             LayoutType::Draw(_) | LayoutType::Empty => self_constraints,
         });
@@ -462,7 +462,6 @@ impl<State, A> Layout<State, A> {
             }
             .constrained(&child.resolved, x_align, y_align);
 
-            dbg!(final_area, i);
             child.allocated = Some(final_area);
 
             current_pos += child_size + spacing;

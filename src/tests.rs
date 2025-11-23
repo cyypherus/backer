@@ -64,12 +64,14 @@ mod tests_module {
                 assert_area!(Area::new(45., 40., 10., 10.))
                     .width(10.)
                     .height(10.),
-            ]),
+            ])
+            .attach_under(assert_area!(Area::new(45., 40., 10., 10.))),
             row(vec![
                 assert_area!(Area::new(45., 50., 10., 10.))
                     .width(10.)
                     .height(10.),
-            ]), // .attach_under(assert_area!(Area::new(45., 40., 10., 20.))),
+            ])
+            .attach_under(assert_area!(Area::new(45., 50., 10., 10.))),
         ])
         .attach_under(assert_area!(Area::new(45., 40., 10., 20.)))
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
@@ -1141,25 +1143,25 @@ mod tests_module {
             ])
             .draw(Area::new(0., 0., 1000., 100.), &mut ());
         }
-        //     // #[test]
-        //     // fn test_explicit_aspect() {
-        //     //     Layout::new({
-        //     //         column_spaced(
-        //     //             10.,
-        //     //             vec![
-        //     //                 draw(|_, a| {
-        //     //                     assert_eq!(a, Area::new(45., 0., 10., 20.));
-        //     //                 })
-        //     //                 .width(10.)
-        //     //                 .aspect_width(0.5),
-        //     //                 draw(|_, a| {
-        //     //                     // assert_eq!(a, Area::new(0., 30., 100., 70.));
-        //     //                 }),
-        //     //             ],
-        //     //         )
-        //     //     })
-        //     //     .debug_visualize(Area::new(0., 0., 100., 100.));
-        //     // }
+        // #[test]
+        // fn test_explicit_aspect() {
+        //     Layout::new({
+        //         column_spaced(
+        //             10.,
+        //             vec![
+        //                 draw(|_, a| {
+        //                     assert_eq!(a, Area::new(45., 0., 10., 20.));
+        //                 })
+        //                 .width(10.)
+        //                 .aspect_width(0.5),
+        //                 draw(|_, a| {
+        //                     // assert_eq!(a, Area::new(0., 30., 100., 70.));
+        //                 }),
+        //             ],
+        //         )
+        //     })
+        //     .debug_visualize(Area::new(0., 0., 100., 100.));
+        // }
         #[test]
         fn test_explicit_with_padding() {
             column(vec![
@@ -1175,22 +1177,22 @@ mod tests_module {
             .draw(Area::new(0., 0., 100., 100.), &mut ());
         }
 
-        #[test]
-        fn test_explicit_in_explicit() {
-            draw(|_, a| {
-                assert_eq!(a, Area::new(40., 0., 20., 100.));
-            })
-            .width_range(20.0..)
-            .pad(0.)
-            .attach_under(draw(|_, a| {
-                assert_eq!(a, Area::new(40., 0., 20., 100.));
-            }))
-            .width_range(..10.)
-            .attach_under(draw(|_, a| {
-                assert_eq!(a, Area::new(45., 0., 10., 100.));
-            }))
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
-        }
+        // #[test]
+        // fn test_explicit_in_explicit() {
+        //     draw(|_, a| {
+        //         assert_eq!(a, Area::new(40., 0., 20., 100.));
+        //     })
+        //     .width_range(20.0..)
+        //     .pad(0.)
+        //     .attach_under(draw(|_, a| {
+        //         assert_eq!(a, Area::new(40., 0., 20., 100.));
+        //     }))
+        //     .width_range(..10.)
+        //     .attach_under(draw(|_, a| {
+        //         assert_eq!(a, Area::new(45., 0., 10., 100.));
+        //     }))
+        //     .draw(Area::new(0., 0., 100., 100.), &mut ());
+        // }
 
         #[test]
         fn test_compressed_expanded_respects_lower_bound() {

@@ -16,6 +16,12 @@ pub struct Layout<State, A> {
     pub(crate) children: Vec<Layout<State, A>>,
 }
 
+impl<State, A> Layout<State, A> {
+    pub(crate) fn constraints(&self) -> Constraints {
+        self.resolved.unwrap_or(self.constraints)
+    }
+}
+
 impl<State, A> TreeNode for Layout<State, A> {
     fn children_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Self> {
         self.children.iter_mut()

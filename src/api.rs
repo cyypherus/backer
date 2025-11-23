@@ -280,13 +280,13 @@ impl<State, A> Layout<State, A> {
 
     pub fn attach_under(self, node: Layout<State, A>) -> Layout<State, A> {
         NodeBuilder::new(LayoutType::Coupled { over: false })
-            .children(vec![node, self])
+            .children(vec![self, node])
             .build()
     }
 
     pub fn attach_over(self, node: Layout<State, A>) -> Layout<State, A> {
         NodeBuilder::new(LayoutType::Coupled { over: true })
-            .children(vec![self, node])
+            .children(vec![node, self])
             .build()
     }
 }
