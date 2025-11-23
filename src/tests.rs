@@ -5,7 +5,7 @@ mod tests_module {
 
     macro_rules! assert_area {
         ($expected:expr) => {
-            draw(move |_, a| assert_eq!(a, $expected))
+            draw(move |a| assert_eq!(a, $expected))
         };
     }
 
@@ -26,7 +26,7 @@ mod tests_module {
                 .height(10.),
         ])
         .attach_under(assert_area!(Area::new(45., 40., 10., 20.)))
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
     }
 
     #[test]
@@ -40,7 +40,7 @@ mod tests_module {
                 .height(10.),
         ])
         .attach_under(assert_area!(Area::new(40., 45., 20., 10.)))
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
     }
 
     #[test]
@@ -54,7 +54,7 @@ mod tests_module {
                 .height(10.),
         ])
         .attach_under(assert_area!(Area::new(45., 45., 10., 10.)))
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
     }
 
     #[test]
@@ -74,11 +74,11 @@ mod tests_module {
             .attach_under(assert_area!(Area::new(45., 50., 10., 10.))),
         ])
         .attach_under(assert_area!(Area::new(45., 40., 10., 20.)))
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
     }
 
-    impl<State, A> Layout<State, A> {
-        fn debug_visualize(&mut self, available_area: Area, state: &mut State) {
+    impl<A> Layout<A> {
+        fn debug_visualize(&mut self, available_area: Area) {
             fn visualize_areas(areas: &[Area], bounds: Area) {
                 if areas.is_empty() {
                     return;
@@ -216,7 +216,7 @@ mod tests_module {
 
             visualize_areas(
                 &area_layout
-                    .draw(available_area, state)
+                    .draw(available_area)
                     .into_iter()
                     .rev()
                     .collect::<Vec<_>>(),
@@ -224,12 +224,12 @@ mod tests_module {
             );
         }
 
-        fn to_area_layout(&self) -> Layout<State, Area> {
+        fn to_area_layout(&self) -> Layout<Area> {
             use crate::types::LayoutType;
 
-            fn transform_node<State, A>(node: &Layout<State, A>) -> Layout<State, Area> {
+            fn transform_node<A>(node: &Layout<A>) -> Layout<Area> {
                 let new_layout = match &node.layout {
-                    LayoutType::Draw(_) => LayoutType::Draw(Some(Box::new(|_, area| area))),
+                    LayoutType::Draw(_) => LayoutType::Draw(Some(Box::new(|area| area))),
                     LayoutType::Column {
                         spacing,
                         x_align,
@@ -287,133 +287,133 @@ mod tests_module {
 
     #[test]
     fn test_expands_nested_nodes() {
-        let values = area_reader(|_, _| area_reader(|_, _| draw(|_, _| 1)))
-            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        let values =
+            area_reader(|_| area_reader(|_| draw(|_| 1))).draw(Area::new(0.0, 0.0, 100.0, 100.0));
         assert_eq!(values.len(), 1);
         assert_eq!(values[0], 1);
     }
 
     #[test]
     fn test_draws_all_expanded_nodes() {
-        let values = area_reader(|_, _| {
+        let values = area_reader(|_| {
             stack(vec![
-                stack(vec![area_reader(|_, _| draw(|_, _| 1)), draw(|_, _| 1)]),
-                draw(|_, _| 1),
+                stack(vec![area_reader(|_| draw(|_| 1)), draw(|_| 1)]),
+                draw(|_| 1),
             ])
         })
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
         assert_eq!(values.len(), 3);
     }
 
     #[test]
     fn test_simple_column_layout() {
         column(vec![
-            draw(|_, area| {
-                assert_eq!(area.width, 100.0);
-                assert_eq!(area.height, 50.0);
+            draw(|a| {
+                assert_eq!(a.width, 100.0);
+                assert_eq!(a.height, 50.0);
             })
             .height(50.0),
-            draw(|_, area| {
-                assert_eq!(area.width, 100.0);
-                assert_eq!(area.height, 50.0);
-                assert_eq!(area.y, 50.0);
+            draw(|a| {
+                assert_eq!(a.width, 100.0);
+                assert_eq!(a.height, 50.0);
+                assert_eq!(a.y, 50.0);
             })
             .height(50.0),
         ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
     }
 
     #[test]
     fn test_simple_row_layout() {
         row(vec![
-            draw(|_, area| {
-                assert_eq!(area.width, 50.0);
-                assert_eq!(area.height, 100.0);
+            draw(|a| {
+                assert_eq!(a.width, 50.0);
+                assert_eq!(a.height, 100.0);
             })
             .width(50.0),
-            draw(|_, area| {
-                assert_eq!(area.width, 50.0);
-                assert_eq!(area.height, 100.0);
-                assert_eq!(area.x, 50.0);
+            draw(|a| {
+                assert_eq!(a.width, 50.0);
+                assert_eq!(a.height, 100.0);
+                assert_eq!(a.x, 50.0);
             })
             .width(50.0),
         ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
     }
 
     #[test]
     fn test_nested_layout() {
         column(vec![
             row(vec![
-                draw(|_, area| {
-                    assert_eq!(area.width, 50.0);
-                    assert_eq!(area.height, 25.0);
+                draw(|a| {
+                    assert_eq!(a.width, 50.0);
+                    assert_eq!(a.height, 25.0);
                 })
                 .width(50.0),
-                draw(|_, area| {
-                    assert_eq!(area.width, 50.0);
-                    assert_eq!(area.height, 25.0);
-                    assert_eq!(area.x, 50.0);
+                draw(|a| {
+                    assert_eq!(a.width, 50.0);
+                    assert_eq!(a.height, 25.0);
+                    assert_eq!(a.x, 50.0);
                 })
                 .width(50.0),
             ])
             .height(25.0),
-            draw(|_, area| {
-                assert_eq!(area.width, 100.0);
-                assert_eq!(area.height, 75.0);
-                assert_eq!(area.y, 25.0);
+            draw(|a| {
+                assert_eq!(a.width, 100.0);
+                assert_eq!(a.height, 75.0);
+                assert_eq!(a.y, 25.0);
             })
             .height(75.0),
         ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
     }
 
     #[test]
     fn test_padding() {
-        draw(|_, area| {
-            assert_eq!(area.x, 10.0);
-            assert_eq!(area.y, 10.0);
-            assert_eq!(area.width, 80.0);
-            assert_eq!(area.height, 80.0);
+        draw(|a| {
+            assert_eq!(a.x, 10.0);
+            assert_eq!(a.y, 10.0);
+            assert_eq!(a.width, 80.0);
+            assert_eq!(a.height, 80.0);
         })
         .pad(10.0)
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
     }
 
     #[test]
     fn test_stack_layout() {
         let values = stack(vec![
-            draw(|_, area| {
-                assert_eq!(area.width, 100.0);
-                assert_eq!(area.height, 100.0);
+            draw(|a| {
+                assert_eq!(a.width, 100.0);
+                assert_eq!(a.height, 100.0);
                 1
             }),
-            draw(|_, area| {
-                assert_eq!(area.width, 100.0);
-                assert_eq!(area.height, 100.0);
+            draw(|a| {
+                assert_eq!(a.width, 100.0);
+                assert_eq!(a.height, 100.0);
                 1
             }),
         ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
         assert_eq!(values.len(), 2);
     }
 
     #[test]
     fn test_dynamic_node() {
-        draw(|_, area| {
-            assert_eq!(area.width, 100.0);
+        draw(|a| {
+            assert_eq!(a.width, 100.0);
         })
         .height(50.0)
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
     }
 
     #[test]
     fn test_dynamic_node_drawing_issue() {
         let values = column(vec![
-            draw(|_, _| "dynamic_child_1".to_string()).height(20.0),
-            draw(|_, _| "static_draw".to_string()).height(30.0),
+            draw(|_| "dynamic_child_1".to_string()).height(20.0),
+            draw(|_| "static_draw".to_string()).height(30.0),
         ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
 
         println!("Draw calls: {:?}", values);
         assert!(
@@ -429,11 +429,11 @@ mod tests_module {
     #[test]
     fn test_nested_dynamic_nodes() {
         let values = column(vec![
-            draw(|_, _| "outer_before".to_string()).height(10.0),
-            draw(|_, _| "inner_1".to_string()).height(20.0),
-            draw(|_, _| "outer_after".to_string()).height(15.0),
+            draw(|_| "outer_before".to_string()).height(10.0),
+            draw(|_| "inner_1".to_string()).height(20.0),
+            draw(|_| "outer_after".to_string()).height(15.0),
         ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0));
 
         println!("Nested draw calls: {:?}", values);
         assert!(
@@ -455,16 +455,11 @@ mod tests_module {
         column(vec![
             row(vec![
                 space().height(0.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(50., 0., 50., 20.));
-                })
-                .height(20.),
+                assert_area!(Area::new(50., 0., 50., 20.)).height(20.),
             ]),
-            draw(|_, a| {
-                assert_eq!(a, Area::new(0., 20., 100., 80.));
-            }),
+            assert_area!(Area::new(0., 20., 100., 80.)),
         ])
-        .draw(Area::new(0., 0., 100., 100.), &mut ());
+        .draw(Area::new(0., 0., 100., 100.));
     }
 
     #[test]
@@ -472,30 +467,20 @@ mod tests_module {
         column(vec![
             row(vec![
                 space().height(0.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(50., 0., 50., 30.));
-                })
-                .height(30.),
+                assert_area!(Area::new(50., 0., 50., 30.)).height(30.),
             ]),
-            draw(|_, a| {
-                assert_eq!(a, Area::new(0., 30., 100., 70.));
-            }),
+            assert_area!(Area::new(0., 30., 100., 70.)),
         ])
-        .draw(Area::new(0., 0., 100., 100.), &mut ());
+        .draw(Area::new(0., 0., 100., 100.));
 
         column(vec![
             row(vec![
                 space().height(0.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(50., 0., 50., 30.));
-                })
-                .height(30.),
+                assert_area!(Area::new(50., 0., 50., 30.)).height(30.),
             ]),
-            draw(|_, a| {
-                assert_eq!(a, Area::new(0., 30., 100., 70.));
-            }),
+            assert_area!(Area::new(0., 30., 100., 70.)),
         ])
-        .draw(Area::new(0., 0., 100., 100.), &mut ());
+        .draw(Area::new(0., 0., 100., 100.));
     }
 
     #[cfg(test)]
@@ -507,184 +492,112 @@ mod tests_module {
             row_aligned(
                 Align::Leading,
                 vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 0., 10., 100.));
-                    })
-                    .width(10.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(10., 0., 30., 100.));
-                    })
-                    .width(30.),
+                    assert_area!(Area::new(0., 0., 10., 100.)).width(10.),
+                    assert_area!(Area::new(10., 0., 30., 100.)).width(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(30., 0., 10., 100.));
-                })
-                .width(10.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(40., 0., 30., 100.));
-                })
-                .width(30.),
+                assert_area!(Area::new(30., 0., 10., 100.)).width(10.),
+                assert_area!(Area::new(40., 0., 30., 100.)).width(30.),
             ])
             .align(Align::CenterX)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row_aligned(
                 Align::Trailing,
                 vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(60., 0., 10., 100.));
-                    })
-                    .width(10.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(70., 0., 30., 100.));
-                    })
-                    .width(30.),
+                    assert_area!(Area::new(60., 0., 10., 100.)).width(10.),
+                    assert_area!(Area::new(70., 0., 30., 100.)).width(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column_aligned(
                 Align::Top,
                 vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 0., 100., 10.));
-                    })
-                    .height(10.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 10., 100., 30.));
-                    })
-                    .height(30.),
+                    assert_area!(Area::new(0., 0., 100., 10.)).height(10.),
+                    assert_area!(Area::new(0., 10., 100., 30.)).height(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 30., 100., 10.));
-                })
-                .height(10.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 40., 100., 30.));
-                })
-                .height(30.),
+                assert_area!(Area::new(0., 30., 100., 10.)).height(10.),
+                assert_area!(Area::new(0., 40., 100., 30.)).height(30.),
             ])
             .align(Align::CenterY)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column_aligned(
                 Align::Bottom,
                 vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 60., 100., 10.));
-                    })
-                    .height(10.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 70., 100., 30.));
-                    })
-                    .height(30.),
+                    assert_area!(Area::new(0., 60., 100., 10.)).height(10.),
+                    assert_area!(Area::new(0., 70., 100., 30.)).height(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
         #[test]
         fn test_seq_align_off_axis() {
             column_aligned(
                 Align::Leading,
                 vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 0., 10., 50.));
-                    })
-                    .width(10.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 50., 30., 50.));
-                    })
-                    .width(30.),
+                    assert_area!(Area::new(0., 0., 10., 50.)).width(10.),
+                    assert_area!(Area::new(0., 50., 30., 50.)).width(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(45., 0., 10., 50.));
-                })
-                .width(10.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(35., 50., 30., 50.));
-                })
-                .width(30.),
+                assert_area!(Area::new(45., 0., 10., 50.)).width(10.),
+                assert_area!(Area::new(35., 50., 30., 50.)).width(30.),
             ])
             .align(Align::CenterX)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column_aligned(
                 Align::Trailing,
                 vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(90., 0., 10., 50.));
-                    })
-                    .width(10.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(70., 50., 30., 50.));
-                    })
-                    .width(30.),
+                    assert_area!(Area::new(90., 0., 10., 50.)).width(10.),
+                    assert_area!(Area::new(70., 50., 30., 50.)).width(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row_aligned(
                 Align::Top,
                 vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 0., 50., 10.));
-                    })
-                    .height(10.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(50., 0., 50., 30.));
-                    })
-                    .height(30.),
+                    assert_area!(Area::new(0., 0., 50., 10.)).height(10.),
+                    assert_area!(Area::new(50., 0., 50., 30.)).height(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 45., 50., 10.));
-                })
-                .height(10.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(50., 35., 50., 30.));
-                })
-                .height(30.),
+                assert_area!(Area::new(0., 45., 50., 10.)).height(10.),
+                assert_area!(Area::new(50., 35., 50., 30.)).height(30.),
             ])
             .align(Align::CenterY)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row_aligned(
                 Align::Bottom,
                 vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 90., 50., 10.));
-                    })
-                    .height(10.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(50., 70., 50., 30.));
-                    })
-                    .height(30.),
+                    assert_area!(Area::new(0., 90., 50., 10.)).height(10.),
+                    assert_area!(Area::new(50., 70., 50., 30.)).height(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
@@ -692,103 +605,59 @@ mod tests_module {
             row_aligned(
                 Align::Leading,
                 vec![
-                    row(vec![
-                        draw(|_, a| {
-                            assert_eq!(a, Area::new(0., 0., 10., 100.));
-                        })
-                        .width(10.),
-                    ]),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(10., 0., 30., 100.));
-                    })
-                    .width(30.),
+                    row(vec![assert_area!(Area::new(0., 0., 10., 100.)).width(10.)]),
+                    assert_area!(Area::new(10., 0., 30., 100.)).width(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row(vec![
-                row(vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(30., 0., 10., 100.));
-                    })
-                    .width(10.),
-                ]),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(40., 0., 30., 100.));
-                })
-                .width(30.),
+                row(vec![assert_area!(Area::new(30., 0., 10., 100.)).width(10.)]),
+                assert_area!(Area::new(40., 0., 30., 100.)).width(30.),
             ])
             .align(Align::CenterX)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row_aligned(
                 Align::Trailing,
                 vec![
-                    row(vec![
-                        draw(|_, a| {
-                            assert_eq!(a, Area::new(60., 0., 10., 100.));
-                        })
-                        .width(10.),
-                    ]),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(70., 0., 30., 100.));
-                    })
-                    .width(30.),
+                    row(vec![assert_area!(Area::new(60., 0., 10., 100.)).width(10.)]),
+                    assert_area!(Area::new(70., 0., 30., 100.)).width(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column_aligned(
                 Align::Top,
                 vec![
-                    row(vec![
-                        draw(|_, a| {
-                            assert_eq!(a, Area::new(0., 0., 100., 10.));
-                        })
-                        .height(10.),
-                    ]),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 10., 100., 30.));
-                    })
-                    .height(30.),
+                    row(vec![assert_area!(Area::new(0., 0., 100., 10.)).height(10.)]),
+                    assert_area!(Area::new(0., 10., 100., 30.)).height(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
             column(vec![
                 row(vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 30., 100., 10.));
-                    })
-                    .height(10.),
+                    assert_area!(Area::new(0., 30., 100., 10.)).height(10.),
                 ]),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 40., 100., 30.));
-                })
-                .height(30.),
+                assert_area!(Area::new(0., 40., 100., 30.)).height(30.),
             ])
             .align(Align::CenterY)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column_aligned(
                 Align::Bottom,
                 vec![
                     row(vec![
-                        draw(|_, a| {
-                            assert_eq!(a, Area::new(0., 60., 100., 10.));
-                        })
-                        .height(10.),
+                        assert_area!(Area::new(0., 60., 100., 10.)).height(10.),
                     ]),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 70., 100., 30.));
-                    })
-                    .height(30.),
+                    assert_area!(Area::new(0., 70., 100., 30.)).height(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
@@ -796,352 +665,222 @@ mod tests_module {
             column_aligned(
                 Align::Leading,
                 vec![
-                    row(vec![
-                        draw(|_, a| {
-                            assert_eq!(a, Area::new(0., 0., 10., 50.));
-                        })
-                        .width(10.),
-                    ]),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 50., 30., 50.));
-                    })
-                    .width(30.),
+                    row(vec![assert_area!(Area::new(0., 0., 10., 50.)).width(10.)]),
+                    assert_area!(Area::new(0., 50., 30., 50.)).width(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column(vec![
-                row(vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(45., 0., 10., 50.));
-                    })
-                    .width(10.),
-                ]),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(35., 50., 30., 50.));
-                })
-                .width(30.),
+                row(vec![assert_area!(Area::new(45., 0., 10., 50.)).width(10.)]),
+                assert_area!(Area::new(35., 50., 30., 50.)).width(30.),
             ])
             .align(Align::CenterX)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column_aligned(
                 Align::Trailing,
                 vec![
-                    row(vec![
-                        draw(|_, a| {
-                            assert_eq!(a, Area::new(90., 0., 10., 50.));
-                        })
-                        .width(10.),
-                    ]),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(70., 50., 30., 50.));
-                    })
-                    .width(30.),
+                    row(vec![assert_area!(Area::new(90., 0., 10., 50.)).width(10.)]),
+                    assert_area!(Area::new(70., 50., 30., 50.)).width(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row_aligned(
                 Align::Top,
                 vec![
-                    row(vec![
-                        draw(|_, a| {
-                            assert_eq!(a, Area::new(0., 0., 50., 10.));
-                        })
-                        .height(10.),
-                    ]),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(50., 0., 50., 30.));
-                    })
-                    .height(30.),
+                    row(vec![assert_area!(Area::new(0., 0., 50., 10.)).height(10.)]),
+                    assert_area!(Area::new(50., 0., 50., 30.)).height(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row(vec![
-                row(vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 45., 50., 10.));
-                    })
-                    .height(10.),
-                ]),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(50., 35., 50., 30.));
-                })
-                .height(30.),
+                row(vec![assert_area!(Area::new(0., 45., 50., 10.)).height(10.)]),
+                assert_area!(Area::new(50., 35., 50., 30.)).height(30.),
             ])
             .align(Align::CenterY)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row_aligned(
                 Align::Bottom,
                 vec![
-                    row(vec![
-                        draw(|_, a| {
-                            assert_eq!(a, Area::new(0., 90., 50., 10.));
-                        })
-                        .height(10.),
-                    ]),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(50., 70., 50., 30.));
-                    })
-                    .height(30.),
+                    row(vec![assert_area!(Area::new(0., 90., 50., 10.)).height(10.)]),
+                    assert_area!(Area::new(50., 70., 50., 30.)).height(30.),
                 ],
             )
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_aspect_ratio() {
-            draw(|_, a| {
-                assert_eq!(a, Area::new(0., 0., 100., 100.));
-            })
-            .aspect_width(1.)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(0., 0., 100., 100.))
+                .aspect_width(1.)
+                .draw(Area::new(0., 0., 100., 100.));
 
-            draw(|_, a| {
-                assert_eq!(a, Area::new(25., 0., 50., 100.));
-            })
-            .aspect_width(0.5)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(25., 0., 50., 100.))
+                .aspect_width(0.5)
+                .draw(Area::new(0., 0., 100., 100.));
 
-            draw(|_, a| {
-                assert_eq!(a, Area::new(0., 0., 50., 100.));
-            })
-            .aspect_width(0.5)
-            .align(Align::Leading)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(0., 0., 50., 100.))
+                .aspect_width(0.5)
+                .align(Align::Leading)
+                .draw(Area::new(0., 0., 100., 100.));
 
-            draw(|_, a| {
-                assert_eq!(a, Area::new(50., 0., 50., 100.));
-            })
-            .aspect_width(0.5)
-            .align(Align::Trailing)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(50., 0., 50., 100.))
+                .aspect_width(0.5)
+                .align(Align::Trailing)
+                .draw(Area::new(0., 0., 100., 100.));
 
-            draw(|_, a| {
-                assert_eq!(a, Area::new(0., 25., 100., 50.));
-            })
-            .aspect_height(2.)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(0., 25., 100., 50.))
+                .aspect_height(2.)
+                .draw(Area::new(0., 0., 100., 100.));
 
-            draw(|_, a| {
-                assert_eq!(a, Area::new(0., 0., 100., 50.));
-            })
-            .aspect_height(2.)
-            .align(Align::Top)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(0., 0., 100., 50.))
+                .aspect_height(2.)
+                .align(Align::Top)
+                .draw(Area::new(0., 0., 100., 100.));
 
-            draw(|_, a| {
-                assert_eq!(a, Area::new(0., 50., 100., 50.));
-            })
-            .aspect_height(2.)
-            .align(Align::Bottom)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(0., 50., 100., 50.))
+                .aspect_height(2.)
+                .align(Align::Bottom)
+                .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_aspect_ratio_in_seq() {
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 100., 100.));
-                })
-                .aspect_width(1.),
+                assert_area!(Area::new(0., 0., 100., 100.)).aspect_width(1.),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             stack(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(25., 0., 50., 100.));
-                })
-                .aspect_width(0.5),
+                assert_area!(Area::new(25., 0., 50., 100.)).aspect_width(0.5),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 50., 100.));
-                })
-                .aspect_width(0.5)
-                .align(Align::Leading),
+                assert_area!(Area::new(0., 0., 50., 100.))
+                    .aspect_width(0.5)
+                    .align(Align::Leading),
             ])
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             stack(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(50., 0., 50., 100.));
-                })
-                .aspect_width(0.5)
-                .align(Align::Trailing),
+                assert_area!(Area::new(50., 0., 50., 100.))
+                    .aspect_width(0.5)
+                    .align(Align::Trailing),
             ])
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_aspect_ratio_nested() {
             column(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 200., 50.));
-                }),
+                assert_area!(Area::new(0., 0., 200., 50.)),
                 row(vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 50., 150., 50.));
-                    }),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(150., 50., 50., 50.));
-                    })
-                    .aspect_width(1.),
+                    assert_area!(Area::new(0., 50., 150., 50.)),
+                    assert_area!(Area::new(150., 50., 50., 50.)).aspect_width(1.),
                 ]),
             ])
-            .draw(Area::new(0., 0., 200., 100.), &mut ());
+            .draw(Area::new(0., 0., 200., 100.));
         }
 
         #[test]
         fn test_pad() {
-            draw(|_, a| {
-                assert_eq!(a, Area::new(10., 10., 80., 80.));
-            })
-            .pad(10.)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(10., 10., 80., 80.))
+                .pad(10.)
+                .draw(Area::new(0., 0., 100., 100.));
 
-            draw(|_, a| {
-                assert_eq!(a, Area::new(10., 0., 80., 100.));
-            })
-            .pad_x(10.)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(10., 0., 80., 100.))
+                .pad_x(10.)
+                .draw(Area::new(0., 0., 100., 100.));
 
-            draw(|_, a| {
-                assert_eq!(a, Area::new(0., 10., 100., 80.));
-            })
-            .pad_y(10.)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(0., 10., 100., 80.))
+                .pad_y(10.)
+                .draw(Area::new(0., 0., 100., 100.));
 
-            draw(|_, a| {
-                assert_eq!(a, Area::new(10., 0., 90., 100.));
-            })
-            .pad_leading(10.)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(10., 0., 90., 100.))
+                .pad_leading(10.)
+                .draw(Area::new(0., 0., 100., 100.));
 
-            draw(|_, a| {
-                assert_eq!(a, Area::new(0., 0., 90., 100.));
-            })
-            .pad_trailing(10.)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(0., 0., 90., 100.))
+                .pad_trailing(10.)
+                .draw(Area::new(0., 0., 100., 100.));
 
-            draw(|_, a| {
-                assert_eq!(a, Area::new(0., 10., 100., 90.));
-            })
-            .pad_top(10.)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(0., 10., 100., 90.))
+                .pad_top(10.)
+                .draw(Area::new(0., 0., 100., 100.));
 
-            draw(|_, a| {
-                assert_eq!(a, Area::new(0., 0., 100., 90.));
-            })
-            .pad_bottom(10.)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            assert_area!(Area::new(0., 0., 100., 90.))
+                .pad_bottom(10.)
+                .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_aspect_ratio_in_pad() {
-            draw(|_, a| {
-                assert_eq!(a, Area::new(25., 0., 50., 100.));
-            })
-            .aspect_width(0.5)
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
-
-            stack(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(30., 10., 40., 80.));
-                })
+            assert_area!(Area::new(25., 0., 50., 100.))
                 .aspect_width(0.5)
-                .pad(10.),
-            ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+                .draw(Area::new(0., 0., 100., 100.));
 
             stack(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(35., 10., 30., 80.));
-                })
-                .pad(10.)
-                .aspect_width(0.5),
+                assert_area!(Area::new(30., 10., 40., 80.))
+                    .aspect_width(0.5)
+                    .pad(10.),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
+
+            stack(vec![
+                assert_area!(Area::new(35., 10., 30., 80.))
+                    .pad(10.)
+                    .aspect_width(0.5),
+            ])
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_aspect_ratio_fit() {
             column(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 100., 50.));
-                }),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(25., 50., 50., 50.));
-                })
-                .aspect_width(1.),
+                assert_area!(Area::new(0., 0., 100., 50.)),
+                assert_area!(Area::new(25., 50., 50., 50.)).aspect_width(1.),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(25., 0., 50., 50.));
-                })
-                .aspect_width(1.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(25., 50., 50., 50.));
-                })
-                .aspect_width(1.),
+                assert_area!(Area::new(25., 0., 50., 50.)).aspect_width(1.),
+                assert_area!(Area::new(25., 50., 50., 50.)).aspect_width(1.),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 50., 100.));
-                }),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(50., 25., 50., 50.));
-                })
-                .aspect_height(1.),
+                assert_area!(Area::new(0., 0., 50., 100.)),
+                assert_area!(Area::new(50., 25., 50., 50.)).aspect_height(1.),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 25., 50., 50.));
-                })
-                .aspect_height(1.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(50., 25., 50., 50.));
-                })
-                .aspect_height(1.),
+                assert_area!(Area::new(0., 25., 50., 50.)).aspect_height(1.),
+                assert_area!(Area::new(50., 25., 50., 50.)).aspect_height(1.),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_space_expansion() {
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 1., 100.));
-                })
-                .width(1.),
+                assert_area!(Area::new(0., 0., 1., 100.)).width(1.),
                 space(),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(998., 0., 1., 100.));
-                })
-                .width(1.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(999., 0., 1., 100.));
-                })
-                .width(1.),
+                assert_area!(Area::new(998., 0., 1., 100.)).width(1.),
+                assert_area!(Area::new(999., 0., 1., 100.)).width(1.),
             ])
-            .draw(Area::new(0., 0., 1000., 100.), &mut ());
+            .draw(Area::new(0., 0., 1000., 100.));
         }
         // #[test]
         // fn test_explicit_aspect() {
@@ -1149,12 +888,12 @@ mod tests_module {
         //         column_spaced(
         //             10.,
         //             vec![
-        //                 draw(|_, a| {
+        //                 draw(|a| {
         //                     assert_eq!(a, Area::new(45., 0., 10., 20.));
         //                 })
         //                 .width(10.)
         //                 .aspect_width(0.5),
-        //                 draw(|_, a| {
+        //                 draw(|a| {
         //                     // assert_eq!(a, Area::new(0., 30., 100., 70.));
         //                 }),
         //             ],
@@ -1165,96 +904,70 @@ mod tests_module {
         #[test]
         fn test_explicit_with_padding() {
             column(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(10., 10., 80., 20.));
-                })
-                .height(20.)
-                .pad(10.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 40., 100., 60.));
-                }),
+                assert_area!(Area::new(10., 10., 80., 20.))
+                    .height(20.)
+                    .pad(10.),
+                assert_area!(Area::new(0., 40., 100., 60.)),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         // #[test]
         // fn test_explicit_in_explicit() {
-        //     draw(|_, a| {
+        //     draw(|a| {
         //         assert_eq!(a, Area::new(40., 0., 20., 100.));
         //     })
         //     .width_range(20.0..)
         //     .pad(0.)
-        //     .attach_under(draw(|_, a| {
+        //     .attach_under(draw(|a| {
         //         assert_eq!(a, Area::new(40., 0., 20., 100.));
         //     }))
         //     .width_range(..10.)
-        //     .attach_under(draw(|_, a| {
+        //     .attach_under(draw(|a| {
         //         assert_eq!(a, Area::new(45., 0., 10., 100.));
         //     }))
-        //     .draw(Area::new(0., 0., 100., 100.), &mut ());
+        //     .draw(Area::new(0., 0., 100., 100.));
         // }
 
         #[test]
         fn test_compressed_expanded_respects_lower_bound() {
             stack(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., -50., 100., 200.));
-                })
-                .height(200.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., -50., 100., 200.));
-                }),
+                assert_area!(Area::new(0., -50., 100., 200.)).height(200.),
+                assert_area!(Area::new(0., -50., 100., 200.)),
             ])
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column(vec![
                 stack(vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., -50., 100., 200.));
-                    })
-                    .height(200.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., -50., 100., 200.));
-                    }),
+                    assert_area!(Area::new(0., -50., 100., 200.)).height(200.),
+                    assert_area!(Area::new(0., -50., 100., 200.)),
                 ])
                 .expand(),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
         #[test]
         fn test_compressed_aspect_ratio() {
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 25., 50., 50.));
-                })
-                .aspect_width(1.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(50., 0., 50., 100.));
-                })
-                .width(50.),
+                assert_area!(Area::new(0., 25., 50., 50.)).aspect_width(1.),
+                assert_area!(Area::new(50., 0., 50., 100.)).width(50.),
             ])
-            .attach_under(draw(|_, a| {
-                assert_eq!(a, Area::new(0., 0., 100., 100.));
-            }))
-            .debug_visualize(Area::new(0., 0., 100., 100.), &mut ());
+            .attach_under(assert_area!(Area::new(0., 0., 100., 100.)))
+            .debug_visualize(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_dynamic_attached() {
             row(vec![
                 space(),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(25., 25., 25., 50.));
-                })
-                .dynamic_height(|h| h * 2.)
-                .attach_under(draw(|_, a| {
-                    assert_eq!(a, Area::new(25., 25., 25., 50.));
-                })),
+                assert_area!(Area::new(25., 25., 25., 50.))
+                    .dynamic_height(|h| h * 2.)
+                    .attach_under(assert_area!(Area::new(25., 25., 25., 50.))),
                 space(),
                 space(),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
     }
 
@@ -1264,237 +977,159 @@ mod tests_module {
         #[test]
         fn test_column_basic() {
             column(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 100., 50.));
-                }),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 50., 100., 50.));
-                }),
+                assert_area!(Area::new(0., 0., 100., 50.)),
+                assert_area!(Area::new(0., 50., 100., 50.)),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
         #[test]
         fn test_column_constrained_1() {
             column(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 100., 10.));
-                })
-                .height(10.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 10., 100., 90.));
-                }),
+                assert_area!(Area::new(0., 0., 100., 10.)).height(10.),
+                assert_area!(Area::new(0., 10., 100., 90.)),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 100., 10.));
-                })
-                .height(10.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 10., 100., 90.));
-                }),
+                assert_area!(Area::new(0., 0., 100., 10.)).height(10.),
+                assert_area!(Area::new(0., 10., 100., 90.)),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
         #[test]
         fn test_column_constrained_2() {
             column(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 100., 90.));
-                }),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 90., 100., 10.));
-                })
-                .height(10.),
+                assert_area!(Area::new(0., 0., 100., 90.)),
+                assert_area!(Area::new(0., 90., 100., 10.)).height(10.),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 100., 90.));
-                }),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 90., 100., 10.));
-                })
-                .height(10.),
+                assert_area!(Area::new(0., 0., 100., 90.)),
+                assert_area!(Area::new(0., 90., 100., 10.)).height(10.),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
         #[test]
         fn test_row_basic() {
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 50., 100.));
-                }),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(50., 0., 50., 100.));
-                }),
+                assert_area!(Area::new(0., 0., 50., 100.)),
+                assert_area!(Area::new(50., 0., 50., 100.)),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
         #[test]
         fn test_row_constrained_1() {
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 25., 10., 50.));
-                })
-                .width(10.)
-                .height(50.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(10., 0., 90., 100.));
-                }),
+                assert_area!(Area::new(0., 25., 10., 50.))
+                    .width(10.)
+                    .height(50.),
+                assert_area!(Area::new(10., 0., 90., 100.)),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::Top),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(10., 40., 10., 20.));
-                })
-                .width(10.)
-                .height(20.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(20., 80., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::Bottom),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(30., 0., 70., 100.));
-                }),
+                assert_area!(Area::new(0., 0., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::Top),
+                assert_area!(Area::new(10., 40., 10., 20.))
+                    .width(10.)
+                    .height(20.),
+                assert_area!(Area::new(20., 80., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::Bottom),
+                assert_area!(Area::new(30., 0., 70., 100.)),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
         #[test]
         fn test_row_constrained_2() {
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 70., 100.));
-                }),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(70., 0., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::Top),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(80., 40., 10., 20.));
-                })
-                .width(10.)
-                .height(20.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(90., 80., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::Bottom),
+                assert_area!(Area::new(0., 0., 70., 100.)),
+                assert_area!(Area::new(70., 0., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::Top),
+                assert_area!(Area::new(80., 40., 10., 20.))
+                    .width(10.)
+                    .height(20.),
+                assert_area!(Area::new(90., 80., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::Bottom),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 70., 100.));
-                }),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(70., 0., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::Top),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(80., 40., 10., 20.));
-                })
-                .width(10.)
-                .height(20.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(90., 80., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::Bottom),
+                assert_area!(Area::new(0., 0., 70., 100.)),
+                assert_area!(Area::new(70., 0., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::Top),
+                assert_area!(Area::new(80., 40., 10., 20.))
+                    .width(10.)
+                    .height(20.),
+                assert_area!(Area::new(90., 80., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::Bottom),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_stack_basic() {
             stack(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 100., 100.));
-                }),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 100., 100.));
-                }),
+                assert_area!(Area::new(0., 0., 100., 100.)),
+                assert_area!(Area::new(0., 0., 100., 100.)),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_stack_alignment() {
             stack(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::TopLeading),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(45., 0., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::TopCenter),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(90., 0., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::TopTrailing),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(90., 40., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::CenterTrailing),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(90., 80., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::BottomTrailing),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(45., 80., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::BottomCenter),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 80., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::BottomLeading),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 40., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::CenterLeading),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(45., 40., 10., 20.));
-                })
-                .width(10.)
-                .height(20.)
-                .align(Align::CenterCenter),
+                assert_area!(Area::new(0., 0., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::TopLeading),
+                assert_area!(Area::new(45., 0., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::TopCenter),
+                assert_area!(Area::new(90., 0., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::TopTrailing),
+                assert_area!(Area::new(90., 40., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::CenterTrailing),
+                assert_area!(Area::new(90., 80., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::BottomTrailing),
+                assert_area!(Area::new(45., 80., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::BottomCenter),
+                assert_area!(Area::new(0., 80., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::BottomLeading),
+                assert_area!(Area::new(0., 40., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::CenterLeading),
+                assert_area!(Area::new(45., 40., 10., 20.))
+                    .width(10.)
+                    .height(20.)
+                    .align(Align::CenterCenter),
             ])
             .expand()
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
@@ -1502,159 +1137,121 @@ mod tests_module {
             row_spaced(
                 10.,
                 vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 40., 10., 20.));
-                    })
-                    .width(10.)
-                    .height(20.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(20., 0., 25., 100.));
-                    }),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(55., 40., 10., 20.));
-                    })
-                    .width(10.)
-                    .height(20.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(75., 0., 25., 100.));
-                    }),
+                    assert_area!(Area::new(0., 40., 10., 20.))
+                        .width(10.)
+                        .height(20.),
+                    assert_area!(Area::new(20., 0., 25., 100.)),
+                    assert_area!(Area::new(55., 40., 10., 20.))
+                        .width(10.)
+                        .height(20.),
+                    assert_area!(Area::new(75., 0., 25., 100.)),
                 ],
             )
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
 
             column_spaced(
                 10.,
                 vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 0., 100., 15.));
-                    }),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(45., 25., 10., 20.));
-                    })
-                    .width(10.)
-                    .height(20.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 55., 100., 15.));
-                    }),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(45., 80., 10., 20.));
-                    })
-                    .width(10.)
-                    .height(20.),
+                    assert_area!(Area::new(0., 0., 100., 15.)),
+                    assert_area!(Area::new(45., 25., 10., 20.))
+                        .width(10.)
+                        .height(20.),
+                    assert_area!(Area::new(0., 55., 100., 15.)),
+                    assert_area!(Area::new(45., 80., 10., 20.))
+                        .width(10.)
+                        .height(20.),
                 ],
             )
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_row_with_constrained_item() {
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 30., 100.));
-                })
-                .width(30.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(30., 0., 70., 100.));
-                }),
+                assert_area!(Area::new(0., 0., 30., 100.)).width(30.),
+                assert_area!(Area::new(30., 0., 70., 100.)),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_nested_row_with_constrained_item() {
             row(vec![
                 row(vec![
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(0., 0., 20., 100.));
-                    })
-                    .width(20.),
-                    draw(|_, a| {
-                        assert_eq!(a, Area::new(20., 0., 30., 100.));
-                    }),
+                    assert_area!(Area::new(0., 0., 20., 100.)).width(20.),
+                    assert_area!(Area::new(20., 0., 30., 100.)),
                 ])
                 .width(50.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(50., 0., 50., 100.));
-                }),
+                assert_area!(Area::new(50., 0., 50., 100.)),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_stack_with_constrained_item() {
             stack(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 100., 100.));
-                }),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(25., 25., 50., 50.));
-                })
-                .width(50.)
-                .height(50.),
+                assert_area!(Area::new(0., 0., 100., 100.)),
+                assert_area!(Area::new(25., 25., 50., 50.))
+                    .width(50.)
+                    .height(50.),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_row_with_multiple_constrained_items() {
             row(vec![
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(0., 0., 20., 100.));
-                })
-                .width(20.),
-                draw(|_, a| {
-                    assert_eq!(a, Area::new(20., 0., 30., 100.));
-                })
-                .width(30.),
-                draw(|_, a| {
+                assert_area!(Area::new(0., 0., 20., 100.)).width(20.),
+                assert_area!(Area::new(20., 0., 30., 100.)).width(30.),
+                draw(|a| {
                     assert!((a.x - 50.0).abs() < 0.001);
                     assert!((a.y - 0.0).abs() < 0.001);
                     assert!((a.width - 50.0).abs() < 0.001);
                     assert!((a.height - 100.0).abs() < 0.001);
                 }),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_row_with_constrained_height_in_column() {
             column(vec![
-                draw(|_, a| {
+                draw(|a| {
                     // Should get 40px height (half of remaining 80px after row takes 20px)
                     assert_eq!(a, Area::new(0., 0., 100., 40.));
                 }),
                 row(vec![
-                    draw(|_, a| {
+                    draw(|a| {
                         // Row content should be 20px tall
                         assert_eq!(a, Area::new(0., 40., 50., 20.));
                     })
                     .height(20.),
-                    draw(|_, a| {
+                    draw(|a| {
                         // Row content should be 20px tall
                         assert_eq!(a, Area::new(50., 40., 50., 20.));
                     })
                     .height(20.),
                 ]),
-                draw(|_, a| {
+                draw(|a| {
                     // Should get 40px height (half of remaining 80px after row takes 20px)
                     assert_eq!(a, Area::new(0., 60., 100., 40.));
                 }),
             ])
-            .draw(Area::new(0., 0., 100., 100.), &mut ());
+            .draw(Area::new(0., 0., 100., 100.));
         }
 
         #[test]
         fn test_configurable_depth_tree() {
-            fn build_tree(depth: usize) -> Layout<(), Area> {
+            fn build_tree(depth: usize) -> Layout<Area> {
                 if depth == 0 {
-                    draw(|_, area| area)
+                    draw(|area| area)
                 } else {
-                    column(vec![draw(|_, area| area), build_tree(depth - 1)])
+                    column(vec![draw(|area| area), build_tree(depth - 1)])
                 }
             }
 
             let mut layout = build_tree(500);
-            let leaves = layout.draw(Area::new(0., 0., 300., 300.), &mut ());
+            let leaves = layout.draw(Area::new(0., 0., 300., 300.));
             assert_eq!(leaves.len(), 501);
         }
     }

@@ -32,7 +32,7 @@ fn main() -> eframe::Result {
             let viewport = ctx.input(|i| i.screen_rect());
             let available_area = area_from(viewport);
             let mut layout = my_layout(ui);
-            let commands = layout.draw(available_area, &mut ());
+            let commands = layout.draw(available_area);
             process_commands(ui, commands);
         });
     })
