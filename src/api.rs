@@ -348,7 +348,7 @@ impl<A> Layout<A> {
     /// Useful for adding an unconstrained node as an ornament, background, or overlay to a constrained node.
     pub fn attach_under(self, node: Layout<A>) -> Layout<A> {
         NodeBuilder::new(LayoutType::Coupled { over: false })
-            .children(vec![self, node])
+            .children(vec![node, self])
             .build()
     }
 
@@ -358,7 +358,7 @@ impl<A> Layout<A> {
     /// Useful for adding an unconstrained node as an ornament, background, or overlay to a constrained node.
     pub fn attach_over(self, node: Layout<A>) -> Layout<A> {
         NodeBuilder::new(LayoutType::Coupled { over: true })
-            .children(vec![node, self])
+            .children(vec![self, node])
             .build()
     }
 }

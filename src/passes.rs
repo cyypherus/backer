@@ -143,9 +143,9 @@ pub(crate) fn resolve<A>(input: &mut Layout<A>) {
                 }
             })),
             LayoutType::Coupled { over } => self_constraints.combine_parent_child(if over {
-                node.children.get(1).map(|child| child.constraints())
-            } else {
                 node.children.first().map(|child| child.constraints())
+            } else {
+                node.children.get(1).map(|child| child.constraints())
             }),
             LayoutType::Offset { .. } | LayoutType::Space | LayoutType::AreaReader { .. } => {
                 self_constraints
