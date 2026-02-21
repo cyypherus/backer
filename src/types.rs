@@ -2,9 +2,9 @@ use std::fmt::Debug;
 
 use crate::tree::TreeNode;
 
-pub(crate) type DrawFn<A> = Box<dyn FnOnce(Area) -> A>;
+pub(crate) type DrawFn<A, S> = Box<dyn FnOnce(Area, &mut S) -> A>;
 pub(crate) type DimensionFn = Option<Box<dyn Fn(f32) -> f32>>;
-pub(crate) type AreaReaderFn<A> = Box<dyn FnOnce(Area) -> Layout<A>>;
+pub(crate) type AreaReaderFn<A, S> = Box<dyn FnOnce(Area, &mut S) -> Layout<A, S>>;
 
 /// The tree structure which represents a layout.
 ///
@@ -26,30 +26,30 @@ pub(crate) type AreaReaderFn<A> = Box<dyn FnOnce(Area) -> Layout<A>>;
 /// struct Label { area: Area, text: &'static str }
 ///
 /// let mut layout = column(vec![
-///     draw(|area| View::Button(Button { area })).width(100.0).height(50.0),
-///     draw(|area| View::Label(Label { area, text: "Hello world!" })).width(100.0).height(50.0),
+///     draw(|area, _: &mut ()| View::Button(Button { area })).width(100.0).height(50.0),
+///     draw(|area, _: &mut ()| View::Label(Label { area, text: "Hello world!" })).width(100.0).height(50.0),
 /// ]);
 ///
-/// let views = layout.draw(Area::new(0.0, 0.0, 200.0, 150.0));
+/// let views = layout.draw(Area::new(0.0, 0.0, 200.0, 150.0), &mut ());
 /// // views is now a Vec of Button values with their laid-out areas
 /// ```
-pub struct Layout<A> {
-    pub(crate) layout: LayoutType<A>,
+pub struct Layout<A, S = ()> {
+    pub(crate) layout: LayoutType<A, S>,
     pub(crate) constraints: Constraints,
     pub(crate) dynamic_constraints: DynamicConstraints,
     pub(crate) layer: Option<i32>,
     pub(crate) resolved: Option<Constraints>,
     pub(crate) allocated: Option<Area>,
-    pub(crate) children: Vec<Layout<A>>,
+    pub(crate) children: Vec<Layout<A, S>>,
 }
 
-impl<A> Layout<A> {
+impl<A, S> Layout<A, S> {
     pub(crate) fn constraints(&self) -> Constraints {
         self.resolved.unwrap_or(self.constraints)
     }
 }
 
-impl<A> TreeNode for Layout<A> {
+impl<A, S> TreeNode for Layout<A, S> {
     fn children_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Self> {
         self.children.iter_mut()
     }
@@ -342,8 +342,8 @@ impl Area {
     }
 }
 
-pub enum LayoutType<A> {
-    Draw(Option<DrawFn<A>>),
+pub enum LayoutType<A, S = ()> {
+    Draw(Option<DrawFn<A, S>>),
     Column {
         spacing: f32,
         x_align: Option<XAlign>,
@@ -374,6 +374,6 @@ pub enum LayoutType<A> {
         over: bool,
     },
     AreaReader {
-        func: Option<AreaReaderFn<A>>,
+        func: Option<AreaReaderFn<A, S>>,
     },
 }

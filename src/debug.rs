@@ -4,7 +4,7 @@ use crate::{
 };
 use std::fmt::Debug;
 
-impl<A> Debug for Layout<A> {
+impl<A, S> Debug for Layout<A, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Layout")
             .field("layout", &format!("{:?}", &self.layout))
@@ -17,7 +17,7 @@ impl<A> Debug for Layout<A> {
     }
 }
 
-impl<A> Debug for LayoutType<A> {
+impl<A, S> Debug for LayoutType<A, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LayoutType::Draw(_) => f.debug_tuple("Draw").field(&"<function>").finish(),
