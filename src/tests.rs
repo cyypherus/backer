@@ -1022,7 +1022,7 @@ mod tests_module {
             row(vec![
                 space(),
                 assert_area!(Area::new(25., 25., 25., 50.))
-                    .dynamic_height(|h| h * 2.)
+                    .dynamic_height(|h, _| h * 2.)
                     .attach_under(assert_area!(Area::new(25., 25., 25., 50.))),
                 space(),
                 space(),
@@ -1314,5 +1314,17 @@ mod tests_module {
             let leaves = layout.draw(Area::new(0., 0., 300., 300.), &mut ());
             assert_eq!(leaves.len(), 501);
         }
+    }
+
+    #[test]
+    fn test_dynamic_height_width_dependent_pad_attach_under() {
+        let content_area = Area::new(10., 43., 80., 14.);
+        let bg_area = Area::new(0., 33., 100., 34.);
+        assert_area!(content_area)
+            .dynamic_height(|_, _| 14.)
+            .attach_under(draw(|_, _| ()))
+            .pad(10.)
+            .attach_under(assert_area!(bg_area))
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
     }
 }

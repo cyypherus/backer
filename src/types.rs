@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use crate::tree::TreeNode;
 
 pub(crate) type DrawFn<A, S> = Box<dyn FnOnce(Area, &mut S) -> A>;
-pub(crate) type DimensionFn = Option<Box<dyn Fn(f32) -> f32>>;
+pub(crate) type DimensionFn<S> = Option<Box<dyn Fn(f32, &mut S) -> f32>>;
 pub(crate) type AreaReaderFn<A, S> = Box<dyn FnOnce(Area, &mut S) -> Layout<A, S>>;
 
 /// The tree structure which represents a layout.
@@ -36,7 +36,7 @@ pub(crate) type AreaReaderFn<A, S> = Box<dyn FnOnce(Area, &mut S) -> Layout<A, S
 pub struct Layout<A, S = ()> {
     pub(crate) layout: LayoutType<A, S>,
     pub(crate) constraints: Constraints,
-    pub(crate) dynamic_constraints: DynamicConstraints,
+    pub(crate) dynamic_constraints: DynamicConstraints<S>,
     pub(crate) layer: Option<i32>,
     pub(crate) resolved: Option<Constraints>,
     pub(crate) allocated: Option<Area>,
@@ -55,10 +55,18 @@ impl<A, S> TreeNode for Layout<A, S> {
     }
 }
 
-#[derive(Default)]
-pub(crate) struct DynamicConstraints {
-    pub(crate) width: DimensionFn,
-    pub(crate) height: DimensionFn,
+pub(crate) struct DynamicConstraints<S = ()> {
+    pub(crate) width: DimensionFn<S>,
+    pub(crate) height: DimensionFn<S>,
+}
+
+impl<S> Default for DynamicConstraints<S> {
+    fn default() -> Self {
+        Self {
+            width: None,
+            height: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

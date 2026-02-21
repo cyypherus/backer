@@ -74,7 +74,7 @@ impl<A, S> Debug for LayoutType<A, S> {
     }
 }
 
-impl Debug for DynamicConstraints {
+impl<S> Debug for DynamicConstraints<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DynamicConstraints")
             .field("width", &"<function>")

@@ -13,20 +13,20 @@ pub(crate) fn perform_layout_passes<A, S>(
 ) {
     for _ in 0..2 {
         tree.allocated = Some(available_area);
-        resolve(tree);
-        allocate(tree, available_area);
+        resolve(tree, state);
+        allocate(tree, available_area, state);
         expand_area_reader_nodes(tree, state);
     }
 }
 
-pub(crate) fn resolve<A, S>(input: &mut Layout<A, S>) {
+pub(crate) fn resolve<A, S>(input: &mut Layout<A, S>, state: &mut S) {
     input.traverse_bottom_up(|node| {
         let self_constraints = Constraints {
             width: node
                 .allocated
                 .and_then(|area| {
                     node.dynamic_constraints.width.as_ref().map(|f| {
-                        let w = f(area.height);
+                        let w = f(area.height, state);
                         AxisConstraint::new(Some(w), Some(w))
                     })
                 })
@@ -38,7 +38,7 @@ pub(crate) fn resolve<A, S>(input: &mut Layout<A, S>) {
                 .allocated
                 .and_then(|area| {
                     node.dynamic_constraints.height.as_ref().map(|f| {
-                        let h = f(area.width);
+                        let h = f(area.width, state);
                         AxisConstraint::new(Some(h), Some(h))
                     })
                 })
@@ -160,7 +160,7 @@ pub(crate) fn resolve<A, S>(input: &mut Layout<A, S>) {
     })
 }
 
-pub(crate) fn allocate<A, S>(constrained: &mut Layout<A, S>, available_area: Area) {
+pub(crate) fn allocate<A, S>(constrained: &mut Layout<A, S>, available_area: Area, state: &mut S) {
     constrained.traverse_top_down(|node| {
         let available_area =
             node.allocated
@@ -175,12 +175,12 @@ pub(crate) fn allocate<A, S>(constrained: &mut Layout<A, S>, available_area: Are
                 spacing,
                 x_align,
                 y_align,
-            } => node.layout_axis(spacing, available_area, true, x_align, y_align),
+            } => node.layout_axis(spacing, available_area, true, x_align, y_align, state),
             LayoutType::Row {
                 spacing,
                 x_align,
                 y_align,
-            } => node.layout_axis(spacing, available_area, false, x_align, y_align),
+            } => node.layout_axis(spacing, available_area, false, x_align, y_align, state),
             LayoutType::Stack { x_align, y_align } => {
                 node.children.iter_mut().for_each(|child| {
                     child.allocated =
@@ -194,12 +194,11 @@ pub(crate) fn allocate<A, S>(constrained: &mut Layout<A, S>, available_area: Are
                 bottom,
             } => {
                 if let Some(child) = node.children.first_mut() {
-                    let constrained_area = available_area.constrained(&child.resolved, None, None);
                     let child_area = Area {
-                        x: constrained_area.x + leading,
-                        y: constrained_area.y + top,
-                        width: (constrained_area.width - leading - trailing).max(0.0),
-                        height: (constrained_area.height - top - bottom).max(0.0),
+                        x: available_area.x + leading,
+                        y: available_area.y + top,
+                        width: (available_area.width - leading - trailing).max(0.0),
+                        height: (available_area.height - top - bottom).max(0.0),
                     };
                     child.allocated = Some(child_area);
                 }
@@ -242,6 +241,7 @@ impl<A, S> Layout<A, S> {
         is_vertical: bool,
         x_align: Option<XAlign>,
         y_align: Option<YAlign>,
+        state: &mut S,
     ) {
         if self.children.is_empty() {
             return;
@@ -270,14 +270,14 @@ impl<A, S> Layout<A, S> {
                     .dynamic_constraints
                     .height
                     .as_ref()
-                    .map(|f| f(available_area.width))
+                    .map(|f| f(available_area.width, state))
                     .or(child.constraints.height.lower)
             } else {
                 child
                     .dynamic_constraints
                     .width
                     .as_ref()
-                    .map(|f| f(available_area.height))
+                    .map(|f| f(available_area.height, state))
                     .or(child.constraints.width.lower)
             };
             let mut upper = if is_vertical {
@@ -285,14 +285,14 @@ impl<A, S> Layout<A, S> {
                     .dynamic_constraints
                     .height
                     .as_ref()
-                    .map(|f| f(available_area.width))
+                    .map(|f| f(available_area.width, state))
                     .or(child.constraints.height.upper)
             } else {
                 child
                     .dynamic_constraints
                     .width
                     .as_ref()
-                    .map(|f| f(available_area.height))
+                    .map(|f| f(available_area.height, state))
                     .or(child.constraints.width.upper)
             };
 

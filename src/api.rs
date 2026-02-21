@@ -29,7 +29,7 @@ impl<A, S> Layout<A, S> {
 struct NodeBuilder<A, S = ()> {
     layout: LayoutType<A, S>,
     constraints: Constraints,
-    dynamic_constraints: DynamicConstraints,
+    dynamic_constraints: DynamicConstraints<S>,
     children: Vec<Layout<A, S>>,
 }
 
@@ -473,7 +473,7 @@ impl<A, S> Layout<A, S> {
     /// Generally you should prefer simple size constraints whenever possible.
     ///
     /// **This is primarily for UI elements such as text** where node width must depend on available height.
-    pub fn dynamic_width(mut self, f: impl Fn(f32) -> f32 + 'static) -> Layout<A, S> {
+    pub fn dynamic_width(mut self, f: impl Fn(f32, &mut S) -> f32 + 'static) -> Layout<A, S> {
         self.dynamic_constraints.width = Some(Box::new(f));
         self
     }
@@ -482,20 +482,20 @@ impl<A, S> Layout<A, S> {
     /// Generally you should prefer simple size constraints whenever possible.
     ///
     /// **This is primarily for UI elements such as text** where node height must depend on available width.
-    pub fn dynamic_height(mut self, f: impl Fn(f32) -> f32 + 'static) -> Layout<A, S> {
+    pub fn dynamic_height(mut self, f: impl Fn(f32, &mut S) -> f32 + 'static) -> Layout<A, S> {
         self.dynamic_constraints.height = Some(Box::new(f));
         self
     }
 
     /// Constrains the node's width to a multiple of it's height
     pub fn aspect_width(mut self, ratio: f32) -> Self {
-        self.dynamic_constraints.width = Some(Box::new(move |height| height * ratio));
+        self.dynamic_constraints.width = Some(Box::new(move |height, _| height * ratio));
         self
     }
 
     /// Constrains the node's height to a multiple of it's width
     pub fn aspect_height(mut self, ratio: f32) -> Self {
-        self.dynamic_constraints.height = Some(Box::new(move |width| width / ratio));
+        self.dynamic_constraints.height = Some(Box::new(move |width, _| width / ratio));
         self
     }
 }
