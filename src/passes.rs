@@ -151,11 +151,11 @@ pub(crate) fn resolve<A, S>(input: &mut Layout<A, S>, state: &mut S) {
             } else {
                 node.children.get(1).map(|child| child.constraints())
             }),
-            LayoutType::Offset { .. } | LayoutType::Space | LayoutType::AreaReader { .. } => {
+            LayoutType::Offset { .. } | LayoutType::Space => self_constraints
+                .combine_parent_child(node.children.first().map(|child| child.constraints())),
+            LayoutType::AreaReader { .. } | LayoutType::Draw(_) | LayoutType::Empty => {
                 self_constraints
-                    .combine_parent_child(node.children.first().map(|child| child.constraints()))
             }
-            LayoutType::Draw(_) | LayoutType::Empty => self_constraints,
         });
     })
 }

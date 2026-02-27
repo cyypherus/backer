@@ -24,6 +24,16 @@ impl<A, S> Layout<A, S> {
         perform_layout_passes(self, available_area, state);
         collect(self, state)
     }
+
+    pub fn min_height(&mut self, available_area: Area, state: &mut S) -> Option<f32> {
+        perform_layout_passes(self, available_area, state);
+        self.constraints().height.lower
+    }
+
+    pub fn min_width(&mut self, available_area: Area, state: &mut S) -> Option<f32> {
+        perform_layout_passes(self, available_area, state);
+        self.constraints().width.lower
+    }
 }
 
 struct NodeBuilder<A, S = ()> {
