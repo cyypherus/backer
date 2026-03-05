@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::rc::Rc;
 
 use crate::tree::TreeNode;
 
@@ -46,6 +47,77 @@ pub struct Layout<A, S = ()> {
 impl<A, S> Layout<A, S> {
     pub(crate) fn constraints(&self) -> Constraints {
         self.resolved.unwrap_or(self.constraints)
+    }
+}
+
+impl<A: 'static, S: 'static> Layout<A, S> {
+    /// Transform the draw output type of this layout tree.
+    pub fn map<B: 'static>(self, f: impl Fn(A) -> B + 'static) -> Layout<B, S> {
+        self.map_rc(Rc::new(f))
+    }
+
+    fn map_rc<B: 'static>(self, f: Rc<dyn Fn(A) -> B>) -> Layout<B, S> {
+        Layout {
+            layout: match self.layout {
+                LayoutType::Draw(Some(draw_fn)) => {
+                    let f = f.clone();
+                    LayoutType::Draw(Some(Box::new(move |area, s| f(draw_fn(area, s)))))
+                }
+                LayoutType::Draw(None) => LayoutType::Draw(None),
+                LayoutType::AreaReader { func: Some(func) } => {
+                    let f = f.clone();
+                    LayoutType::AreaReader {
+                        func: Some(Box::new(move |area, s| func(area, s).map_rc(f))),
+                    }
+                }
+                LayoutType::AreaReader { func: None } => LayoutType::AreaReader { func: None },
+                LayoutType::Column {
+                    spacing,
+                    x_align,
+                    y_align,
+                } => LayoutType::Column {
+                    spacing,
+                    x_align,
+                    y_align,
+                },
+                LayoutType::Row {
+                    spacing,
+                    x_align,
+                    y_align,
+                } => LayoutType::Row {
+                    spacing,
+                    x_align,
+                    y_align,
+                },
+                LayoutType::Stack { x_align, y_align } => {
+                    LayoutType::Stack { x_align, y_align }
+                }
+                LayoutType::Padding {
+                    leading,
+                    trailing,
+                    top,
+                    bottom,
+                } => LayoutType::Padding {
+                    leading,
+                    trailing,
+                    top,
+                    bottom,
+                },
+                LayoutType::Offset { x, y } => LayoutType::Offset { x, y },
+                LayoutType::Space => LayoutType::Space,
+                LayoutType::Empty => LayoutType::Empty,
+                LayoutType::Coupled { over } => LayoutType::Coupled { over },
+            },
+            constraints: self.constraints,
+            dynamic_constraints: self.dynamic_constraints,
+            layer: self.layer,
+            resolved: self.resolved,
+            allocated: self.allocated,
+            children: self.children
+                .into_iter()
+                .map(|c| c.map_rc(f.clone()))
+                .collect(),
+        }
     }
 }
 
