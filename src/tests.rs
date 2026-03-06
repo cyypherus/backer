@@ -5,7 +5,10 @@ mod tests_module {
 
     macro_rules! assert_area {
         ($expected:expr) => {
-            draw(move |a, _| assert_eq!(a, $expected))
+            draw(move |a, _| {
+                assert_eq!(a, $expected);
+                vec![()]
+            })
         };
     }
 
@@ -92,9 +95,9 @@ mod tests_module {
     #[test]
     fn test_layer_sorts_by_value() {
         let values = stack(vec![
-            draw(|_, _| 1).layer(5),
-            draw(|_, _| 2).layer(-5),
-            draw(|_, _| 3).layer(0),
+            draw(|_, _| vec![1]).layer(5),
+            draw(|_, _| vec![2]).layer(-5),
+            draw(|_, _| vec![3]).layer(0),
         ])
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
@@ -108,9 +111,9 @@ mod tests_module {
     #[test]
     fn test_layer_same_value_preserves_order() {
         let values = stack(vec![
-            draw(|_, _| 1).layer(5),
-            draw(|_, _| 2).layer(5),
-            draw(|_, _| 3).layer(5),
+            draw(|_, _| vec![1]).layer(5),
+            draw(|_, _| vec![2]).layer(5),
+            draw(|_, _| vec![3]).layer(5),
         ])
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
@@ -124,8 +127,8 @@ mod tests_module {
     #[test]
     fn test_layer_child_overrides_parent() {
         let values = stack(vec![
-            stack(vec![draw(|_, _| 1).layer(10)]).layer(1),
-            draw(|_, _| 2).layer(5),
+            stack(vec![draw(|_, _| vec![1]).layer(10)]).layer(1),
+            draw(|_, _| vec![2]).layer(5),
         ])
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
@@ -139,8 +142,8 @@ mod tests_module {
     #[test]
     fn test_layer_nested_inherits_context() {
         let values = stack(vec![
-            stack(vec![draw(|_, _| 1), draw(|_, _| 2)]).layer(1),
-            draw(|_, _| 3).layer(2),
+            stack(vec![draw(|_, _| vec![1]), draw(|_, _| vec![2])]).layer(1),
+            draw(|_, _| vec![3]).layer(2),
         ])
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
@@ -301,7 +304,7 @@ mod tests_module {
 
             fn transform_node<A>(node: &Layout<'_, A>) -> Layout<'static, Area> {
                 let new_layout = match &node.layout {
-                    LayoutType::Draw(_) => LayoutType::Draw(Some(Box::new(|area, _| area))),
+                    LayoutType::Draw(_) => LayoutType::Draw(Some(Box::new(|area, _| vec![area]))),
                     LayoutType::Column {
                         spacing,
                         x_align,
@@ -338,7 +341,6 @@ mod tests_module {
                     LayoutType::Offset { x, y } => LayoutType::Offset { x: *x, y: *y },
                     LayoutType::Space => LayoutType::Space,
                     LayoutType::Empty => LayoutType::Empty,
-                    LayoutType::MultipleDraw(_) => LayoutType::MultipleDraw(None),
                 };
 
                 Layout {
@@ -358,8 +360,16 @@ mod tests_module {
 
     #[test]
     fn test_expands_nested_nodes() {
-        let values = multi_draw(|area, s: &mut ()| {
-            multi_draw(|area, s: &mut ()| draw(|_area, _: &mut ()| 1).draw(area, s)).draw(area, s)
+        let values: Vec<usize> = draw(|area, s: &mut ()| {
+            draw(|area, s: &mut ()| {
+                //>
+                draw(|_area, _: &mut ()| {
+                    //>
+                    vec![1]
+                })
+                .draw(area, s)
+            })
+            .draw(area, s)
         })
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
         assert_eq!(values.len(), 1);
@@ -368,13 +378,13 @@ mod tests_module {
 
     #[test]
     fn test_draws_all_expanded_nodes() {
-        let values = multi_draw(|area, s: &mut ()| {
+        let values = draw(|area, s: &mut ()| {
             stack(vec![
                 stack(vec![
-                    multi_draw(|area, s: &mut ()| draw(|_area, _: &mut ()| 1).draw(area, s)),
-                    draw(|_, _| 1),
+                    draw(|area, s: &mut ()| draw(|_area, _: &mut ()| vec![1]).draw(area, s)),
+                    draw(|_, _| vec![1]),
                 ]),
-                draw(|_, _| 1),
+                draw(|_, _| vec![1]),
             ])
             .draw(area, s)
         })
@@ -388,12 +398,14 @@ mod tests_module {
             draw(|a, _| {
                 assert_eq!(a.width, 100.0);
                 assert_eq!(a.height, 50.0);
+                vec![()]
             })
             .height(50.0),
             draw(|a, _| {
                 assert_eq!(a.width, 100.0);
                 assert_eq!(a.height, 50.0);
                 assert_eq!(a.y, 50.0);
+                vec![()]
             })
             .height(50.0),
         ])
@@ -406,12 +418,14 @@ mod tests_module {
             draw(|a, _| {
                 assert_eq!(a.width, 50.0);
                 assert_eq!(a.height, 100.0);
+                vec![()]
             })
             .width(50.0),
             draw(|a, _| {
                 assert_eq!(a.width, 50.0);
                 assert_eq!(a.height, 100.0);
                 assert_eq!(a.x, 50.0);
+                vec![()]
             })
             .width(50.0),
         ])
@@ -425,12 +439,14 @@ mod tests_module {
                 draw(|a, _| {
                     assert_eq!(a.width, 50.0);
                     assert_eq!(a.height, 25.0);
+                    vec![()]
                 })
                 .width(50.0),
                 draw(|a, _| {
                     assert_eq!(a.width, 50.0);
                     assert_eq!(a.height, 25.0);
                     assert_eq!(a.x, 50.0);
+                    vec![()]
                 })
                 .width(50.0),
             ])
@@ -439,6 +455,7 @@ mod tests_module {
                 assert_eq!(a.width, 100.0);
                 assert_eq!(a.height, 75.0);
                 assert_eq!(a.y, 25.0);
+                vec![()]
             })
             .height(75.0),
         ])
@@ -452,6 +469,7 @@ mod tests_module {
             assert_eq!(a.y, 10.0);
             assert_eq!(a.width, 80.0);
             assert_eq!(a.height, 80.0);
+            vec![()]
         })
         .pad(10.0)
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
@@ -463,12 +481,12 @@ mod tests_module {
             draw(|a, _| {
                 assert_eq!(a.width, 100.0);
                 assert_eq!(a.height, 100.0);
-                1
+                vec![1]
             }),
             draw(|a, _| {
                 assert_eq!(a.width, 100.0);
                 assert_eq!(a.height, 100.0);
-                1
+                vec![1]
             }),
         ])
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
@@ -479,6 +497,7 @@ mod tests_module {
     fn test_dynamic_node() {
         draw(|a, _| {
             assert_eq!(a.width, 100.0);
+            vec![()]
         })
         .height(50.0)
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
@@ -487,8 +506,8 @@ mod tests_module {
     #[test]
     fn test_dynamic_node_drawing_issue() {
         let values = column(vec![
-            draw(|_, _| "dynamic_child_1".to_string()).height(20.0),
-            draw(|_, _| "static_draw".to_string()).height(30.0),
+            draw(|_, _| vec!["dynamic_child_1".to_string()]).height(20.0),
+            draw(|_, _| vec!["static_draw".to_string()]).height(30.0),
         ])
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
@@ -506,9 +525,9 @@ mod tests_module {
     #[test]
     fn test_nested_dynamic_nodes() {
         let values = column(vec![
-            draw(|_, _| "outer_before".to_string()).height(10.0),
-            draw(|_, _| "inner_1".to_string()).height(20.0),
-            draw(|_, _| "outer_after".to_string()).height(15.0),
+            draw(|_, _| vec!["outer_before".to_string()]).height(10.0),
+            draw(|_, _| vec!["inner_1".to_string()]).height(20.0),
+            draw(|_, _| vec!["outer_after".to_string()]).height(15.0),
         ])
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
@@ -1288,6 +1307,7 @@ mod tests_module {
                     assert!((a.y - 0.0).abs() < 0.001);
                     assert!((a.width - 50.0).abs() < 0.001);
                     assert!((a.height - 100.0).abs() < 0.001);
+                    vec![()]
                 }),
             ])
             .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
@@ -1299,22 +1319,26 @@ mod tests_module {
                 draw(|a, _| {
                     // Should get 40px height (half of remaining 80px after row takes 20px)
                     assert_eq!(a, Area::new(0., 0., 100., 40.));
+                    vec![()]
                 }),
                 row(vec![
                     draw(|a, _| {
                         // Row content should be 20px tall
                         assert_eq!(a, Area::new(0., 40., 50., 20.));
+                        vec![()]
                     })
                     .height(20.),
                     draw(|a, _| {
                         // Row content should be 20px tall
                         assert_eq!(a, Area::new(50., 40., 50., 20.));
+                        vec![()]
                     })
                     .height(20.),
                 ]),
                 draw(|a, _| {
                     // Should get 40px height (half of remaining 80px after row takes 20px)
                     assert_eq!(a, Area::new(0., 60., 100., 40.));
+                    vec![()]
                 }),
             ])
             .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
@@ -1324,9 +1348,9 @@ mod tests_module {
         fn test_configurable_depth_tree() {
             fn build_tree(depth: usize) -> Layout<'static, Area> {
                 if depth == 0 {
-                    draw(|area, _| area)
+                    draw(|area, _| vec![area])
                 } else {
-                    column(vec![draw(|area, _| area), build_tree(depth - 1)])
+                    column(vec![draw(|area, _| vec![area]), build_tree(depth - 1)])
                 }
             }
 
@@ -1344,9 +1368,10 @@ mod tests_module {
             stack(vec![
                 draw(move |a, _| {
                     assert_eq!(a.width, column_width);
+                    vec![()]
                 })
                 .inert(),
-                draw(|_, _| ())
+                draw(|_, _| vec![()])
                     .dynamic_height(|_, _| 30.)
                     .width(30.)
                     .pad_x(5.),
@@ -1355,9 +1380,10 @@ mod tests_module {
             stack(vec![
                 draw(move |a, _| {
                     assert_eq!(a.width, column_width);
+                    vec![()]
                 })
                 .inert(),
-                draw(|_, _| ()).dynamic_height(|_, _| 30.).width(50.),
+                draw(|_, _| vec![()]).dynamic_height(|_, _| 30.).width(50.),
             ]),
         ])
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
@@ -1373,6 +1399,7 @@ mod tests_module {
                 assert_eq!(a.width, 50.);
                 assert_eq!(a.height, 0.);
                 assert_eq!(a.y, 75.);
+                vec![()]
             })
             .inert(),
         ])
@@ -1385,19 +1412,21 @@ mod tests_module {
             draw(move |a, _| {
                 assert_eq!(a.width, 50.);
                 assert_eq!(a.height, 50.);
+                vec![()]
             })
             .width(50.)
             .height(50.)
             .inert(),
-            draw(|_, _| ()).width(10.).height(10.),
+            draw(|_, _| vec![()]).width(10.).height(10.),
         ])
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
         column(vec![
-            draw(|_, _| ()).width(10.).height(10.),
+            draw(|_, _| vec![()]).width(10.).height(10.),
             draw(move |a, _| {
                 assert_eq!(a.width, 50.);
                 assert_eq!(a.height, 50.);
+                vec![]
             })
             .width(50.)
             .height(50.)
@@ -1406,10 +1435,11 @@ mod tests_module {
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
         row(vec![
-            draw(|_, _| ()).width(10.).height(10.),
+            draw(|_, _| vec![()]).width(10.).height(10.),
             draw(move |a, _| {
                 assert_eq!(a.width, 50.);
                 assert_eq!(a.height, 50.);
+                vec![]
             })
             .width(50.)
             .height(50.)
@@ -1425,7 +1455,7 @@ mod tests_module {
         stack(vec![
             assert_area!(bg_area).inert(),
             stack(vec![
-                draw(|_, _| ()).inert(),
+                draw(|_, _| vec![()]).inert(),
                 assert_area!(content_area).dynamic_height(|_, _| 14.),
             ])
             .pad(10.),

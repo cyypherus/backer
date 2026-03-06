@@ -81,7 +81,7 @@ impl<'a, A, S> NodeBuilder<'a, A, S> {
 /// Creates a node that can be drawn.
 ///
 /// This node produces a value from a laid-out `Area` that will be collected when calling `Layout::draw`
-pub fn draw<'a, A, S>(data: impl FnOnce(Area, &mut S) -> A + 'a) -> Layout<'a, A, S> {
+pub fn draw<'a, A, S>(data: impl FnOnce(Area, &mut S) -> Vec<A> + 'a) -> Layout<'a, A, S> {
     NodeBuilder::new(LayoutType::Draw(Some(Box::new(data)))).build()
 }
 
@@ -235,14 +235,6 @@ pub fn space<'a, A, S>() -> Layout<'a, A, S> {
 /// adding elements to a layout in the case where nothing should be added.
 pub fn empty<'a, A, S>() -> Layout<'a, A, S> {
     NodeBuilder::new(LayoutType::Empty).build()
-}
-
-/// Returns nodes based on available area
-///
-/// This node comes with caveats! Constraints within an area reader **cannot** expand the area reader itself.
-/// If it could - it would require the resolution of a cyclical dependency.
-pub fn multi_draw<'a, A, S>(func: impl FnOnce(Area, &mut S) -> Vec<A> + 'a) -> Layout<'a, A, S> {
-    NodeBuilder::new(LayoutType::MultipleDraw(Some(Box::new(func)))).build()
 }
 
 impl<'a, A, S> Layout<'a, A, S> {

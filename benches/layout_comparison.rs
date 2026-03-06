@@ -2,7 +2,7 @@ use backer::{Area, Layout, nodes::*};
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn draw_noop() -> Layout<'static, Area> {
-    draw(|area: Area, _: &mut ()| area)
+    draw(|area: Area, _: &mut ()| vec![area])
 }
 
 fn create_simple_column_mvp() -> Layout<'static, Area> {

@@ -3,8 +3,7 @@ use std::rc::Rc;
 
 use crate::tree::TreeNode;
 
-pub(crate) type DrawFn<'a, A, S> = Box<dyn FnOnce(Area, &mut S) -> A + 'a>;
-pub(crate) type MultiDrawFn<'a, A, S> = Box<dyn FnOnce(Area, &mut S) -> Vec<A> + 'a>;
+pub(crate) type DrawFn<'a, A, S> = Box<dyn FnOnce(Area, &mut S) -> Vec<A> + 'a>;
 pub(crate) type DimensionFn<'a, S> = Option<Box<dyn Fn(f32, &mut S) -> f32 + 'a>>;
 
 /// The tree structure which represents a layout.
@@ -61,16 +60,11 @@ impl<'a, A: 'a, S: 'a> Layout<'a, A, S> {
             layout: match self.layout {
                 LayoutType::Draw(Some(draw_fn)) => {
                     let f = f.clone();
-                    LayoutType::Draw(Some(Box::new(move |area, s| f(draw_fn(area, s)))))
-                }
-                LayoutType::Draw(None) => LayoutType::Draw(None),
-                LayoutType::MultipleDraw(Some(func)) => {
-                    let f = f.clone();
-                    LayoutType::MultipleDraw(Some(Box::new(move |area, s| {
-                        func(area, s).into_iter().map(|a| f(a)).collect()
+                    LayoutType::Draw(Some(Box::new(move |area, s| {
+                        draw_fn(area, s).into_iter().map(|draw| f(draw)).collect()
                     })))
                 }
-                LayoutType::MultipleDraw(None) => LayoutType::MultipleDraw(None),
+                LayoutType::Draw(None) => LayoutType::Draw(None),
                 LayoutType::Column {
                     spacing,
                     x_align,
@@ -452,5 +446,4 @@ pub enum LayoutType<'a, A, S = ()> {
     },
     Space,
     Empty,
-    MultipleDraw(Option<MultiDrawFn<'a, A, S>>),
 }

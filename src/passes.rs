@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     Layout,
     tree::TreeNode,
-    types::{Area, AxisConstraint, Constraints, DrawFn, LayoutType, MultiDrawFn, XAlign, YAlign},
+    types::{Area, AxisConstraint, Constraints, DrawFn, LayoutType, XAlign, YAlign},
 };
 
 pub(crate) fn perform_layout_passes<'a, A, S>(
@@ -167,9 +167,7 @@ pub(crate) fn resolve<'a, A, S>(input: &mut Layout<'a, A, S>, state: &mut S) {
             })),
             LayoutType::Offset { .. } | LayoutType::Space => self_constraints
                 .combine_parent_child(node.children.first().map(|child| child.constraints())),
-            LayoutType::MultipleDraw(_) | LayoutType::Draw(_) | LayoutType::Empty => {
-                self_constraints
-            }
+            LayoutType::Draw(_) | LayoutType::Empty => self_constraints,
         });
     })
 }
@@ -233,7 +231,7 @@ pub(crate) fn allocate<'a, A, S>(
                     child.allocated = Some(child_area);
                 }
             }
-            LayoutType::MultipleDraw(_) => {}
+
             LayoutType::Space | LayoutType::Empty => (),
         }
     })
@@ -520,37 +518,22 @@ impl<'a, A, S> Layout<'a, A, S> {
     }
 }
 
-enum DrawItem<'a, A, S> {
-    Single(Option<Area>, DrawFn<'a, A, S>),
-    Multi(Option<Area>, MultiDrawFn<'a, A, S>),
-}
-
 pub(crate) fn collect<'a, A, S>(constrained: &mut Layout<'a, A, S>, state: &mut S) -> Vec<A> {
-    let mut layers = HashMap::<i32, Vec<DrawItem<'a, A, S>>>::new();
+    let mut layers = HashMap::<i32, Vec<(Option<Area>, DrawFn<'a, A, S>)>>::new();
     let mut stack = vec![(constrained, 0)];
     while let Some((node, mut contextual_layer)) = stack.pop() {
         if let Some(node_layer) = node.layer {
             contextual_layer = node_layer
         }
-        match &mut node.layout {
-            LayoutType::Draw(draw_fn) => {
-                if let Some(draw_fn) = draw_fn.take() {
-                    layers
-                        .entry(contextual_layer)
-                        .or_default()
-                        .push(DrawItem::Single(node.allocated, draw_fn));
-                }
-            }
-            LayoutType::MultipleDraw(func) => {
-                if let Some(func) = func.take() {
-                    layers
-                        .entry(contextual_layer)
-                        .or_default()
-                        .push(DrawItem::Multi(node.allocated, func));
-                }
-            }
-            _ => {}
+        if let LayoutType::Draw(draw_fn) = &mut node.layout
+            && let Some(draw_fn) = draw_fn.take()
+        {
+            layers
+                .entry(contextual_layer)
+                .or_default()
+                .push((node.allocated, draw_fn));
         }
+
         let children = node.children_mut();
         for child in children.rev() {
             stack.push((child, contextual_layer));
@@ -560,16 +543,9 @@ pub(crate) fn collect<'a, A, S>(constrained: &mut Layout<'a, A, S>, state: &mut 
     keys.sort();
     let mut result = Vec::<A>::new();
     for key in keys {
-        for item in layers.remove(&key).unwrap_or_default() {
-            match item {
-                DrawItem::Single(Some(area), drawable) => {
-                    result.push(drawable(area, state));
-                }
-                DrawItem::Multi(Some(area), func) => {
-                    result.extend(func(area, state));
-                }
-                _ => {}
-            }
+        for (area, func) in layers.remove(&key).unwrap_or_default() {
+            let Some(area) = area else { continue };
+            result.extend(func(area, state));
         }
     }
     result
