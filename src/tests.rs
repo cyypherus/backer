@@ -154,7 +154,7 @@ mod tests_module {
         );
     }
 
-    impl<A> Layout<'_, A> {
+    impl<D> Layout<'_, D> {
         fn debug_visualize(&mut self, available_area: Area) {
             fn visualize_areas(areas: &[Area], bounds: Area) {
                 if areas.is_empty() {
@@ -302,7 +302,7 @@ mod tests_module {
         fn to_area_layout(&self) -> Layout<'static, Area> {
             use crate::types::LayoutType;
 
-            fn transform_node<A>(node: &Layout<'_, A>) -> Layout<'static, Area> {
+            fn transform_node<D>(node: &Layout<'_, D>) -> Layout<'static, Area> {
                 let new_layout = match &node.layout {
                     LayoutType::Draw(_) => LayoutType::Draw(Some(Box::new(|area, _| vec![area]))),
                     LayoutType::Column {

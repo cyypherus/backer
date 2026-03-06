@@ -6,8 +6,8 @@ use crate::{
     types::{Area, AxisConstraint, Constraints, DrawFn, LayoutType, XAlign, YAlign},
 };
 
-pub(crate) fn perform_layout_passes<'a, A, S>(
-    tree: &mut Layout<'a, A, S>,
+pub(crate) fn perform_layout_passes<'a, D, S>(
+    tree: &mut Layout<'a, D, S>,
     available_area: Area,
     state: &mut S,
 ) {
@@ -18,7 +18,7 @@ pub(crate) fn perform_layout_passes<'a, A, S>(
     }
 }
 
-pub(crate) fn resolve<'a, A, S>(input: &mut Layout<'a, A, S>, state: &mut S) {
+pub(crate) fn resolve<'a, D, S>(input: &mut Layout<'a, D, S>, state: &mut S) {
     input.traverse_bottom_up(|node| {
         let self_constraints = Constraints {
             width: node
@@ -56,7 +56,7 @@ pub(crate) fn resolve<'a, A, S>(input: &mut Layout<'a, A, S>, state: &mut S) {
             LayoutType::Column { spacing, .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
                     Option::<Constraints>::None,
-                    |current: Option<Constraints>, child: &Layout<'a, A, S>| {
+                    |current: Option<Constraints>, child: &Layout<'a, D, S>| {
                         let mut masked = child.constraints();
                         if child.constraints.transparent_x {
                             masked.width = AxisConstraint::none();
@@ -82,7 +82,7 @@ pub(crate) fn resolve<'a, A, S>(input: &mut Layout<'a, A, S>, state: &mut S) {
             LayoutType::Row { spacing, .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
                     Option::<Constraints>::None,
-                    |current: Option<Constraints>, child: &Layout<'a, A, S>| {
+                    |current: Option<Constraints>, child: &Layout<'a, D, S>| {
                         let mut masked = child.constraints();
                         if child.constraints.transparent_x {
                             masked.width = AxisConstraint::none();
@@ -108,7 +108,7 @@ pub(crate) fn resolve<'a, A, S>(input: &mut Layout<'a, A, S>, state: &mut S) {
             LayoutType::Stack { .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
                     Option::<Constraints>::None,
-                    |current: Option<Constraints>, child: &Layout<'a, A, S>| {
+                    |current: Option<Constraints>, child: &Layout<'a, D, S>| {
                         let mut masked = child.constraints();
                         if child.constraints.transparent_x {
                             masked.width = AxisConstraint::none();
@@ -172,8 +172,8 @@ pub(crate) fn resolve<'a, A, S>(input: &mut Layout<'a, A, S>, state: &mut S) {
     })
 }
 
-pub(crate) fn allocate<'a, A, S>(
-    constrained: &mut Layout<'a, A, S>,
+pub(crate) fn allocate<'a, D, S>(
+    constrained: &mut Layout<'a, D, S>,
     available_area: Area,
     state: &mut S,
 ) {
@@ -237,7 +237,7 @@ pub(crate) fn allocate<'a, A, S>(
     })
 }
 
-impl<'a, A, S> Layout<'a, A, S> {
+impl<'a, D, S> Layout<'a, D, S> {
     fn layout_axis(
         &mut self,
         spacing: f32,
@@ -518,8 +518,8 @@ impl<'a, A, S> Layout<'a, A, S> {
     }
 }
 
-pub(crate) fn collect<'a, A, S>(constrained: &mut Layout<'a, A, S>, state: &mut S) -> Vec<A> {
-    let mut layers = HashMap::<i32, Vec<(Option<Area>, DrawFn<'a, A, S>)>>::new();
+pub(crate) fn collect<'a, D, S>(constrained: &mut Layout<'a, D, S>, state: &mut S) -> Vec<D> {
+    let mut layers = HashMap::<i32, Vec<(Option<Area>, DrawFn<'a, D, S>)>>::new();
     let mut stack = vec![(constrained, 0)];
     while let Some((node, mut contextual_layer)) = stack.pop() {
         if let Some(node_layer) = node.layer {
@@ -541,7 +541,7 @@ pub(crate) fn collect<'a, A, S>(constrained: &mut Layout<'a, A, S>, state: &mut 
     }
     let mut keys: Vec<i32> = layers.keys().cloned().collect();
     keys.sort();
-    let mut result = Vec::<A>::new();
+    let mut result = Vec::<D>::new();
     for key in keys {
         for (area, func) in layers.remove(&key).unwrap_or_default() {
             let Some(area) = area else { continue };

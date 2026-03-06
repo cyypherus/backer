@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::tree::TreeNode;
 
-pub(crate) type DrawFn<'a, A, S> = Box<dyn FnOnce(Area, &mut S) -> Vec<A> + 'a>;
+pub(crate) type DrawFn<'a, D, S> = Box<dyn FnOnce(Area, &mut S) -> Vec<D> + 'a>;
 pub(crate) type DimensionFn<'a, S> = Option<Box<dyn Fn(f32, &mut S) -> f32 + 'a>>;
 
 /// The tree structure which represents a layout.
@@ -26,36 +26,36 @@ pub(crate) type DimensionFn<'a, S> = Option<Box<dyn Fn(f32, &mut S) -> f32 + 'a>
 /// struct Label { area: Area, text: &'static str }
 ///
 /// let mut layout = column(vec![
-///     draw(|area, _: &mut ()| View::Button(Button { area })).width(100.0).height(50.0),
-///     draw(|area, _: &mut ()| View::Label(Label { area, text: "Hello world!" })).width(100.0).height(50.0),
+///     draw(|area, _: &mut ()| vec![View::Button(Button { area })]).width(100.0).height(50.0),
+///     draw(|area, _: &mut ()| vec![View::Label(Label { area, text: "Hello world!" })]).width(100.0).height(50.0),
 /// ]);
 ///
 /// let views = layout.draw(Area::new(0.0, 0.0, 200.0, 150.0), &mut ());
 /// // views is now a Vec of Button values with their laid-out areas
 /// ```
-pub struct Layout<'a, A, S = ()> {
-    pub(crate) layout: LayoutType<'a, A, S>,
+pub struct Layout<'a, D, S = ()> {
+    pub(crate) layout: LayoutType<'a, D, S>,
     pub(crate) constraints: Constraints,
     pub(crate) dynamic_constraints: DynamicConstraints<'a, S>,
     pub(crate) layer: Option<i32>,
     pub(crate) resolved: Option<Constraints>,
     pub(crate) allocated: Option<Area>,
-    pub(crate) children: Vec<Layout<'a, A, S>>,
+    pub(crate) children: Vec<Layout<'a, D, S>>,
 }
 
-impl<'a, A, S> Layout<'a, A, S> {
+impl<'a, D, S> Layout<'a, D, S> {
     pub(crate) fn constraints(&self) -> Constraints {
         self.resolved.unwrap_or(self.constraints)
     }
 }
 
-impl<'a, A: 'a, S: 'a> Layout<'a, A, S> {
-    /// Transforms the draw output of every node in the tree from type `A` to type `B`.
-    pub fn map<B: 'a>(self, f: impl Fn(A) -> B + 'a) -> Layout<'a, B, S> {
+impl<'a, D: 'a, S: 'a> Layout<'a, D, S> {
+    /// Transforms the draw output of every node in the tree from type `D` to type `B`.
+    pub fn map<B: 'a>(self, f: impl Fn(D) -> B + 'a) -> Layout<'a, B, S> {
         self.map_rc(Rc::new(f))
     }
 
-    fn map_rc<B: 'a>(self, f: Rc<dyn Fn(A) -> B + 'a>) -> Layout<'a, B, S> {
+    fn map_rc<B: 'a>(self, f: Rc<dyn Fn(D) -> B + 'a>) -> Layout<'a, B, S> {
         Layout {
             layout: match self.layout {
                 LayoutType::Draw(Some(draw_fn)) => {
@@ -113,7 +113,7 @@ impl<'a, A: 'a, S: 'a> Layout<'a, A, S> {
     }
 }
 
-impl<'a, A, S> TreeNode for Layout<'a, A, S> {
+impl<'a, D, S> TreeNode for Layout<'a, D, S> {
     fn children_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Self> {
         self.children.iter_mut()
     }
@@ -418,8 +418,8 @@ impl Area {
     }
 }
 
-pub enum LayoutType<'a, A, S = ()> {
-    Draw(Option<DrawFn<'a, A, S>>),
+pub enum LayoutType<'a, D, S = ()> {
+    Draw(Option<DrawFn<'a, D, S>>),
     Column {
         spacing: f32,
         x_align: Option<XAlign>,
