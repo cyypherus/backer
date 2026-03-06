@@ -139,7 +139,7 @@ mod tests_module {
         );
     }
 
-    impl<A> Layout<A> {
+    impl<A> Layout<'_, A> {
         fn debug_visualize(&mut self, available_area: Area) {
             fn visualize_areas(areas: &[Area], bounds: Area) {
                 if areas.is_empty() {
@@ -284,10 +284,10 @@ mod tests_module {
             );
         }
 
-        fn to_area_layout(&self) -> Layout<Area> {
+        fn to_area_layout(&self) -> Layout<'static, Area> {
             use crate::types::LayoutType;
 
-            fn transform_node<A>(node: &Layout<A>) -> Layout<Area> {
+            fn transform_node<A>(node: &Layout<'_, A>) -> Layout<'static, Area> {
                 let new_layout = match &node.layout {
                     LayoutType::Draw(_) => LayoutType::Draw(Some(Box::new(|area, _| area))),
                     LayoutType::Column {
@@ -327,7 +327,7 @@ mod tests_module {
                     LayoutType::Space => LayoutType::Space,
                     LayoutType::Empty => LayoutType::Empty,
                     LayoutType::Coupled { over } => LayoutType::Coupled { over: *over },
-                    LayoutType::AreaReader { .. } => LayoutType::AreaReader { func: None },
+                    LayoutType::MultipleDraw(_) => LayoutType::MultipleDraw(None),
                 };
 
                 Layout {
@@ -347,19 +347,25 @@ mod tests_module {
 
     #[test]
     fn test_expands_nested_nodes() {
-        let values = area_reader(|_, _| area_reader(|_, _| draw(|_, _| 1)))
-            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        let values = multi_draw(|area, s: &mut ()| {
+            multi_draw(|area, s: &mut ()| draw(|_area, _: &mut ()| 1).draw(area, s)).draw(area, s)
+        })
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
         assert_eq!(values.len(), 1);
         assert_eq!(values[0], 1);
     }
 
     #[test]
     fn test_draws_all_expanded_nodes() {
-        let values = area_reader(|_, _| {
+        let values = multi_draw(|area, s: &mut ()| {
             stack(vec![
-                stack(vec![area_reader(|_, _| draw(|_, _| 1)), draw(|_, _| 1)]),
+                stack(vec![
+                    multi_draw(|area, s: &mut ()| draw(|_area, _: &mut ()| 1).draw(area, s)),
+                    draw(|_, _| 1),
+                ]),
                 draw(|_, _| 1),
             ])
+            .draw(area, s)
         })
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
         assert_eq!(values.len(), 3);
@@ -1302,7 +1308,7 @@ mod tests_module {
 
         #[test]
         fn test_configurable_depth_tree() {
-            fn build_tree(depth: usize) -> Layout<Area> {
+            fn build_tree(depth: usize) -> Layout<'static, Area> {
                 if depth == 0 {
                     draw(|area, _| area)
                 } else {

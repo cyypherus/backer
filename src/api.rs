@@ -18,33 +18,33 @@ or pushing against other unconstrained nodes with equal force.
     };
 }
 
-impl<A, S> Layout<A, S> {
+impl<'a, A, S> Layout<'a, A, S> {
     /// Performs layout passes & collect all the draw values from draw nodes.
     pub fn draw(&mut self, available_area: Area, state: &mut S) -> Vec<A> {
         perform_layout_passes(self, available_area, state);
         collect(self, state)
     }
-
+    /// Layout the node & return the minimum height allowed described by the layout tree's constraints
     pub fn min_height(&mut self, available_area: Area, state: &mut S) -> Option<f32> {
         perform_layout_passes(self, available_area, state);
         self.constraints().height.lower
     }
-
+    /// Layout the node & return the minimum width allowed by the layout tree's constraints
     pub fn min_width(&mut self, available_area: Area, state: &mut S) -> Option<f32> {
         perform_layout_passes(self, available_area, state);
         self.constraints().width.lower
     }
 }
 
-struct NodeBuilder<A, S = ()> {
-    layout: LayoutType<A, S>,
+struct NodeBuilder<'a, A, S = ()> {
+    layout: LayoutType<'a, A, S>,
     constraints: Constraints,
-    dynamic_constraints: DynamicConstraints<S>,
-    children: Vec<Layout<A, S>>,
+    dynamic_constraints: DynamicConstraints<'a, S>,
+    children: Vec<Layout<'a, A, S>>,
 }
 
-impl<A, S> NodeBuilder<A, S> {
-    fn new(layout: LayoutType<A, S>) -> Self {
+impl<'a, A, S> NodeBuilder<'a, A, S> {
+    fn new(layout: LayoutType<'a, A, S>) -> Self {
         Self {
             layout,
             constraints: Constraints::default(),
@@ -53,7 +53,7 @@ impl<A, S> NodeBuilder<A, S> {
         }
     }
 
-    fn children(mut self, children: Vec<Layout<A, S>>) -> Self {
+    fn children(mut self, children: Vec<Layout<'a, A, S>>) -> Self {
         self.children = children
             .into_iter()
             .filter(|child| !matches!(child.layout, LayoutType::Empty))
@@ -61,11 +61,11 @@ impl<A, S> NodeBuilder<A, S> {
         self
     }
 
-    fn child(self, child: Layout<A, S>) -> Self {
+    fn child(self, child: Layout<'a, A, S>) -> Self {
         self.children(vec![child])
     }
 
-    fn build(self) -> Layout<A, S> {
+    fn build(self) -> Layout<'a, A, S> {
         Layout {
             layout: self.layout,
             constraints: self.constraints,
@@ -81,14 +81,14 @@ impl<A, S> NodeBuilder<A, S> {
 /// Creates a node that can be drawn.
 ///
 /// This node produces a value from a laid-out `Area` that will be collected when calling `Layout::draw`
-pub fn draw<A, S>(data: impl FnOnce(Area, &mut S) -> A + 'static) -> Layout<A, S> {
+pub fn draw<'a, A, S>(data: impl FnOnce(Area, &mut S) -> A + 'a) -> Layout<'a, A, S> {
     NodeBuilder::new(LayoutType::Draw(Some(Box::new(data)))).build()
 }
 
 /// Creates a vertical sequence of elements
 ///
 #[doc = container_doc!()]
-pub fn column<A, S>(elements: Vec<Layout<A, S>>) -> Layout<A, S> {
+pub fn column<'a, A, S>(elements: Vec<Layout<'a, A, S>>) -> Layout<'a, A, S> {
     NodeBuilder::new(LayoutType::Column {
         spacing: 0.,
         x_align: None,
@@ -101,7 +101,7 @@ pub fn column<A, S>(elements: Vec<Layout<A, S>>) -> Layout<A, S> {
 /// Creates a vertical sequence of elements with the specified spacing between each element.
 ///
 #[doc = container_doc!()]
-pub fn column_spaced<A, S>(spacing: f32, elements: Vec<Layout<A, S>>) -> Layout<A, S> {
+pub fn column_spaced<'a, A, S>(spacing: f32, elements: Vec<Layout<'a, A, S>>) -> Layout<'a, A, S> {
     NodeBuilder::new(LayoutType::Column {
         spacing,
         x_align: None,
@@ -114,7 +114,7 @@ pub fn column_spaced<A, S>(spacing: f32, elements: Vec<Layout<A, S>>) -> Layout<
 /// Creates a vertical sequence of elements with the specified alignment applied to each immediate child.
 ///
 #[doc = container_doc!()]
-pub fn column_aligned<A, S>(align: Align, elements: Vec<Layout<A, S>>) -> Layout<A, S> {
+pub fn column_aligned<'a, A, S>(align: Align, elements: Vec<Layout<'a, A, S>>) -> Layout<'a, A, S> {
     let (x_align, y_align) = align.axis_aligns();
     NodeBuilder::new(LayoutType::Column {
         spacing: 0.,
@@ -128,11 +128,11 @@ pub fn column_aligned<A, S>(align: Align, elements: Vec<Layout<A, S>>) -> Layout
 /// Creates a horizontal sequence of elements with the specified spacing between each element and the specified alignment applied to each immediate child.
 ///
 #[doc = container_doc!()]
-pub fn column_spaced_aligned<A, S>(
+pub fn column_spaced_aligned<'a, A, S>(
     spacing: f32,
     align: Align,
-    elements: Vec<Layout<A, S>>,
-) -> Layout<A, S> {
+    elements: Vec<Layout<'a, A, S>>,
+) -> Layout<'a, A, S> {
     let (x_align, y_align) = align.axis_aligns();
     NodeBuilder::new(LayoutType::Column {
         spacing,
@@ -146,7 +146,7 @@ pub fn column_spaced_aligned<A, S>(
 /// Creates a horizontal sequence of elements
 ///
 #[doc = container_doc!()]
-pub fn row<A, S>(elements: Vec<Layout<A, S>>) -> Layout<A, S> {
+pub fn row<'a, A, S>(elements: Vec<Layout<'a, A, S>>) -> Layout<'a, A, S> {
     NodeBuilder::new(LayoutType::Row {
         spacing: 0.0,
         x_align: None,
@@ -159,7 +159,7 @@ pub fn row<A, S>(elements: Vec<Layout<A, S>>) -> Layout<A, S> {
 /// Creates a horizontal sequence of elements with the specified spacing between each element.
 ///
 #[doc = container_doc!()]
-pub fn row_spaced<A, S>(spacing: f32, elements: Vec<Layout<A, S>>) -> Layout<A, S> {
+pub fn row_spaced<'a, A, S>(spacing: f32, elements: Vec<Layout<'a, A, S>>) -> Layout<'a, A, S> {
     NodeBuilder::new(LayoutType::Row {
         spacing,
         x_align: None,
@@ -172,7 +172,7 @@ pub fn row_spaced<A, S>(spacing: f32, elements: Vec<Layout<A, S>>) -> Layout<A, 
 /// Creates a horizontal sequence of elements with the specified alignment applied to each immediate child.
 ///
 #[doc = container_doc!()]
-pub fn row_aligned<A, S>(align: Align, elements: Vec<Layout<A, S>>) -> Layout<A, S> {
+pub fn row_aligned<'a, A, S>(align: Align, elements: Vec<Layout<'a, A, S>>) -> Layout<'a, A, S> {
     let (x_align, y_align) = align.axis_aligns();
     NodeBuilder::new(LayoutType::Row {
         spacing: 0.0,
@@ -186,11 +186,11 @@ pub fn row_aligned<A, S>(align: Align, elements: Vec<Layout<A, S>>) -> Layout<A,
 /// Creates a horizontal sequence of elements with the specified spacing between each element and the specified alignment applied to each immediate child.
 ///
 #[doc = container_doc!()]
-pub fn row_spaced_aligned<A, S>(
+pub fn row_spaced_aligned<'a, A, S>(
     spacing: f32,
     align: Align,
-    elements: Vec<Layout<A, S>>,
-) -> Layout<A, S> {
+    elements: Vec<Layout<'a, A, S>>,
+) -> Layout<'a, A, S> {
     let (x_align, y_align) = align.axis_aligns();
     NodeBuilder::new(LayoutType::Row {
         spacing,
@@ -204,7 +204,7 @@ pub fn row_spaced_aligned<A, S>(
 /// Creates a sequence of elements to be laid out on top of each other.
 ///
 #[doc = container_doc!()]
-pub fn stack<A, S>(elements: Vec<Layout<A, S>>) -> Layout<A, S> {
+pub fn stack<'a, A, S>(elements: Vec<Layout<'a, A, S>>) -> Layout<'a, A, S> {
     NodeBuilder::new(LayoutType::Stack {
         x_align: None,
         y_align: None,
@@ -216,7 +216,7 @@ pub fn stack<A, S>(elements: Vec<Layout<A, S>>) -> Layout<A, S> {
 /// Creates a sequence of elements to be laid out on top of each other with the specified alignment applied to each immediate child.
 ///
 #[doc = container_doc!()]
-pub fn stack_aligned<A, S>(align: Align, elements: Vec<Layout<A, S>>) -> Layout<A, S> {
+pub fn stack_aligned<'a, A, S>(align: Align, elements: Vec<Layout<'a, A, S>>) -> Layout<'a, A, S> {
     let (x_align, y_align) = align.axis_aligns();
     NodeBuilder::new(LayoutType::Stack { x_align, y_align })
         .children(elements)
@@ -227,13 +227,13 @@ pub fn stack_aligned<A, S>(align: Align, elements: Vec<Layout<A, S>>) -> Layout<
 ///
 /// To add spacing between each item in a row or column you can also use
 /// [`row_spaced`] & [`column_spaced`]
-pub fn space<A, S>() -> Layout<A, S> {
+pub fn space<'a, A, S>() -> Layout<'a, A, S> {
     NodeBuilder::new(LayoutType::Space).build()
 }
 
 /// Nothing! This will not have any impact on layout - useful for conditionally
 /// adding elements to a layout in the case where nothing should be added.
-pub fn empty<A, S>() -> Layout<A, S> {
+pub fn empty<'a, A, S>() -> Layout<'a, A, S> {
     NodeBuilder::new(LayoutType::Empty).build()
 }
 
@@ -241,16 +241,13 @@ pub fn empty<A, S>() -> Layout<A, S> {
 ///
 /// This node comes with caveats! Constraints within an area reader **cannot** expand the area reader itself.
 /// If it could - it would require the resolution of a cyclical dependency.
-pub fn area_reader<A, S>(func: impl Fn(Area, &mut S) -> Layout<A, S> + 'static) -> Layout<A, S> {
-    NodeBuilder::new(LayoutType::AreaReader {
-        func: Some(Box::new(func)),
-    })
-    .build()
+pub fn multi_draw<'a, A, S>(func: impl FnOnce(Area, &mut S) -> Vec<A> + 'a) -> Layout<'a, A, S> {
+    NodeBuilder::new(LayoutType::MultipleDraw(Some(Box::new(func)))).build()
 }
 
-impl<A, S> Layout<A, S> {
+impl<'a, A, S> Layout<'a, A, S> {
     /// Adds padding to the node on all edges
-    pub fn pad(self, amount: f32) -> Layout<A, S> {
+    pub fn pad(self, amount: f32) -> Layout<'a, A, S> {
         NodeBuilder::new(LayoutType::Padding {
             leading: amount,
             trailing: amount,
@@ -336,7 +333,7 @@ impl<A, S> Layout<A, S> {
     /// Offsets the node along the x & y axis.
     /// This is an absolute offset that simply shifts nodes away from their calculated position
     /// This won't impact layout besides child nodes also being offset
-    pub fn offset(self, x: f32, y: f32) -> Layout<A, S> {
+    pub fn offset(self, x: f32, y: f32) -> Layout<'a, A, S> {
         NodeBuilder::new(LayoutType::Offset { x, y })
             .child(self)
             .build()
@@ -345,7 +342,7 @@ impl<A, S> Layout<A, S> {
     /// Offsets the node along the x axis.
     /// This is an absolute offset that simply shifts nodes away from their calculated position
     /// This won't impact layout besides child nodes also being offset
-    pub fn offset_x(self, x: f32) -> Layout<A, S> {
+    pub fn offset_x(self, x: f32) -> Layout<'a, A, S> {
         NodeBuilder::new(LayoutType::Offset { x, y: 0. })
             .child(self)
             .build()
@@ -354,7 +351,7 @@ impl<A, S> Layout<A, S> {
     /// Offsets the node along the y axis.
     /// This is an absolute offset that simply shifts nodes away from their calculated position
     /// This won't impact layout besides child nodes also being offset
-    pub fn offset_y(self, y: f32) -> Layout<A, S> {
+    pub fn offset_y(self, y: f32) -> Layout<'a, A, S> {
         NodeBuilder::new(LayoutType::Offset { x: 0., y })
             .child(self)
             .build()
@@ -364,7 +361,7 @@ impl<A, S> Layout<A, S> {
     ///
     /// The area available to the attached node is the size of the node it's attached to.
     /// Useful for adding an unconstrained node as an ornament, background, or overlay to a constrained node.
-    pub fn attach_under(self, node: Layout<A, S>) -> Layout<A, S> {
+    pub fn attach_under(self, node: Layout<'a, A, S>) -> Layout<'a, A, S> {
         NodeBuilder::new(LayoutType::Coupled { over: false })
             .children(vec![node, self])
             .build()
@@ -374,17 +371,17 @@ impl<A, S> Layout<A, S> {
     ///
     /// The area available to the attached node is the size of the node it's attached to.
     /// Useful for adding an unconstrained node as an ornament, background, or overlay to a constrained node.
-    pub fn attach_over(self, node: Layout<A, S>) -> Layout<A, S> {
+    pub fn attach_over(self, node: Layout<'a, A, S>) -> Layout<'a, A, S> {
         NodeBuilder::new(LayoutType::Coupled { over: true })
             .children(vec![self, node])
             .build()
     }
 }
 
-impl<A, S> Layout<A, S> {
+impl<'a, A, S> Layout<'a, A, S> {
     /// Specifies the z layer of the node.
     /// Layers are global, & all children of a node will inherit their parent's layer.
-    pub fn layer(mut self, layer: i32) -> Layout<A, S> {
+    pub fn layer(mut self, layer: i32) -> Layout<'a, A, S> {
         self.layer = Some(layer);
         self
     }
@@ -483,7 +480,7 @@ impl<A, S> Layout<A, S> {
     /// Generally you should prefer simple size constraints whenever possible.
     ///
     /// **This is primarily for UI elements such as text** where node width must depend on available height.
-    pub fn dynamic_width(mut self, f: impl Fn(f32, &mut S) -> f32 + 'static) -> Layout<A, S> {
+    pub fn dynamic_width(mut self, f: impl Fn(f32, &mut S) -> f32 + 'a) -> Layout<'a, A, S> {
         self.dynamic_constraints.width = Some(Box::new(f));
         self
     }
@@ -492,7 +489,7 @@ impl<A, S> Layout<A, S> {
     /// Generally you should prefer simple size constraints whenever possible.
     ///
     /// **This is primarily for UI elements such as text** where node height must depend on available width.
-    pub fn dynamic_height(mut self, f: impl Fn(f32, &mut S) -> f32 + 'static) -> Layout<A, S> {
+    pub fn dynamic_height(mut self, f: impl Fn(f32, &mut S) -> f32 + 'a) -> Layout<'a, A, S> {
         self.dynamic_constraints.height = Some(Box::new(f));
         self
     }

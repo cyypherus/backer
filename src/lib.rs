@@ -27,7 +27,7 @@ pub use types::{Align, Area, Layout};
 /// All available node constructors
 pub mod nodes {
     pub use crate::api::{
-        area_reader, column, column_aligned, column_spaced, column_spaced_aligned, draw, empty,
+        multi_draw, column, column_aligned, column_spaced, column_spaced_aligned, draw, empty,
         row, row_aligned, row_spaced, row_spaced_aligned, space, stack, stack_aligned,
     };
 }

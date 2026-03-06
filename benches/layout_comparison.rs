@@ -1,13 +1,11 @@
 use backer::{Area, Layout, nodes::*};
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
-type BenchLayout = Layout<Area>;
-
-fn draw_noop() -> BenchLayout {
+fn draw_noop() -> Layout<'static, Area> {
     draw(|area: Area, _: &mut ()| area)
 }
 
-fn create_simple_column_mvp() -> BenchLayout {
+fn create_simple_column_mvp() -> Layout<'static, Area> {
     column(vec![
         draw_noop().height(30.0),
         draw_noop().height(40.0),
@@ -15,7 +13,7 @@ fn create_simple_column_mvp() -> BenchLayout {
     ])
 }
 
-fn create_complex_nested_mvp() -> BenchLayout {
+fn create_complex_nested_mvp() -> Layout<'static, Area> {
     column(vec![
         row(vec![
             draw_noop().width(50.0).height(30.0),
@@ -27,7 +25,7 @@ fn create_complex_nested_mvp() -> BenchLayout {
     ])
 }
 
-fn create_nested_column(depth: usize) -> BenchLayout {
+fn create_nested_column(depth: usize) -> Layout<'static, Area> {
     if depth == 0 {
         draw_noop().height(20.0)
     } else {
@@ -35,11 +33,11 @@ fn create_nested_column(depth: usize) -> BenchLayout {
     }
 }
 
-fn create_deep_nesting_mvp(depth: usize) -> BenchLayout {
+fn create_deep_nesting_mvp(depth: usize) -> Layout<'static, Area> {
     create_nested_column(depth)
 }
 
-fn create_wide_layout_mvp(width: usize) -> BenchLayout {
+fn create_wide_layout_mvp(width: usize) -> Layout<'static, Area> {
     let elements: Vec<_> = (0..width).map(|_| draw_noop().height(20.0)).collect();
     column(elements)
 }

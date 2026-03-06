@@ -4,7 +4,7 @@ use crate::{
 };
 use std::fmt::Debug;
 
-impl<A, S> Debug for Layout<A, S> {
+impl<'a, A, S> Debug for Layout<'a, A, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Layout")
             .field("layout", &format!("{:?}", &self.layout))
@@ -17,7 +17,7 @@ impl<A, S> Debug for Layout<A, S> {
     }
 }
 
-impl<A, S> Debug for LayoutType<A, S> {
+impl<'a, A, S> Debug for LayoutType<'a, A, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LayoutType::Draw(_) => f.debug_tuple("Draw").field(&"<function>").finish(),
@@ -66,15 +66,12 @@ impl<A, S> Debug for LayoutType<A, S> {
             LayoutType::Space => write!(f, "Space"),
             LayoutType::Empty => write!(f, "Empty"),
             LayoutType::Coupled { over } => f.debug_struct("Coupled").field("over", over).finish(),
-            LayoutType::AreaReader { func: _ } => f
-                .debug_struct("AreaReader")
-                .field("func", &"<function>")
-                .finish(),
+            LayoutType::MultipleDraw(_) => write!(f, "MultipleDraw"),
         }
     }
 }
 
-impl<S> Debug for DynamicConstraints<S> {
+impl<'a, S> Debug for DynamicConstraints<'a, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DynamicConstraints")
             .field("width", &"<function>")

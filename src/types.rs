@@ -3,9 +3,9 @@ use std::rc::Rc;
 
 use crate::tree::TreeNode;
 
-pub(crate) type DrawFn<A, S> = Box<dyn FnOnce(Area, &mut S) -> A>;
-pub(crate) type DimensionFn<S> = Option<Box<dyn Fn(f32, &mut S) -> f32>>;
-pub(crate) type AreaReaderFn<A, S> = Box<dyn FnOnce(Area, &mut S) -> Layout<A, S>>;
+pub(crate) type DrawFn<'a, A, S> = Box<dyn FnOnce(Area, &mut S) -> A + 'a>;
+pub(crate) type MultiDrawFn<'a, A, S> = Box<dyn FnOnce(Area, &mut S) -> Vec<A> + 'a>;
+pub(crate) type DimensionFn<'a, S> = Option<Box<dyn Fn(f32, &mut S) -> f32 + 'a>>;
 
 /// The tree structure which represents a layout.
 ///
@@ -34,29 +34,29 @@ pub(crate) type AreaReaderFn<A, S> = Box<dyn FnOnce(Area, &mut S) -> Layout<A, S
 /// let views = layout.draw(Area::new(0.0, 0.0, 200.0, 150.0), &mut ());
 /// // views is now a Vec of Button values with their laid-out areas
 /// ```
-pub struct Layout<A, S = ()> {
-    pub(crate) layout: LayoutType<A, S>,
+pub struct Layout<'a, A, S = ()> {
+    pub(crate) layout: LayoutType<'a, A, S>,
     pub(crate) constraints: Constraints,
-    pub(crate) dynamic_constraints: DynamicConstraints<S>,
+    pub(crate) dynamic_constraints: DynamicConstraints<'a, S>,
     pub(crate) layer: Option<i32>,
     pub(crate) resolved: Option<Constraints>,
     pub(crate) allocated: Option<Area>,
-    pub(crate) children: Vec<Layout<A, S>>,
+    pub(crate) children: Vec<Layout<'a, A, S>>,
 }
 
-impl<A, S> Layout<A, S> {
+impl<'a, A, S> Layout<'a, A, S> {
     pub(crate) fn constraints(&self) -> Constraints {
         self.resolved.unwrap_or(self.constraints)
     }
 }
 
-impl<A: 'static, S: 'static> Layout<A, S> {
-    /// Transform the draw output type of this layout tree.
-    pub fn map<B: 'static>(self, f: impl Fn(A) -> B + 'static) -> Layout<B, S> {
+impl<'a, A: 'a, S: 'a> Layout<'a, A, S> {
+    /// Transforms the draw output of every node in the tree from type `A` to type `B`.
+    pub fn map<B: 'a>(self, f: impl Fn(A) -> B + 'a) -> Layout<'a, B, S> {
         self.map_rc(Rc::new(f))
     }
 
-    fn map_rc<B: 'static>(self, f: Rc<dyn Fn(A) -> B>) -> Layout<B, S> {
+    fn map_rc<B: 'a>(self, f: Rc<dyn Fn(A) -> B + 'a>) -> Layout<'a, B, S> {
         Layout {
             layout: match self.layout {
                 LayoutType::Draw(Some(draw_fn)) => {
@@ -64,13 +64,13 @@ impl<A: 'static, S: 'static> Layout<A, S> {
                     LayoutType::Draw(Some(Box::new(move |area, s| f(draw_fn(area, s)))))
                 }
                 LayoutType::Draw(None) => LayoutType::Draw(None),
-                LayoutType::AreaReader { func: Some(func) } => {
+                LayoutType::MultipleDraw(Some(func)) => {
                     let f = f.clone();
-                    LayoutType::AreaReader {
-                        func: Some(Box::new(move |area, s| func(area, s).map_rc(f))),
-                    }
+                    LayoutType::MultipleDraw(Some(Box::new(move |area, s| {
+                        func(area, s).into_iter().map(|a| f(a)).collect()
+                    })))
                 }
-                LayoutType::AreaReader { func: None } => LayoutType::AreaReader { func: None },
+                LayoutType::MultipleDraw(None) => LayoutType::MultipleDraw(None),
                 LayoutType::Column {
                     spacing,
                     x_align,
@@ -89,9 +89,7 @@ impl<A: 'static, S: 'static> Layout<A, S> {
                     x_align,
                     y_align,
                 },
-                LayoutType::Stack { x_align, y_align } => {
-                    LayoutType::Stack { x_align, y_align }
-                }
+                LayoutType::Stack { x_align, y_align } => LayoutType::Stack { x_align, y_align },
                 LayoutType::Padding {
                     leading,
                     trailing,
@@ -113,7 +111,8 @@ impl<A: 'static, S: 'static> Layout<A, S> {
             layer: self.layer,
             resolved: self.resolved,
             allocated: self.allocated,
-            children: self.children
+            children: self
+                .children
                 .into_iter()
                 .map(|c| c.map_rc(f.clone()))
                 .collect(),
@@ -121,18 +120,18 @@ impl<A: 'static, S: 'static> Layout<A, S> {
     }
 }
 
-impl<A, S> TreeNode for Layout<A, S> {
+impl<'a, A, S> TreeNode for Layout<'a, A, S> {
     fn children_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Self> {
         self.children.iter_mut()
     }
 }
 
-pub(crate) struct DynamicConstraints<S = ()> {
-    pub(crate) width: DimensionFn<S>,
-    pub(crate) height: DimensionFn<S>,
+pub(crate) struct DynamicConstraints<'a, S = ()> {
+    pub(crate) width: DimensionFn<'a, S>,
+    pub(crate) height: DimensionFn<'a, S>,
 }
 
-impl<S> Default for DynamicConstraints<S> {
+impl<'a, S> Default for DynamicConstraints<'a, S> {
     fn default() -> Self {
         Self {
             width: None,
@@ -422,8 +421,8 @@ impl Area {
     }
 }
 
-pub enum LayoutType<A, S = ()> {
-    Draw(Option<DrawFn<A, S>>),
+pub enum LayoutType<'a, A, S = ()> {
+    Draw(Option<DrawFn<'a, A, S>>),
     Column {
         spacing: f32,
         x_align: Option<XAlign>,
@@ -453,7 +452,5 @@ pub enum LayoutType<A, S = ()> {
     Coupled {
         over: bool,
     },
-    AreaReader {
-        func: Option<AreaReaderFn<A, S>>,
-    },
+    MultipleDraw(Option<MultiDrawFn<'a, A, S>>),
 }
