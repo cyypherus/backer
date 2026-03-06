@@ -65,7 +65,6 @@ impl<'a, A, S> Debug for LayoutType<'a, A, S> {
                 .finish(),
             LayoutType::Space => write!(f, "Space"),
             LayoutType::Empty => write!(f, "Empty"),
-            LayoutType::Coupled { over } => f.debug_struct("Coupled").field("over", over).finish(),
             LayoutType::MultipleDraw(_) => write!(f, "MultipleDraw"),
         }
     }

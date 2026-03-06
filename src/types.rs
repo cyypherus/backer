@@ -104,7 +104,6 @@ impl<'a, A: 'a, S: 'a> Layout<'a, A, S> {
                 LayoutType::Offset { x, y } => LayoutType::Offset { x, y },
                 LayoutType::Space => LayoutType::Space,
                 LayoutType::Empty => LayoutType::Empty,
-                LayoutType::Coupled { over } => LayoutType::Coupled { over },
             },
             constraints: self.constraints,
             dynamic_constraints: self.dynamic_constraints,
@@ -146,6 +145,8 @@ pub(crate) struct Constraints {
     pub(crate) height: AxisConstraint,
     pub(crate) expand_x: bool,
     pub(crate) expand_y: bool,
+    pub(crate) transparent_x: bool,
+    pub(crate) transparent_y: bool,
     pub(crate) x_align: Option<XAlign>,
     pub(crate) y_align: Option<YAlign>,
 }
@@ -254,6 +255,8 @@ impl Default for Constraints {
             height: AxisConstraint::none(),
             expand_x: false,
             expand_y: false,
+            transparent_x: false,
+            transparent_y: false,
             x_align: None,
             y_align: None,
         }
@@ -449,8 +452,5 @@ pub enum LayoutType<'a, A, S = ()> {
     },
     Space,
     Empty,
-    Coupled {
-        over: bool,
-    },
     MultipleDraw(Option<MultiDrawFn<'a, A, S>>),
 }

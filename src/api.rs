@@ -356,26 +356,6 @@ impl<'a, A, S> Layout<'a, A, S> {
             .child(self)
             .build()
     }
-
-    /// Attaches `node` under this node as a background
-    ///
-    /// The area available to the attached node is the size of the node it's attached to.
-    /// Useful for adding an unconstrained node as an ornament, background, or overlay to a constrained node.
-    pub fn attach_under(self, node: Layout<'a, A, S>) -> Layout<'a, A, S> {
-        NodeBuilder::new(LayoutType::Coupled { over: false })
-            .children(vec![node, self])
-            .build()
-    }
-
-    /// Attaches `node` over this node as an overlay
-    ///
-    /// The area available to the attached node is the size of the node it's attached to.
-    /// Useful for adding an unconstrained node as an ornament, background, or overlay to a constrained node.
-    pub fn attach_over(self, node: Layout<'a, A, S>) -> Layout<'a, A, S> {
-        NodeBuilder::new(LayoutType::Coupled { over: true })
-            .children(vec![self, node])
-            .build()
-    }
 }
 
 impl<'a, A, S> Layout<'a, A, S> {
@@ -424,6 +404,30 @@ impl<'a, A, S> Layout<'a, A, S> {
     /// This is mutually exclusive with explicit size constraints.
     pub fn expand(self) -> Self {
         self.expand_x().expand_y()
+    }
+
+    /// Makes the node invisible to its container's sizing.
+    ///
+    /// The container will size itself as if this node doesn't exist.
+    /// The node still receives space & participates in drawing normally.
+    pub fn inert(self) -> Self {
+        self.inert_x().inert_y()
+    }
+
+    /// Makes the node invisible to its container's sizing along the x axis.
+    ///
+    /// The container will size its width as if this node doesn't exist.
+    pub fn inert_x(mut self) -> Self {
+        self.constraints.transparent_x = true;
+        self
+    }
+
+    /// Makes the node invisible to its container's sizing along the y axis.
+    ///
+    /// The container will size its height as if this node doesn't exist.
+    pub fn inert_y(mut self) -> Self {
+        self.constraints.transparent_y = true;
+        self
     }
 
     /// Specifies bounds on a node's width

@@ -47,6 +47,8 @@ pub(crate) fn resolve<'a, A, S>(input: &mut Layout<'a, A, S>, state: &mut S) {
                 )),
             expand_x: node.constraints.expand_x,
             expand_y: node.constraints.expand_y,
+            transparent_x: node.constraints.transparent_x,
+            transparent_y: node.constraints.transparent_y,
             x_align: node.constraints.x_align,
             y_align: node.constraints.y_align,
         };
@@ -54,19 +56,25 @@ pub(crate) fn resolve<'a, A, S>(input: &mut Layout<'a, A, S>, state: &mut S) {
             LayoutType::Column { spacing, .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
                     Option::<Constraints>::None,
-                    |current: Option<Constraints>, child_constrained: &Layout<'a, A, S>| {
+                    |current: Option<Constraints>, child: &Layout<'a, A, S>| {
+                        let mut masked = child.constraints();
+                        if child.constraints.transparent_x {
+                            masked.width = AxisConstraint::none();
+                        }
+                        if child.constraints.transparent_y {
+                            masked.height = AxisConstraint::none();
+                        }
+                        if child.constraints.transparent_x && child.constraints.transparent_y {
+                            return current;
+                        }
                         if let Some(current) = current {
                             Some(Constraints {
-                                width: current.width.combine_adjacent_priority(
-                                    child_constrained.constraints().width,
-                                ),
-                                height: current
-                                    .height
-                                    .combine_sum(child_constrained.constraints().height, spacing),
+                                width: current.width.combine_adjacent_priority(masked.width),
+                                height: current.height.combine_sum(masked.height, spacing),
                                 ..Default::default()
                             })
                         } else {
-                            Some(child_constrained.constraints())
+                            Some(masked)
                         }
                     },
                 ))
@@ -74,19 +82,25 @@ pub(crate) fn resolve<'a, A, S>(input: &mut Layout<'a, A, S>, state: &mut S) {
             LayoutType::Row { spacing, .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
                     Option::<Constraints>::None,
-                    |current: Option<Constraints>, child_constrained: &Layout<'a, A, S>| {
+                    |current: Option<Constraints>, child: &Layout<'a, A, S>| {
+                        let mut masked = child.constraints();
+                        if child.constraints.transparent_x {
+                            masked.width = AxisConstraint::none();
+                        }
+                        if child.constraints.transparent_y {
+                            masked.height = AxisConstraint::none();
+                        }
+                        if child.constraints.transparent_x && child.constraints.transparent_y {
+                            return current;
+                        }
                         if let Some(current) = current {
                             Some(Constraints {
-                                width: current
-                                    .width
-                                    .combine_sum(child_constrained.constraints().width, spacing),
-                                height: current.height.combine_adjacent_priority(
-                                    child_constrained.constraints().height,
-                                ),
+                                width: current.width.combine_sum(masked.width, spacing),
+                                height: current.height.combine_adjacent_priority(masked.height),
                                 ..Default::default()
                             })
                         } else {
-                            Some(child_constrained.constraints())
+                            Some(masked)
                         }
                     },
                 ))
@@ -94,19 +108,25 @@ pub(crate) fn resolve<'a, A, S>(input: &mut Layout<'a, A, S>, state: &mut S) {
             LayoutType::Stack { .. } => {
                 self_constraints.combine_parent_child(node.children.iter().fold(
                     Option::<Constraints>::None,
-                    |current: Option<Constraints>, child_constrained: &Layout<'a, A, S>| {
+                    |current: Option<Constraints>, child: &Layout<'a, A, S>| {
+                        let mut masked = child.constraints();
+                        if child.constraints.transparent_x {
+                            masked.width = AxisConstraint::none();
+                        }
+                        if child.constraints.transparent_y {
+                            masked.height = AxisConstraint::none();
+                        }
+                        if child.constraints.transparent_x && child.constraints.transparent_y {
+                            return current;
+                        }
                         if let Some(current) = current {
                             Some(Constraints {
-                                width: current.width.combine_adjacent_priority(
-                                    child_constrained.constraints().width,
-                                ),
-                                height: current.height.combine_adjacent_priority(
-                                    child_constrained.constraints().height,
-                                ),
+                                width: current.width.combine_adjacent_priority(masked.width),
+                                height: current.height.combine_adjacent_priority(masked.height),
                                 ..Default::default()
                             })
                         } else {
-                            Some(child_constrained.constraints())
+                            Some(masked)
                         }
                     },
                 ))
@@ -145,11 +165,6 @@ pub(crate) fn resolve<'a, A, S>(input: &mut Layout<'a, A, S>, state: &mut S) {
                     ..Default::default()
                 }
             })),
-            LayoutType::Coupled { over } => self_constraints.combine_parent_child(if over {
-                node.children.first().map(|child| child.constraints())
-            } else {
-                node.children.get(1).map(|child| child.constraints())
-            }),
             LayoutType::Offset { .. } | LayoutType::Space => self_constraints
                 .combine_parent_child(node.children.first().map(|child| child.constraints())),
             LayoutType::MultipleDraw(_) | LayoutType::Draw(_) | LayoutType::Empty => {
@@ -159,7 +174,11 @@ pub(crate) fn resolve<'a, A, S>(input: &mut Layout<'a, A, S>, state: &mut S) {
     })
 }
 
-pub(crate) fn allocate<'a, A, S>(constrained: &mut Layout<'a, A, S>, available_area: Area, state: &mut S) {
+pub(crate) fn allocate<'a, A, S>(
+    constrained: &mut Layout<'a, A, S>,
+    available_area: Area,
+    state: &mut S,
+) {
     constrained.traverse_top_down(|node| {
         let available_area =
             node.allocated
@@ -215,14 +234,6 @@ pub(crate) fn allocate<'a, A, S>(constrained: &mut Layout<'a, A, S>, available_a
                 }
             }
             LayoutType::MultipleDraw(_) => {}
-            LayoutType::Coupled { .. } => {
-                let element = 0;
-                let coupled = 1;
-                let constrained_area =
-                    available_area.constrained(&node.children[element].resolved, None, None);
-                node.children[element].allocated = Some(constrained_area);
-                node.children[coupled].allocated = Some(constrained_area);
-            }
             LayoutType::Space | LayoutType::Empty => (),
         }
     })
@@ -244,8 +255,19 @@ impl<'a, A, S> Layout<'a, A, S> {
 
         let element_count = self.children.len();
 
-        let filtered_element_count = element_count;
-        let total_spacing = spacing * (element_count as i32 - 1).max(0) as f32;
+        let non_transparent_count = self
+            .children
+            .iter()
+            .filter(|c| {
+                if is_vertical {
+                    !c.constraints.transparent_y
+                } else {
+                    !c.constraints.transparent_x
+                }
+            })
+            .count();
+        let filtered_element_count = non_transparent_count;
+        let total_spacing = spacing * (non_transparent_count as i32 - 1).max(0) as f32;
         let available_size = if is_vertical {
             available_area.height
         } else {
@@ -260,6 +282,15 @@ impl<'a, A, S> Layout<'a, A, S> {
         let mut room_to_shrink = vec![0.0; element_count];
 
         for (i, child) in self.children.iter_mut().enumerate() {
+            let transparent_on_main = if is_vertical {
+                child.constraints.transparent_y
+            } else {
+                child.constraints.transparent_x
+            };
+            if transparent_on_main {
+                final_sizes[i] = Some(0.0);
+                continue;
+            }
             let mut lower = if is_vertical {
                 child
                     .dynamic_constraints
@@ -432,6 +463,31 @@ impl<'a, A, S> Layout<'a, A, S> {
         };
 
         for (i, child) in self.children.iter_mut().enumerate() {
+            let transparent_on_main = if is_vertical {
+                child.constraints.transparent_y
+            } else {
+                child.constraints.transparent_x
+            };
+            if transparent_on_main {
+                let final_area = if is_vertical {
+                    Area {
+                        x: available_area.x,
+                        y: current_pos,
+                        width: available_area.width,
+                        height: 0.0,
+                    }
+                } else {
+                    Area {
+                        x: current_pos,
+                        y: available_area.y,
+                        width: 0.0,
+                        height: available_area.height,
+                    }
+                };
+                child.allocated = Some(final_area);
+                continue;
+            }
+
             let child_size = final_sizes[i].unwrap_or(if filtered_element_count > 1 {
                 0.0
             } else if is_vertical {

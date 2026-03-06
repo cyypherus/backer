@@ -17,63 +17,75 @@ mod tests_module {
 
     #[test]
     fn test_containers_hug_children_column() {
-        column(vec![
-            assert_area!(Area::new(45., 40., 10., 10.))
-                .width(10.)
-                .height(10.),
-            assert_area!(Area::new(45., 50., 10., 10.))
-                .width(10.)
-                .height(10.),
+        stack(vec![
+            assert_area!(Area::new(45., 40., 10., 20.)).inert(),
+            column(vec![
+                assert_area!(Area::new(45., 40., 10., 10.))
+                    .width(10.)
+                    .height(10.),
+                assert_area!(Area::new(45., 50., 10., 10.))
+                    .width(10.)
+                    .height(10.),
+            ]),
         ])
-        .attach_under(assert_area!(Area::new(45., 40., 10., 20.)))
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
     }
 
     #[test]
     fn test_containers_hug_children_row() {
-        row(vec![
-            assert_area!(Area::new(40., 45., 10., 10.))
-                .width(10.)
-                .height(10.),
-            assert_area!(Area::new(50., 45., 10., 10.))
-                .width(10.)
-                .height(10.),
+        stack(vec![
+            assert_area!(Area::new(40., 45., 20., 10.)).inert(),
+            row(vec![
+                assert_area!(Area::new(40., 45., 10., 10.))
+                    .width(10.)
+                    .height(10.),
+                assert_area!(Area::new(50., 45., 10., 10.))
+                    .width(10.)
+                    .height(10.),
+            ]),
         ])
-        .attach_under(assert_area!(Area::new(40., 45., 20., 10.)))
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
     }
 
     #[test]
     fn test_containers_hug_children_stack() {
         stack(vec![
-            assert_area!(Area::new(49., 49., 2., 2.))
-                .width(2.)
-                .height(2.),
-            assert_area!(Area::new(45., 45., 10., 10.))
-                .width(10.)
-                .height(10.),
+            assert_area!(Area::new(45., 45., 10., 10.)).inert(),
+            stack(vec![
+                assert_area!(Area::new(49., 49., 2., 2.))
+                    .width(2.)
+                    .height(2.),
+                assert_area!(Area::new(45., 45., 10., 10.))
+                    .width(10.)
+                    .height(10.),
+            ]),
         ])
-        .attach_under(assert_area!(Area::new(45., 45., 10., 10.)))
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
     }
 
     #[test]
     fn test_containers_hug_children_column_nested() {
-        column(vec![
+        stack(vec![
+            assert_area!(Area::new(45., 40., 10., 20.)).inert(),
             column(vec![
-                assert_area!(Area::new(45., 40., 10., 10.))
-                    .width(10.)
-                    .height(10.),
-            ])
-            .attach_under(assert_area!(Area::new(45., 40., 10., 10.))),
-            row(vec![
-                assert_area!(Area::new(45., 50., 10., 10.))
-                    .width(10.)
-                    .height(10.),
-            ])
-            .attach_under(assert_area!(Area::new(45., 50., 10., 10.))),
+                stack(vec![
+                    assert_area!(Area::new(45., 40., 10., 10.)).inert(),
+                    column(vec![
+                        assert_area!(Area::new(45., 40., 10., 10.))
+                            .width(10.)
+                            .height(10.),
+                    ]),
+                ]),
+                stack(vec![
+                    assert_area!(Area::new(45., 50., 10., 10.)).inert(),
+                    row(vec![
+                        assert_area!(Area::new(45., 50., 10., 10.))
+                            .width(10.)
+                            .height(10.),
+                    ]),
+                ]),
+            ]),
         ])
-        .attach_under(assert_area!(Area::new(45., 40., 10., 20.)))
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
     }
 
@@ -326,7 +338,6 @@ mod tests_module {
                     LayoutType::Offset { x, y } => LayoutType::Offset { x: *x, y: *y },
                     LayoutType::Space => LayoutType::Space,
                     LayoutType::Empty => LayoutType::Empty,
-                    LayoutType::Coupled { over } => LayoutType::Coupled { over: *over },
                     LayoutType::MultipleDraw(_) => LayoutType::MultipleDraw(None),
                 };
 
@@ -1015,11 +1026,13 @@ mod tests_module {
         }
         #[test]
         fn test_compressed_aspect_ratio() {
-            row(vec![
-                assert_area!(Area::new(0., 25., 50., 50.)).aspect_width(1.),
-                assert_area!(Area::new(50., 0., 50., 100.)).width(50.),
+            stack(vec![
+                assert_area!(Area::new(0., 0., 100., 100.)).inert(),
+                row(vec![
+                    assert_area!(Area::new(0., 25., 50., 50.)).aspect_width(1.),
+                    assert_area!(Area::new(50., 0., 50., 100.)).width(50.),
+                ]),
             ])
-            .attach_under(assert_area!(Area::new(0., 0., 100., 100.)))
             .debug_visualize(Area::new(0., 0., 100., 100.));
         }
 
@@ -1027,9 +1040,10 @@ mod tests_module {
         fn test_dynamic_attached() {
             row(vec![
                 space(),
-                assert_area!(Area::new(25., 25., 25., 50.))
-                    .dynamic_height(|h, _| h * 2.)
-                    .attach_under(assert_area!(Area::new(25., 25., 25., 50.))),
+                stack(vec![
+                    assert_area!(Area::new(25., 25., 25., 50.)).inert(),
+                    assert_area!(Area::new(25., 25., 25., 50.)).dynamic_height(|h, _| h * 2.),
+                ]),
                 space(),
                 space(),
             ])
@@ -1323,14 +1337,99 @@ mod tests_module {
     }
 
     #[test]
-    fn test_dynamic_height_width_dependent_pad_attach_under() {
+    fn test_dropdown_stack_approach() {
+        let column_width = 50.;
+
+        column(vec![
+            stack(vec![
+                draw(move |a, _| {
+                    assert_eq!(a.width, column_width);
+                })
+                .inert(),
+                draw(|_, _| ())
+                    .dynamic_height(|_, _| 30.)
+                    .width(30.)
+                    .pad_x(5.),
+            ])
+            .expand_x(),
+            stack(vec![
+                draw(move |a, _| {
+                    assert_eq!(a.width, column_width);
+                })
+                .inert(),
+                draw(|_, _| ()).dynamic_height(|_, _| 30.).width(50.),
+            ]),
+        ])
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+    }
+
+    #[test]
+    fn test_transparent_in_column() {
+        column(vec![
+            assert_area!(Area::new(25., 25., 50., 50.))
+                .width(50.)
+                .height(50.),
+            draw(move |a, _| {
+                assert_eq!(a.width, 50.);
+                assert_eq!(a.height, 0.);
+                assert_eq!(a.y, 75.);
+            })
+            .inert(),
+        ])
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+    }
+
+    #[test]
+    fn test_transparent_with_constraints() {
+        stack(vec![
+            draw(move |a, _| {
+                assert_eq!(a.width, 50.);
+                assert_eq!(a.height, 50.);
+            })
+            .width(50.)
+            .height(50.)
+            .inert(),
+            draw(|_, _| ()).width(10.).height(10.),
+        ])
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+
+        column(vec![
+            draw(|_, _| ()).width(10.).height(10.),
+            draw(move |a, _| {
+                assert_eq!(a.width, 50.);
+                assert_eq!(a.height, 50.);
+            })
+            .width(50.)
+            .height(50.)
+            .inert(),
+        ])
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+
+        row(vec![
+            draw(|_, _| ()).width(10.).height(10.),
+            draw(move |a, _| {
+                assert_eq!(a.width, 50.);
+                assert_eq!(a.height, 50.);
+            })
+            .width(50.)
+            .height(50.)
+            .inert(),
+        ])
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+    }
+
+    #[test]
+    fn test_dynamic_height_width_dependent_pad() {
         let content_area = Area::new(10., 43., 80., 14.);
         let bg_area = Area::new(0., 33., 100., 34.);
-        assert_area!(content_area)
-            .dynamic_height(|_, _| 14.)
-            .attach_under(draw(|_, _| ()))
-            .pad(10.)
-            .attach_under(assert_area!(bg_area))
-            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        stack(vec![
+            assert_area!(bg_area).inert(),
+            stack(vec![
+                draw(|_, _| ()).inert(),
+                assert_area!(content_area).dynamic_height(|_, _| 14.),
+            ])
+            .pad(10.),
+        ])
+        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
     }
 }
