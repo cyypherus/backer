@@ -335,7 +335,7 @@ impl<'a, D, S> Layout<'a, D, S> {
                     child_constraints.expand_x || child_constraints.width.upper.is_none()
                 };
 
-                if !is_expanded && let Some(size_constraints) = child.resolved {
+                if let Some(size_constraints) = child.resolved {
                     let intrinsic_size = if is_vertical {
                         size_constraints.height.lower.unwrap_or(0.0)
                     } else {
@@ -344,7 +344,9 @@ impl<'a, D, S> Layout<'a, D, S> {
 
                     if intrinsic_size > 0.0 {
                         lower = Some(intrinsic_size);
-                        upper = Some(intrinsic_size);
+                        if !is_expanded {
+                            upper = Some(intrinsic_size);
+                        }
                     }
                 }
             }

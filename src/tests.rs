@@ -1462,4 +1462,22 @@ mod tests_module {
         ])
         .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
     }
+
+    #[test]
+    fn test_row_spaced_stack_with_unconstrained_child_preserves_spacing() {
+        row_spaced(
+            10.,
+            vec![
+                assert_area!(Area::new(0., 0., 30., 100.)),
+                stack(vec![
+                    assert_area!(Area::new(40., 0., 80., 100.)),
+                    draw(|_, _| vec![()])
+                        .width(80.)
+                        .height(14.),
+                ]),
+            ],
+        )
+        .draw(Area::new(0., 0., 120., 100.), &mut ());
+    }
+
 }
