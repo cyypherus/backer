@@ -1471,13 +1471,27 @@ mod tests_module {
                 assert_area!(Area::new(0., 0., 30., 100.)),
                 stack(vec![
                     assert_area!(Area::new(40., 0., 80., 100.)),
-                    draw(|_, _| vec![()])
-                        .width(80.)
-                        .height(14.),
+                    draw(|_, _| vec![()]).width(80.).height(14.),
                 ]),
             ],
         )
         .draw(Area::new(0., 0., 120., 100.), &mut ());
     }
 
+    #[test]
+    fn test_row_inert_y_does_not_expand_past_constrained_height() {
+        stack(vec![
+            assert_area!(Area::new(0., 35., 100., 30.)).inert(),
+            row_spaced(
+                10.,
+                vec![
+                    space().inert_y(),
+                    assert_area!(Area::new(70., 35., 30., 30.))
+                        .width(30.)
+                        .height(30.),
+                ],
+            ),
+        ])
+        .draw(Area::new(0., 0., 100., 100.), &mut ());
+    }
 }

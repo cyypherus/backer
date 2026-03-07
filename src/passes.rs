@@ -54,82 +54,61 @@ pub(crate) fn resolve<'a, D, S>(input: &mut Layout<'a, D, S>, state: &mut S) {
         };
         node.resolved = Some(match node.layout {
             LayoutType::Column { spacing, .. } => {
-                self_constraints.combine_parent_child(node.children.iter().fold(
-                    Option::<Constraints>::None,
-                    |current: Option<Constraints>, child: &Layout<'a, D, S>| {
-                        let mut masked = child.constraints();
-                        if child.constraints.transparent_x {
-                            masked.width = AxisConstraint::none();
-                        }
-                        if child.constraints.transparent_y {
-                            masked.height = AxisConstraint::none();
-                        }
-                        if child.constraints.transparent_x && child.constraints.transparent_y {
-                            return current;
-                        }
-                        if let Some(current) = current {
-                            Some(Constraints {
-                                width: current.width.combine_adjacent_priority(masked.width),
-                                height: current.height.combine_sum(masked.height, spacing),
-                                ..Default::default()
-                            })
-                        } else {
-                            Some(masked)
-                        }
+                let (w, h) = node.children.iter().fold(
+                    (None::<AxisConstraint>, None::<AxisConstraint>),
+                    |(w, h), child| {
+                        let cc = child.constraints();
+                        let tx = child.constraints.transparent_x;
+                        let ty = child.constraints.transparent_y;
+                        (
+                            if tx { w } else { Some(match w { Some(w) => w.combine_adjacent_priority(cc.width), None => cc.width }) },
+                            if ty { h } else { Some(match h { Some(h) => h.combine_sum(cc.height, spacing), None => cc.height }) },
+                        )
                     },
-                ))
+                );
+                self_constraints.combine_parent_child(w.or(h).map(|_| Constraints {
+                    width: w.unwrap_or(AxisConstraint::none()),
+                    height: h.unwrap_or(AxisConstraint::none()),
+                    ..Default::default()
+                }))
             }
             LayoutType::Row { spacing, .. } => {
-                self_constraints.combine_parent_child(node.children.iter().fold(
-                    Option::<Constraints>::None,
-                    |current: Option<Constraints>, child: &Layout<'a, D, S>| {
-                        let mut masked = child.constraints();
-                        if child.constraints.transparent_x {
-                            masked.width = AxisConstraint::none();
-                        }
-                        if child.constraints.transparent_y {
-                            masked.height = AxisConstraint::none();
-                        }
-                        if child.constraints.transparent_x && child.constraints.transparent_y {
-                            return current;
-                        }
-                        if let Some(current) = current {
-                            Some(Constraints {
-                                width: current.width.combine_sum(masked.width, spacing),
-                                height: current.height.combine_adjacent_priority(masked.height),
-                                ..Default::default()
-                            })
-                        } else {
-                            Some(masked)
-                        }
+                let (w, h) = node.children.iter().fold(
+                    (None::<AxisConstraint>, None::<AxisConstraint>),
+                    |(w, h), child| {
+                        let cc = child.constraints();
+                        let tx = child.constraints.transparent_x;
+                        let ty = child.constraints.transparent_y;
+                        (
+                            if tx { w } else { Some(match w { Some(w) => w.combine_sum(cc.width, spacing), None => cc.width }) },
+                            if ty { h } else { Some(match h { Some(h) => h.combine_adjacent_priority(cc.height), None => cc.height }) },
+                        )
                     },
-                ))
+                );
+                self_constraints.combine_parent_child(w.or(h).map(|_| Constraints {
+                    width: w.unwrap_or(AxisConstraint::none()),
+                    height: h.unwrap_or(AxisConstraint::none()),
+                    ..Default::default()
+                }))
             }
             LayoutType::Stack { .. } => {
-                self_constraints.combine_parent_child(node.children.iter().fold(
-                    Option::<Constraints>::None,
-                    |current: Option<Constraints>, child: &Layout<'a, D, S>| {
-                        let mut masked = child.constraints();
-                        if child.constraints.transparent_x {
-                            masked.width = AxisConstraint::none();
-                        }
-                        if child.constraints.transparent_y {
-                            masked.height = AxisConstraint::none();
-                        }
-                        if child.constraints.transparent_x && child.constraints.transparent_y {
-                            return current;
-                        }
-                        if let Some(current) = current {
-                            Some(Constraints {
-                                width: current.width.combine_adjacent_priority(masked.width),
-                                height: current.height.combine_adjacent_priority(masked.height),
-                                ..Default::default()
-                            })
-                        } else {
-                            Some(masked)
-                        }
+                let (w, h) = node.children.iter().fold(
+                    (None::<AxisConstraint>, None::<AxisConstraint>),
+                    |(w, h), child| {
+                        let cc = child.constraints();
+                        let tx = child.constraints.transparent_x;
+                        let ty = child.constraints.transparent_y;
+                        (
+                            if tx { w } else { Some(match w { Some(w) => w.combine_adjacent_priority(cc.width), None => cc.width }) },
+                            if ty { h } else { Some(match h { Some(h) => h.combine_adjacent_priority(cc.height), None => cc.height }) },
+                        )
                     },
-                ))
+                );
+                self_constraints.combine_parent_child(w.or(h).map(|_| Constraints {
+                    width: w.unwrap_or(AxisConstraint::none()),
+                    height: h.unwrap_or(AxisConstraint::none()),
+                    ..Default::default()
+                }))
             }
             LayoutType::Padding {
                 leading,
