@@ -43,8 +43,8 @@ impl eframe::App for TemplateApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             let viewport = ctx.input(|i| i.screen_rect());
             let available_area = area_from(viewport);
-            let mut layout = build_layout(ui, self.sidebar);
-            let commands = layout.draw(available_area);
+            let mut layout = build_layout(ctx, self.sidebar);
+            let commands = layout.draw(available_area, &mut ());
             process_commands(commands, ui, &mut self.sidebar);
         });
     }
@@ -58,45 +58,45 @@ const DEMO_HINT: Color32 = Color32::from_rgb(35, 35, 38);
 const DEMO_FG: Color32 = Color32::from_rgb(250, 250, 255);
 const DEMO_FG_SECONDARY: Color32 = Color32::from_rgb(180, 180, 183);
 
-fn build_layout(ui: &mut Ui, sidebar: bool) -> Layout<Drawable> {
+fn build_layout(ctx: &egui::Context, sidebar: bool) -> Layout<'static, Drawable, ()> {
     stack({
         let mut layers = vec![
             rect(Color32::TRANSPARENT, DEMO_BG, 0.),
             row(vec![
                 row_divider(DEMO_GRAY).width(1.),
                 column(vec![
-                    header(ui),
+                    header(ctx),
                     col_divider(DEMO_GRAY).height(1.),
-                    main_view(ui),
+                    main_view(ctx),
                     col_divider(DEMO_GRAY).height(1.),
-                    footer(ui),
+                    footer(ctx),
                 ]),
             ])
             .align(Align::Top),
         ];
         if sidebar {
-            layers.push(side_bar(ui));
+            layers.push(side_bar(ctx));
         }
         layers
     })
 }
 
-fn footer(ui: &mut Ui) -> Layout<Drawable> {
+fn footer(ctx: &egui::Context) -> Layout<'static, Drawable, ()> {
     row_spaced(
         10.,
         vec![
             row_spaced(
                 20.,
                 vec![
-                    label_color(ui, "Game", 9., DEMO_FG_SECONDARY),
-                    label_color(ui, "Terms & Conditions", 9., DEMO_FG_SECONDARY),
-                    label_color(ui, "Privacy Policy", 9., DEMO_FG_SECONDARY),
+                    label_color(ctx, "Game", 9., DEMO_FG_SECONDARY),
+                    label_color(ctx, "Terms & Conditions", 9., DEMO_FG_SECONDARY),
+                    label_color(ctx, "Privacy Policy", 9., DEMO_FG_SECONDARY),
                 ],
             )
             .align(Align::Leading),
             space(),
             label_color(
-                ui,
+                ctx,
                 "© Backer 2021. All rights reserved",
                 9.,
                 DEMO_FG_SECONDARY,
@@ -108,7 +108,7 @@ fn footer(ui: &mut Ui) -> Layout<Drawable> {
     .height(40.)
 }
 
-fn main_view(ui: &mut Ui) -> Layout<Drawable> {
+fn main_view(ctx: &egui::Context) -> Layout<'static, Drawable, ()> {
     let profile_blurb = "Your public profile URL can be shared with anyone and allows them to immediately see your bases and activity in Backer.";
     let pic_blurb = "Upload a profile picture of yourself or the character you always wanted to be. Your avatar will be displayed all over the Backer world.";
     let info_blurb = "Tell the world about yourself. Information you add will be visible only in your profile, not for all users.";
@@ -125,8 +125,8 @@ fn main_view(ui: &mut Ui) -> Layout<Drawable> {
                                 10.,
                                 Align::Leading,
                                 vec![
-                                    label(ui, "Public profile", 18.),
-                                    fit_label(ui, profile_blurb, 10.),
+                                    label(ctx, "Public profile", 18.),
+                                    fit_label(ctx, profile_blurb, 10.),
                                 ],
                             )
                             .width_range(80.0..),
@@ -139,7 +139,7 @@ fn main_view(ui: &mut Ui) -> Layout<Drawable> {
                                             10.,
                                             vec![
                                                 label_color(
-                                                    ui,
+                                                    ctx,
                                                     "cyypherus.io/backer/username",
                                                     12.,
                                                     DEMO_FG_SECONDARY,
@@ -164,7 +164,7 @@ fn main_view(ui: &mut Ui) -> Layout<Drawable> {
                                                             .aspect_width(1.)
                                                             .width(20.),
                                                         label_color(
-                                                            ui,
+                                                            ctx,
                                                             "Share",
                                                             12.,
                                                             DEMO_FG_SECONDARY,
@@ -186,7 +186,7 @@ fn main_view(ui: &mut Ui) -> Layout<Drawable> {
                                                         .aspect_width(1.)
                                                         .width(20.),
                                                         label_color(
-                                                            ui,
+                                                            ctx,
                                                             "View location",
                                                             12.,
                                                             DEMO_FG_SECONDARY,
@@ -211,7 +211,7 @@ fn main_view(ui: &mut Ui) -> Layout<Drawable> {
                             column_spaced_aligned(
                                 10.,
                                 Align::Leading,
-                                vec![label(ui, "Edit PFP", 18.), fit_label(ui, pic_blurb, 10.)],
+                                vec![label(ctx, "Edit PFP", 18.), fit_label(ctx, pic_blurb, 10.)],
                             )
                             .width_range(80.0..),
                             column_spaced(
@@ -225,9 +225,9 @@ fn main_view(ui: &mut Ui) -> Layout<Drawable> {
                                                 5.,
                                                 Align::Leading,
                                                 vec![
-                                                    label(ui, "@UserName", 12.),
+                                                    label(ctx, "@UserName", 12.),
                                                     label_color(
-                                                        ui,
+                                                        ctx,
                                                         "Living, laughing, loving",
                                                         10.,
                                                         DEMO_FG_SECONDARY,
@@ -241,13 +241,13 @@ fn main_view(ui: &mut Ui) -> Layout<Drawable> {
                                         vec![
                                             stack(vec![
                                                 rect(DEMO_FG, DEMO_BG, 5.),
-                                                label_color(ui, "Upload", 12., DEMO_FG_SECONDARY)
+                                                label_color(ctx, "Upload", 12., DEMO_FG_SECONDARY)
                                                     .pad(5.),
                                             ])
                                             .height(25.),
                                             stack(vec![
                                                 rect(DEMO_DESTRUCTIVE_SECONDARY, DEMO_BG, 5.),
-                                                label_color(ui, "Remove", 12., DEMO_DESTRUCTIVE)
+                                                label_color(ctx, "Remove", 12., DEMO_DESTRUCTIVE)
                                                     .pad(5.),
                                             ])
                                             .height(25.),
@@ -266,26 +266,26 @@ fn main_view(ui: &mut Ui) -> Layout<Drawable> {
                                 10.,
                                 Align::Leading,
                                 vec![
-                                    label(ui, "Edit personal information", 18.),
-                                    fit_label(ui, info_blurb, 10.),
+                                    label(ctx, "Edit personal information", 18.),
+                                    fit_label(ctx, info_blurb, 10.),
                                 ],
                             )
                             .width_range(85.0..),
                             column_spaced(
                                 5.,
                                 vec![
-                                    label_color(ui, "Edit username", 12., DEMO_FG_SECONDARY),
+                                    label_color(ctx, "Edit username", 12., DEMO_FG_SECONDARY),
                                     stack(vec![
                                         rect(DEMO_FG, DEMO_BG, 5.),
-                                        fit_label_color(ui, "@UserName", 12., DEMO_FG)
+                                        fit_label_color(ctx, "@UserName", 12., DEMO_FG)
                                             .align(Align::Leading)
                                             .pad(5.),
                                     ])
                                     .height(25.),
-                                    label_color(ui, "Bio", 12., DEMO_FG_SECONDARY),
+                                    label_color(ctx, "Bio", 12., DEMO_FG_SECONDARY),
                                     stack(vec![
                                         rect(DEMO_FG, DEMO_BG, 5.),
-                                        label_color(ui, "Living, laughing, loving", 12., DEMO_FG)
+                                        label_color(ctx, "Living, laughing, loving", 12., DEMO_FG)
                                             .align(Align::TopLeading)
                                             .pad(5.),
                                     ])
@@ -308,7 +308,7 @@ fn main_view(ui: &mut Ui) -> Layout<Drawable> {
     ])
 }
 
-fn side_bar(ui: &mut Ui) -> Layout<Drawable> {
+fn side_bar(ctx: &egui::Context) -> Layout<'static, Drawable, ()> {
     stack(vec![
         rect(Color32::TRANSPARENT, DEMO_BG, 0.),
         column_spaced(
@@ -316,21 +316,21 @@ fn side_bar(ui: &mut Ui) -> Layout<Drawable> {
             vec![
                 row_spaced(
                     10.,
-                    vec![menu_button(), label(ui, "BACKER", 22.).height(35.)],
+                    vec![menu_button(), label(ctx, "BACKER", 22.).height(35.)],
                 ),
                 col_divider(DEMO_GRAY).pad_x(-30.).height(1.),
-                label(ui, "Home", 10.),
-                label(ui, "Explore", 10.),
-                label(ui, "Marketplace", 10.),
-                label(ui, "My Account", 10.),
+                label(ctx, "Home", 10.),
+                label(ctx, "Explore", 10.),
+                label(ctx, "Marketplace", 10.),
+                label(ctx, "My Account", 10.),
                 col_divider(DEMO_GRAY).pad_trailing(-20.).height(1.),
-                label(ui, "Activity", 10.),
-                label(ui, "News", 10.),
-                label(ui, "Docs", 10.),
+                label(ctx, "Activity", 10.),
+                label(ctx, "News", 10.),
+                label(ctx, "Docs", 10.),
                 col_divider(DEMO_GRAY).pad_trailing(-20.).height(1.),
-                label(ui, "Twitter", 10.),
-                label(ui, "Telegram", 10.),
-                label(ui, "Medium", 10.),
+                label(ctx, "Twitter", 10.),
+                label(ctx, "Telegram", 10.),
+                label(ctx, "Medium", 10.),
                 space(),
             ],
         )
@@ -341,21 +341,21 @@ fn side_bar(ui: &mut Ui) -> Layout<Drawable> {
     .width(200.)
 }
 
-fn header(ui: &mut Ui) -> Layout<Drawable> {
+fn header(ctx: &egui::Context) -> Layout<'static, Drawable, ()> {
     row_spaced(
         10.,
         vec![
             menu_button(),
-            label(ui, "My Account", 18.).width(110.),
+            label(ctx, "My Account", 18.).width(110.),
             space(),
             stack(vec![
                 rect(DEMO_FG, DEMO_HINT, 5.),
-                label(ui, "$115,000", 12.),
+                label(ctx, "$115,000", 12.),
             ])
             .width(80.),
             stack(vec![
                 rect(DEMO_FG, DEMO_HINT, 5.),
-                row(vec![label(ui, "Operational", 12.)]),
+                row(vec![label(ctx, "Operational", 12.)]),
             ])
             .width(90.),
             stack(vec![
@@ -378,72 +378,86 @@ fn header(ui: &mut Ui) -> Layout<Drawable> {
     .height(80.)
 }
 
-fn menu_button() -> Layout<Drawable> {
+fn menu_button() -> Layout<'static, Drawable, ()> {
     let image = include_image!("../assets/menu-scale.svg");
-    draw(move |area: Area| Drawable::Action {
-        area,
-        handler: Box::new({
-            let image = image.clone();
-            move |ui: &mut Ui, sidebar: &mut bool, area: Area| {
-                if ui
-                    .put(
-                        rect_from(area),
-                        Button::image(image.clone()).fill(Color32::TRANSPARENT),
-                    )
-                    .clicked()
-                {
-                    *sidebar = !*sidebar;
+    draw(move |area: Area, _: &mut ()| {
+        vec![Drawable::Action {
+            area,
+            handler: Box::new({
+                let image = image.clone();
+                move |ui: &mut Ui, sidebar: &mut bool, area: Area| {
+                    if ui
+                        .put(
+                            rect_from(area),
+                            Button::image(image.clone()).fill(Color32::TRANSPARENT),
+                        )
+                        .clicked()
+                    {
+                        *sidebar = !*sidebar;
+                    }
                 }
-            }
-        }),
+            }),
+        }]
     })
     .aspect_width(1.)
     .width(30.)
     .height(30.)
 }
 
-fn icon(image: impl Into<ImageSource<'static>> + 'static) -> Layout<Drawable> {
+fn icon(image: impl Into<ImageSource<'static>> + 'static) -> Layout<'static, Drawable, ()> {
     let image = Image::new(image).tint(Color32::WHITE);
-    draw(move |area: Area| Drawable::Action {
-        area,
-        handler: Box::new({
-            let image = image.clone();
-            move |ui: &mut Ui, _sidebar: &mut bool, area: Area| {
-                ui.put(rect_from(area), image.clone());
-            }
-        }),
+    draw(move |area: Area, _: &mut ()| {
+        vec![Drawable::Action {
+            area,
+            handler: Box::new({
+                let image = image.clone();
+                move |ui: &mut Ui, _sidebar: &mut bool, area: Area| {
+                    ui.put(rect_from(area), image.clone());
+                }
+            }),
+        }]
     })
 }
 
-fn label(ui: &mut Ui, text: &str, size: f32) -> Layout<Drawable> {
-    label_common(ui, text, size, false, DEMO_FG)
+fn label(ctx: &egui::Context, text: &str, size: f32) -> Layout<'static, Drawable, ()> {
+    label_common(ctx, text, size, false, DEMO_FG)
 }
 
-fn label_color(ui: &mut Ui, text: &str, size: f32, color: Color32) -> Layout<Drawable> {
-    label_common(ui, text, size, false, color)
+fn label_color(
+    ctx: &egui::Context,
+    text: &str,
+    size: f32,
+    color: Color32,
+) -> Layout<'static, Drawable, ()> {
+    label_common(ctx, text, size, false, color)
 }
 
-fn fit_label(ui: &mut Ui, text: &str, size: f32) -> Layout<Drawable> {
-    label_common(ui, text, size, true, DEMO_FG)
+fn fit_label(ctx: &egui::Context, text: &str, size: f32) -> Layout<'static, Drawable, ()> {
+    label_common(ctx, text, size, true, DEMO_FG)
 }
 
-fn fit_label_color(ui: &mut Ui, text: &str, size: f32, color: Color32) -> Layout<Drawable> {
-    label_common(ui, text, size, true, color)
+fn fit_label_color(
+    ctx: &egui::Context,
+    text: &str,
+    size: f32,
+    color: Color32,
+) -> Layout<'static, Drawable, ()> {
+    label_common(ctx, text, size, true, color)
 }
 
 fn label_common(
-    ui: &mut Ui,
+    ctx: &egui::Context,
     text: &str,
     size: f32,
     fit_width: bool,
     color: Color32,
-) -> Layout<Drawable> {
+) -> Layout<'static, Drawable, ()> {
     let text = Arc::new(text.to_string());
-    let ctx = ui.ctx().clone();
+    let ctx = ctx.clone();
     if fit_width {
         let text_for_height = text.clone();
         let ctx_for_height = ctx.clone();
-        let height_calc = move |width: f32| {
+        let height_calc = move |width: f32, _: &mut ()| {
             ctx_for_height.fonts(|fonts| {
                 fonts
                     .layout_job(make_layout_job(
@@ -452,91 +466,130 @@ fn label_common(
                         width,
                         color,
                         EguiAlign::Min,
+                        EguiAlign::Min,
                     ))
                     .size()
                     .y
             })
         };
-        draw(move |area: Area| Drawable::Action {
-            area,
-            handler: Box::new({
-                let text = text.clone();
-                move |ui: &mut Ui, _sidebar: &mut bool, area: Area| {
-                    let job = make_layout_job(&text, size, area.width, color, EguiAlign::Min);
-                    ui.put(rect_from(area), Label::new(job));
-                }
-            }),
+        draw(move |area: Area, _: &mut ()| {
+            vec![Drawable::Action {
+                area,
+                handler: Box::new({
+                    let text = text.clone();
+                    move |ui: &mut Ui, _sidebar: &mut bool, area: Area| {
+                        let job = make_layout_job(
+                            &text,
+                            size,
+                            area.width,
+                            color,
+                            EguiAlign::Min,
+                            EguiAlign::Min,
+                        );
+                        let galley = ui.fonts(|f| f.layout_job(job));
+                        ui.painter().galley(
+                            Pos2::new(area.x, area.y),
+                            galley,
+                            Color32::TRANSPARENT,
+                        );
+                    }
+                }),
+            }]
         })
         .dynamic_height(height_calc)
     } else {
         let size_vec = ctx.fonts(|fonts| {
             fonts
-                .layout_job(make_layout_job(&text, size, 300., color, EguiAlign::Center))
+                .layout_job(make_layout_job(
+                    &text,
+                    size,
+                    300.,
+                    color,
+                    EguiAlign::Min,
+                    EguiAlign::Min,
+                ))
                 .size()
         });
-        draw(move |area: Area| Drawable::Action {
-            area,
-            handler: Box::new({
-                let text = text.clone();
-                move |ui: &mut Ui, _sidebar: &mut bool, area: Area| {
-                    let job = make_layout_job(&text, size, 300., color, EguiAlign::Center);
-                    ui.put(rect_from(area), Label::new(job));
-                }
-            }),
+        draw(move |area: Area, _: &mut ()| {
+            vec![Drawable::Action {
+                area,
+                handler: Box::new({
+                    let text = text.clone();
+                    move |ui: &mut Ui, _sidebar: &mut bool, area: Area| {
+                        let job = make_layout_job(
+                            &text,
+                            size,
+                            300.,
+                            color,
+                            EguiAlign::Min,
+                            EguiAlign::Min,
+                        );
+                        ui.put(rect_from(area), Label::new(job));
+                    }
+                }),
+            }]
         })
         .height(size_vec.y)
         .width(size_vec.x)
     }
 }
 
-fn col_divider(color: Color32) -> Layout<Drawable> {
-    draw(move |area: Area| Drawable::Action {
-        area,
-        handler: Box::new(move |ui: &mut Ui, _sidebar: &mut bool, area: Area| {
-            ui.painter().line_segment(
-                [
-                    Pos2::new(area.x, area.y + (area.height * 0.5)),
-                    Pos2::new(area.x + area.width, area.y + (area.height * 0.5)),
-                ],
-                Stroke::new(1., color),
-            );
-        }),
+fn col_divider(color: Color32) -> Layout<'static, Drawable, ()> {
+    draw(move |area: Area, _: &mut ()| {
+        vec![Drawable::Action {
+            area,
+            handler: Box::new(move |ui: &mut Ui, _sidebar: &mut bool, area: Area| {
+                ui.painter().line_segment(
+                    [
+                        Pos2::new(area.x, area.y + (area.height * 0.5)),
+                        Pos2::new(area.x + area.width, area.y + (area.height * 0.5)),
+                    ],
+                    Stroke::new(1., color),
+                );
+            }),
+        }]
     })
 }
 
-fn row_divider(color: Color32) -> Layout<Drawable> {
-    draw(move |area: Area| Drawable::Action {
-        area,
-        handler: Box::new(move |ui: &mut Ui, _sidebar: &mut bool, area: Area| {
-            ui.painter().line_segment(
-                [
-                    Pos2::new(area.x + (area.width * 0.5), area.y),
-                    Pos2::new(area.x + (area.width * 0.5), area.y + area.height),
-                ],
-                Stroke::new(1., color),
-            );
-        }),
+fn row_divider(color: Color32) -> Layout<'static, Drawable, ()> {
+    draw(move |area: Area, _: &mut ()| {
+        vec![Drawable::Action {
+            area,
+            handler: Box::new(move |ui: &mut Ui, _sidebar: &mut bool, area: Area| {
+                ui.painter().line_segment(
+                    [
+                        Pos2::new(area.x + (area.width * 0.5), area.y),
+                        Pos2::new(area.x + (area.width * 0.5), area.y + area.height),
+                    ],
+                    Stroke::new(1., color),
+                );
+            }),
+        }]
     })
 }
 
-fn rect(stroke: Color32, fill: Color32, rounding: f32) -> Layout<Drawable> {
-    draw(move |area: Area| Drawable::Action {
-        area,
-        handler: Box::new(move |ui: &mut Ui, _sidebar: &mut bool, area: Area| {
-            ui.painter()
-                .rect_stroke(rect_from(area), rounding, Stroke::new(1., stroke));
-            ui.painter().rect_filled(rect_from(area), rounding, fill);
-        }),
+fn rect(stroke: Color32, fill: Color32, rounding: f32) -> Layout<'static, Drawable, ()> {
+    draw(move |area: Area, _: &mut ()| {
+        vec![Drawable::Action {
+            area,
+            handler: Box::new(move |ui: &mut Ui, _sidebar: &mut bool, area: Area| {
+                ui.painter()
+                    .rect_stroke(rect_from(area), rounding, Stroke::new(1., stroke));
+                ui.painter().rect_filled(rect_from(area), rounding, fill);
+            }),
+        }]
     })
 }
 
-fn rect_stroke(color: Color32) -> Layout<Drawable> {
-    draw(move |area: Area| Drawable::Action {
-        area,
-        handler: Box::new(move |ui, _sidebar, area: Area| {
-            ui.painter()
-                .rect_stroke(rect_from(area), 5., Stroke::new(1., color));
-        }),
+fn rect_stroke(color: Color32) -> Layout<'static, Drawable, ()> {
+    draw(move |area: Area, _: &mut ()| {
+        vec![Drawable::Action {
+            area,
+            handler: Box::new(move |ui, _sidebar, area: Area| {
+                ui.painter()
+                    .rect_stroke(rect_from(area), 5., Stroke::new(1., color));
+            }),
+        }]
     })
 }
 
@@ -570,6 +623,7 @@ fn make_layout_job(
     width: f32,
     color: Color32,
     align: EguiAlign,
+    halign: EguiAlign,
 ) -> LayoutJob {
     let mut job = LayoutJob::single_section(
         (*text).clone().to_string(),
@@ -586,5 +640,6 @@ fn make_layout_job(
         },
     );
     job.wrap.max_width = width;
+    job.halign = halign;
     job
 }
