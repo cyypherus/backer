@@ -10,6 +10,17 @@ pub(crate) type DimensionFn<'a, S> = Option<Box<dyn Fn(f32, &mut S) -> f32 + 'a>
 ///
 /// Call `Layout::draw` to produce laid-out values to be rendered
 ///
+/// # Generics & Lifetimes
+///
+/// - `D` — The output type of draw closures. Each draw closure receives a laid-out [`Area`]
+///   and produces a `Vec<D>`. These are collected into a single `Vec<D>` when you call
+///   [`Layout::draw`].
+/// - `S` — A global mutable context shared by the entire tree, passed as `&mut S` to every
+///   draw closure and dynamic constraint function. Useful for things like text layout caches.
+///   Defaults to `()`.
+/// - `'a` — The lifetime of the draw closures, allowing them to borrow state from the
+///   surrounding environment.
+///
 /// # Example
 ///
 /// ```
