@@ -1,5 +1,6 @@
 use crate::{
     passes::{collect, perform_layout_passes},
+    tree::TreeNode,
     types::*,
 };
 use std::ops::RangeBounds;
@@ -33,6 +34,67 @@ impl<'a, D, S> Layout<'a, D, S> {
     pub fn min_width(&mut self, available_area: Area, state: &mut S) -> Option<f32> {
         perform_layout_passes(self, available_area, state);
         self.constraints().width.lower
+    }
+}
+
+impl<'a, D: 'a, S: 'a> Layout<'a, D, S> {
+    /// Transforms the draw output of every node in the tree from type `D` to type `B`.
+    pub fn map<B: 'a>(self, f: impl Fn(D) -> B + 'a) -> Layout<'a, B, S> {
+        use std::rc::Rc;
+        let f = Rc::new(f);
+        self.map_tree(|node, children| {
+            let mapped_layout = match node.layout {
+                LayoutType::Draw(Some(draw_fn)) => {
+                    let f = f.clone();
+                    LayoutType::Draw(Some(Box::new(move |area, s| {
+                        draw_fn(area, s).into_iter().map(|draw| f(draw)).collect()
+                    })))
+                }
+                LayoutType::Draw(None) => LayoutType::Draw(None),
+                LayoutType::Column {
+                    spacing,
+                    x_align,
+                    y_align,
+                } => LayoutType::Column {
+                    spacing,
+                    x_align,
+                    y_align,
+                },
+                LayoutType::Row {
+                    spacing,
+                    x_align,
+                    y_align,
+                } => LayoutType::Row {
+                    spacing,
+                    x_align,
+                    y_align,
+                },
+                LayoutType::Stack { x_align, y_align } => LayoutType::Stack { x_align, y_align },
+                LayoutType::Padding {
+                    leading,
+                    trailing,
+                    top,
+                    bottom,
+                } => LayoutType::Padding {
+                    leading,
+                    trailing,
+                    top,
+                    bottom,
+                },
+                LayoutType::Offset { x, y } => LayoutType::Offset { x, y },
+                LayoutType::Space => LayoutType::Space,
+                LayoutType::Empty => LayoutType::Empty,
+            };
+            Layout {
+                layout: mapped_layout,
+                constraints: node.constraints,
+                dynamic_constraints: node.dynamic_constraints,
+                layer: node.layer,
+                resolved: node.resolved,
+                allocated: node.allocated,
+                children,
+            }
+        })
     }
 }
 

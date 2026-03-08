@@ -18,6 +18,7 @@ See [`crate::nodes`] for available layout components.
 mod api;
 mod debug;
 mod passes;
+mod public_api_test;
 mod tests;
 mod tree;
 mod types;

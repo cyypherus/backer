@@ -37,8 +37,8 @@ required-features = ["egui-examples"]
 
 [dev-dependencies]
 insta = "1.42.1"
-public-api = "0.43.0"
-rustdoc-json = "0.9.4"
+public-api = "0.51.0"
+rustdoc-json = "0.9.9"
 rustup-toolchain = "0.1.9"
 criterion = { version = "0.5", features = ["html_reports"] }
 

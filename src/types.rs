@@ -1,6 +1,4 @@
 use std::fmt::Debug;
-use std::rc::Rc;
-
 use crate::tree::TreeNode;
 
 pub(crate) type DrawFn<'a, D, S> = Box<dyn FnOnce(Area, &mut S) -> Vec<D> + 'a>;
@@ -49,73 +47,13 @@ impl<'a, D, S> Layout<'a, D, S> {
     }
 }
 
-impl<'a, D: 'a, S: 'a> Layout<'a, D, S> {
-    /// Transforms the draw output of every node in the tree from type `D` to type `B`.
-    pub fn map<B: 'a>(self, f: impl Fn(D) -> B + 'a) -> Layout<'a, B, S> {
-        self.map_rc(Rc::new(f))
-    }
-
-    fn map_rc<B: 'a>(self, f: Rc<dyn Fn(D) -> B + 'a>) -> Layout<'a, B, S> {
-        Layout {
-            layout: match self.layout {
-                LayoutType::Draw(Some(draw_fn)) => {
-                    let f = f.clone();
-                    LayoutType::Draw(Some(Box::new(move |area, s| {
-                        draw_fn(area, s).into_iter().map(|draw| f(draw)).collect()
-                    })))
-                }
-                LayoutType::Draw(None) => LayoutType::Draw(None),
-                LayoutType::Column {
-                    spacing,
-                    x_align,
-                    y_align,
-                } => LayoutType::Column {
-                    spacing,
-                    x_align,
-                    y_align,
-                },
-                LayoutType::Row {
-                    spacing,
-                    x_align,
-                    y_align,
-                } => LayoutType::Row {
-                    spacing,
-                    x_align,
-                    y_align,
-                },
-                LayoutType::Stack { x_align, y_align } => LayoutType::Stack { x_align, y_align },
-                LayoutType::Padding {
-                    leading,
-                    trailing,
-                    top,
-                    bottom,
-                } => LayoutType::Padding {
-                    leading,
-                    trailing,
-                    top,
-                    bottom,
-                },
-                LayoutType::Offset { x, y } => LayoutType::Offset { x, y },
-                LayoutType::Space => LayoutType::Space,
-                LayoutType::Empty => LayoutType::Empty,
-            },
-            constraints: self.constraints,
-            dynamic_constraints: self.dynamic_constraints,
-            layer: self.layer,
-            resolved: self.resolved,
-            allocated: self.allocated,
-            children: self
-                .children
-                .into_iter()
-                .map(|c| c.map_rc(f.clone()))
-                .collect(),
-        }
-    }
-}
 
 impl<'a, D, S> TreeNode for Layout<'a, D, S> {
     fn children_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Self> {
         self.children.iter_mut()
+    }
+    fn take_children(&mut self) -> Vec<Self> {
+        std::mem::take(&mut self.children)
     }
 }
 

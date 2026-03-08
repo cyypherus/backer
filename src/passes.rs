@@ -61,8 +61,22 @@ pub(crate) fn resolve<'a, D, S>(input: &mut Layout<'a, D, S>, state: &mut S) {
                         let tx = child.constraints.transparent_x;
                         let ty = child.constraints.transparent_y;
                         (
-                            if tx { w } else { Some(match w { Some(w) => w.combine_adjacent_priority(cc.width), None => cc.width }) },
-                            if ty { h } else { Some(match h { Some(h) => h.combine_sum(cc.height, spacing), None => cc.height }) },
+                            if tx {
+                                w
+                            } else {
+                                Some(match w {
+                                    Some(w) => w.combine_adjacent_priority(cc.width),
+                                    None => cc.width,
+                                })
+                            },
+                            if ty {
+                                h
+                            } else {
+                                Some(match h {
+                                    Some(h) => h.combine_sum(cc.height, spacing),
+                                    None => cc.height,
+                                })
+                            },
                         )
                     },
                 );
@@ -80,8 +94,22 @@ pub(crate) fn resolve<'a, D, S>(input: &mut Layout<'a, D, S>, state: &mut S) {
                         let tx = child.constraints.transparent_x;
                         let ty = child.constraints.transparent_y;
                         (
-                            if tx { w } else { Some(match w { Some(w) => w.combine_sum(cc.width, spacing), None => cc.width }) },
-                            if ty { h } else { Some(match h { Some(h) => h.combine_adjacent_priority(cc.height), None => cc.height }) },
+                            if tx {
+                                w
+                            } else {
+                                Some(match w {
+                                    Some(w) => w.combine_sum(cc.width, spacing),
+                                    None => cc.width,
+                                })
+                            },
+                            if ty {
+                                h
+                            } else {
+                                Some(match h {
+                                    Some(h) => h.combine_adjacent_priority(cc.height),
+                                    None => cc.height,
+                                })
+                            },
                         )
                     },
                 );
@@ -99,8 +127,22 @@ pub(crate) fn resolve<'a, D, S>(input: &mut Layout<'a, D, S>, state: &mut S) {
                         let tx = child.constraints.transparent_x;
                         let ty = child.constraints.transparent_y;
                         (
-                            if tx { w } else { Some(match w { Some(w) => w.combine_adjacent_priority(cc.width), None => cc.width }) },
-                            if ty { h } else { Some(match h { Some(h) => h.combine_adjacent_priority(cc.height), None => cc.height }) },
+                            if tx {
+                                w
+                            } else {
+                                Some(match w {
+                                    Some(w) => w.combine_adjacent_priority(cc.width),
+                                    None => cc.width,
+                                })
+                            },
+                            if ty {
+                                h
+                            } else {
+                                Some(match h {
+                                    Some(h) => h.combine_adjacent_priority(cc.height),
+                                    None => cc.height,
+                                })
+                            },
                         )
                     },
                 );

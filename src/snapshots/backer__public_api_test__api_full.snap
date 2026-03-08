@@ -1,0 +1,173 @@
+---
+source: src/public_api_test.rs
+assertion_line: 22
+expression: public_api
+---
+pub mod backer
+pub mod backer::nodes
+pub fn backer::nodes::column<'a, D, S>(elements: alloc::vec::Vec<backer::Layout<'a, D, S>>) -> backer::Layout<'a, D, S>
+pub fn backer::nodes::column_aligned<'a, D, S>(align: backer::Align, elements: alloc::vec::Vec<backer::Layout<'a, D, S>>) -> backer::Layout<'a, D, S>
+pub fn backer::nodes::column_spaced<'a, D, S>(spacing: f32, elements: alloc::vec::Vec<backer::Layout<'a, D, S>>) -> backer::Layout<'a, D, S>
+pub fn backer::nodes::column_spaced_aligned<'a, D, S>(spacing: f32, align: backer::Align, elements: alloc::vec::Vec<backer::Layout<'a, D, S>>) -> backer::Layout<'a, D, S>
+pub fn backer::nodes::draw<'a, D, S>(data: impl core::ops::function::FnOnce(backer::Area, &mut S) -> alloc::vec::Vec<D> + 'a) -> backer::Layout<'a, D, S>
+pub fn backer::nodes::empty<'a, D, S>() -> backer::Layout<'a, D, S>
+pub fn backer::nodes::row<'a, D, S>(elements: alloc::vec::Vec<backer::Layout<'a, D, S>>) -> backer::Layout<'a, D, S>
+pub fn backer::nodes::row_aligned<'a, D, S>(align: backer::Align, elements: alloc::vec::Vec<backer::Layout<'a, D, S>>) -> backer::Layout<'a, D, S>
+pub fn backer::nodes::row_spaced<'a, D, S>(spacing: f32, elements: alloc::vec::Vec<backer::Layout<'a, D, S>>) -> backer::Layout<'a, D, S>
+pub fn backer::nodes::row_spaced_aligned<'a, D, S>(spacing: f32, align: backer::Align, elements: alloc::vec::Vec<backer::Layout<'a, D, S>>) -> backer::Layout<'a, D, S>
+pub fn backer::nodes::space<'a, D, S>() -> backer::Layout<'a, D, S>
+pub fn backer::nodes::stack<'a, D, S>(elements: alloc::vec::Vec<backer::Layout<'a, D, S>>) -> backer::Layout<'a, D, S>
+pub fn backer::nodes::stack_aligned<'a, D, S>(align: backer::Align, elements: alloc::vec::Vec<backer::Layout<'a, D, S>>) -> backer::Layout<'a, D, S>
+pub enum backer::Align
+pub backer::Align::Bottom
+pub backer::Align::BottomCenter
+pub backer::Align::BottomLeading
+pub backer::Align::BottomTrailing
+pub backer::Align::CenterCenter
+pub backer::Align::CenterLeading
+pub backer::Align::CenterTrailing
+pub backer::Align::CenterX
+pub backer::Align::CenterY
+pub backer::Align::Leading
+pub backer::Align::Top
+pub backer::Align::TopCenter
+pub backer::Align::TopLeading
+pub backer::Align::TopTrailing
+pub backer::Align::Trailing
+impl core::clone::Clone for backer::Align
+pub fn backer::Align::clone(&self) -> backer::Align
+impl core::fmt::Debug for backer::Align
+pub fn backer::Align::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for backer::Align
+impl core::marker::Freeze for backer::Align
+impl core::marker::Send for backer::Align
+impl core::marker::Sync for backer::Align
+impl core::marker::Unpin for backer::Align
+impl core::panic::unwind_safe::RefUnwindSafe for backer::Align
+impl core::panic::unwind_safe::UnwindSafe for backer::Align
+impl<T, U> core::convert::Into<U> for backer::Align where U: core::convert::From<T>
+pub fn backer::Align::into(self) -> U
+impl<T, U> core::convert::TryFrom<U> for backer::Align where U: core::convert::Into<T>
+pub type backer::Align::Error = core::convert::Infallible
+pub fn backer::Align::try_from(value: U) -> core::result::Result<T, <T as core::convert::TryFrom<U>>::Error>
+impl<T, U> core::convert::TryInto<U> for backer::Align where U: core::convert::TryFrom<T>
+pub type backer::Align::Error = <U as core::convert::TryFrom<T>>::Error
+pub fn backer::Align::try_into(self) -> core::result::Result<U, <U as core::convert::TryFrom<T>>::Error>
+impl<T> alloc::borrow::ToOwned for backer::Align where T: core::clone::Clone
+pub type backer::Align::Owned = T
+pub fn backer::Align::clone_into(&self, target: &mut T)
+pub fn backer::Align::to_owned(&self) -> T
+impl<T> core::any::Any for backer::Align where T: 'static + ?core::marker::Sized
+pub fn backer::Align::type_id(&self) -> core::any::TypeId
+impl<T> core::borrow::Borrow<T> for backer::Align where T: ?core::marker::Sized
+pub fn backer::Align::borrow(&self) -> &T
+impl<T> core::borrow::BorrowMut<T> for backer::Align where T: ?core::marker::Sized
+pub fn backer::Align::borrow_mut(&mut self) -> &mut T
+impl<T> core::clone::CloneToUninit for backer::Align where T: core::clone::Clone
+pub unsafe fn backer::Align::clone_to_uninit(&self, dest: *mut u8)
+impl<T> core::convert::From<T> for backer::Align
+pub fn backer::Align::from(t: T) -> T
+pub struct backer::Area
+pub backer::Area::height: f32
+pub backer::Area::width: f32
+pub backer::Area::x: f32
+pub backer::Area::y: f32
+impl backer::Area
+pub fn backer::Area::new(x: f32, y: f32, width: f32, height: f32) -> Self
+impl core::clone::Clone for backer::Area
+pub fn backer::Area::clone(&self) -> backer::Area
+impl core::cmp::PartialEq for backer::Area
+pub fn backer::Area::eq(&self, other: &backer::Area) -> bool
+impl core::default::Default for backer::Area
+pub fn backer::Area::default() -> backer::Area
+impl core::fmt::Debug for backer::Area
+pub fn backer::Area::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for backer::Area
+impl core::marker::StructuralPartialEq for backer::Area
+impl core::marker::Freeze for backer::Area
+impl core::marker::Send for backer::Area
+impl core::marker::Sync for backer::Area
+impl core::marker::Unpin for backer::Area
+impl core::panic::unwind_safe::RefUnwindSafe for backer::Area
+impl core::panic::unwind_safe::UnwindSafe for backer::Area
+impl<T, U> core::convert::Into<U> for backer::Area where U: core::convert::From<T>
+pub fn backer::Area::into(self) -> U
+impl<T, U> core::convert::TryFrom<U> for backer::Area where U: core::convert::Into<T>
+pub type backer::Area::Error = core::convert::Infallible
+pub fn backer::Area::try_from(value: U) -> core::result::Result<T, <T as core::convert::TryFrom<U>>::Error>
+impl<T, U> core::convert::TryInto<U> for backer::Area where U: core::convert::TryFrom<T>
+pub type backer::Area::Error = <U as core::convert::TryFrom<T>>::Error
+pub fn backer::Area::try_into(self) -> core::result::Result<U, <U as core::convert::TryFrom<T>>::Error>
+impl<T> alloc::borrow::ToOwned for backer::Area where T: core::clone::Clone
+pub type backer::Area::Owned = T
+pub fn backer::Area::clone_into(&self, target: &mut T)
+pub fn backer::Area::to_owned(&self) -> T
+impl<T> core::any::Any for backer::Area where T: 'static + ?core::marker::Sized
+pub fn backer::Area::type_id(&self) -> core::any::TypeId
+impl<T> core::borrow::Borrow<T> for backer::Area where T: ?core::marker::Sized
+pub fn backer::Area::borrow(&self) -> &T
+impl<T> core::borrow::BorrowMut<T> for backer::Area where T: ?core::marker::Sized
+pub fn backer::Area::borrow_mut(&mut self) -> &mut T
+impl<T> core::clone::CloneToUninit for backer::Area where T: core::clone::Clone
+pub unsafe fn backer::Area::clone_to_uninit(&self, dest: *mut u8)
+impl<T> core::convert::From<T> for backer::Area
+pub fn backer::Area::from(t: T) -> T
+pub struct backer::Layout<'a, D, S>
+impl<'a, D, S> backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::align(self, align: backer::Align) -> Self
+pub fn backer::Layout<'a, D, S>::aspect_height(self, ratio: f32) -> Self
+pub fn backer::Layout<'a, D, S>::aspect_width(self, ratio: f32) -> Self
+pub fn backer::Layout<'a, D, S>::dynamic_height(self, f: impl core::ops::function::Fn(f32, &mut S) -> f32 + 'a) -> backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::dynamic_width(self, f: impl core::ops::function::Fn(f32, &mut S) -> f32 + 'a) -> backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::expand(self) -> Self
+pub fn backer::Layout<'a, D, S>::expand_x(self) -> Self
+pub fn backer::Layout<'a, D, S>::expand_y(self) -> Self
+pub fn backer::Layout<'a, D, S>::height(self, height: f32) -> Self
+pub fn backer::Layout<'a, D, S>::height_range<R>(self, range: R) -> Self where R: core::ops::range::RangeBounds<f32>
+pub fn backer::Layout<'a, D, S>::inert(self) -> Self
+pub fn backer::Layout<'a, D, S>::inert_x(self) -> Self
+pub fn backer::Layout<'a, D, S>::inert_y(self) -> Self
+pub fn backer::Layout<'a, D, S>::layer(self, layer: i32) -> backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::width(self, width: f32) -> Self
+pub fn backer::Layout<'a, D, S>::width_range<R>(self, range: R) -> Self where R: core::ops::range::RangeBounds<f32>
+impl<'a, D, S> backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::draw(&mut self, available_area: backer::Area, state: &mut S) -> alloc::vec::Vec<D>
+pub fn backer::Layout<'a, D, S>::min_height(&mut self, available_area: backer::Area, state: &mut S) -> core::option::Option<f32>
+pub fn backer::Layout<'a, D, S>::min_width(&mut self, available_area: backer::Area, state: &mut S) -> core::option::Option<f32>
+impl<'a, D, S> backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::offset(self, x: f32, y: f32) -> backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::offset_x(self, x: f32) -> backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::offset_y(self, y: f32) -> backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::pad(self, amount: f32) -> backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::pad_bottom(self, amount: f32) -> Self
+pub fn backer::Layout<'a, D, S>::pad_leading(self, amount: f32) -> Self
+pub fn backer::Layout<'a, D, S>::pad_top(self, amount: f32) -> Self
+pub fn backer::Layout<'a, D, S>::pad_trailing(self, amount: f32) -> Self
+pub fn backer::Layout<'a, D, S>::pad_x(self, amount: f32) -> Self
+pub fn backer::Layout<'a, D, S>::pad_y(self, amount: f32) -> Self
+impl<'a, D: 'a, S: 'a> backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::map<B: 'a>(self, f: impl core::ops::function::Fn(D) -> B + 'a) -> backer::Layout<'a, B, S>
+impl<'a, D, S> core::fmt::Debug for backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a, D, S> core::marker::Freeze for backer::Layout<'a, D, S>
+impl<'a, D, S> !core::marker::Send for backer::Layout<'a, D, S>
+impl<'a, D, S> !core::marker::Sync for backer::Layout<'a, D, S>
+impl<'a, D, S> core::marker::Unpin for backer::Layout<'a, D, S>
+impl<'a, D, S> !core::panic::unwind_safe::RefUnwindSafe for backer::Layout<'a, D, S>
+impl<'a, D, S> !core::panic::unwind_safe::UnwindSafe for backer::Layout<'a, D, S>
+impl<T, U> core::convert::Into<U> for backer::Layout<'a, D, S> where U: core::convert::From<T>
+pub fn backer::Layout<'a, D, S>::into(self) -> U
+impl<T, U> core::convert::TryFrom<U> for backer::Layout<'a, D, S> where U: core::convert::Into<T>
+pub type backer::Layout<'a, D, S>::Error = core::convert::Infallible
+pub fn backer::Layout<'a, D, S>::try_from(value: U) -> core::result::Result<T, <T as core::convert::TryFrom<U>>::Error>
+impl<T, U> core::convert::TryInto<U> for backer::Layout<'a, D, S> where U: core::convert::TryFrom<T>
+pub type backer::Layout<'a, D, S>::Error = <U as core::convert::TryFrom<T>>::Error
+pub fn backer::Layout<'a, D, S>::try_into(self) -> core::result::Result<U, <U as core::convert::TryFrom<T>>::Error>
+impl<T> core::any::Any for backer::Layout<'a, D, S> where T: 'static + ?core::marker::Sized
+pub fn backer::Layout<'a, D, S>::type_id(&self) -> core::any::TypeId
+impl<T> core::borrow::Borrow<T> for backer::Layout<'a, D, S> where T: ?core::marker::Sized
+pub fn backer::Layout<'a, D, S>::borrow(&self) -> &T
+impl<T> core::borrow::BorrowMut<T> for backer::Layout<'a, D, S> where T: ?core::marker::Sized
+pub fn backer::Layout<'a, D, S>::borrow_mut(&mut self) -> &mut T
+impl<T> core::convert::From<T> for backer::Layout<'a, D, S>
+pub fn backer::Layout<'a, D, S>::from(t: T) -> T

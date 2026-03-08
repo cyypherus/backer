@@ -18,140 +18,148 @@ mod tests_module {
     // Sequences (row, column) distribute space to immediate constrained children according to their constraints, & split the remainder among the rest of their children.
     // The alignment of a node defines how it will be placed when there is less *or* more space available than it requires along a given axis.
 
-    #[test]
-    fn test_containers_hug_children_column() {
-        stack(vec![
-            assert_area!(Area::new(45., 40., 10., 20.)).inert(),
-            column(vec![
-                assert_area!(Area::new(45., 40., 10., 10.))
-                    .width(10.)
-                    .height(10.),
-                assert_area!(Area::new(45., 50., 10., 10.))
-                    .width(10.)
-                    .height(10.),
-            ]),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
+    mod container_tests {
+        use super::*;
 
-    #[test]
-    fn test_containers_hug_children_row() {
-        stack(vec![
-            assert_area!(Area::new(40., 45., 20., 10.)).inert(),
-            row(vec![
-                assert_area!(Area::new(40., 45., 10., 10.))
-                    .width(10.)
-                    .height(10.),
-                assert_area!(Area::new(50., 45., 10., 10.))
-                    .width(10.)
-                    .height(10.),
-            ]),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
-
-    #[test]
-    fn test_containers_hug_children_stack() {
-        stack(vec![
-            assert_area!(Area::new(45., 45., 10., 10.)).inert(),
+        #[test]
+        fn test_containers_hug_children_column() {
             stack(vec![
-                assert_area!(Area::new(49., 49., 2., 2.))
-                    .width(2.)
-                    .height(2.),
-                assert_area!(Area::new(45., 45., 10., 10.))
-                    .width(10.)
-                    .height(10.),
-            ]),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
+                assert_area!(Area::new(45., 40., 10., 20.)).inert(),
+                column(vec![
+                    assert_area!(Area::new(45., 40., 10., 10.))
+                        .width(10.)
+                        .height(10.),
+                    assert_area!(Area::new(45., 50., 10., 10.))
+                        .width(10.)
+                        .height(10.),
+                ]),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
 
-    #[test]
-    fn test_containers_hug_children_column_nested() {
-        stack(vec![
-            assert_area!(Area::new(45., 40., 10., 20.)).inert(),
-            column(vec![
+        #[test]
+        fn test_containers_hug_children_row() {
+            stack(vec![
+                assert_area!(Area::new(40., 45., 20., 10.)).inert(),
+                row(vec![
+                    assert_area!(Area::new(40., 45., 10., 10.))
+                        .width(10.)
+                        .height(10.),
+                    assert_area!(Area::new(50., 45., 10., 10.))
+                        .width(10.)
+                        .height(10.),
+                ]),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
+
+        #[test]
+        fn test_containers_hug_children_stack() {
+            stack(vec![
+                assert_area!(Area::new(45., 45., 10., 10.)).inert(),
                 stack(vec![
-                    assert_area!(Area::new(45., 40., 10., 10.)).inert(),
-                    column(vec![
-                        assert_area!(Area::new(45., 40., 10., 10.))
-                            .width(10.)
-                            .height(10.),
+                    assert_area!(Area::new(49., 49., 2., 2.))
+                        .width(2.)
+                        .height(2.),
+                    assert_area!(Area::new(45., 45., 10., 10.))
+                        .width(10.)
+                        .height(10.),
+                ]),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
+
+        #[test]
+        fn test_containers_hug_children_column_nested() {
+            stack(vec![
+                assert_area!(Area::new(45., 40., 10., 20.)).inert(),
+                column(vec![
+                    stack(vec![
+                        assert_area!(Area::new(45., 40., 10., 10.)).inert(),
+                        column(vec![
+                            assert_area!(Area::new(45., 40., 10., 10.))
+                                .width(10.)
+                                .height(10.),
+                        ]),
+                    ]),
+                    stack(vec![
+                        assert_area!(Area::new(45., 50., 10., 10.)).inert(),
+                        row(vec![
+                            assert_area!(Area::new(45., 50., 10., 10.))
+                                .width(10.)
+                                .height(10.),
+                        ]),
                     ]),
                 ]),
-                stack(vec![
-                    assert_area!(Area::new(45., 50., 10., 10.)).inert(),
-                    row(vec![
-                        assert_area!(Area::new(45., 50., 10., 10.))
-                            .width(10.)
-                            .height(10.),
-                    ]),
-                ]),
-            ]),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
     }
 
-    #[test]
-    fn test_layer_sorts_by_value() {
-        let values = stack(vec![
-            draw(|_, _| vec![1]).layer(5),
-            draw(|_, _| vec![2]).layer(-5),
-            draw(|_, _| vec![3]).layer(0),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+    mod layer_tests {
+        use super::*;
 
-        assert_eq!(
-            values,
-            vec![2, 3, 1],
-            "Draws sorted by layer value ascending"
-        );
-    }
+        #[test]
+        fn test_layer_sorts_by_value() {
+            let values = stack(vec![
+                draw(|_, _| vec![1]).layer(5),
+                draw(|_, _| vec![2]).layer(-5),
+                draw(|_, _| vec![3]).layer(0),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
-    #[test]
-    fn test_layer_same_value_preserves_order() {
-        let values = stack(vec![
-            draw(|_, _| vec![1]).layer(5),
-            draw(|_, _| vec![2]).layer(5),
-            draw(|_, _| vec![3]).layer(5),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+            assert_eq!(
+                values,
+                vec![2, 3, 1],
+                "Draws sorted by layer value ascending"
+            );
+        }
 
-        assert_eq!(
-            values,
-            vec![1, 2, 3],
-            "Same layer values preserve insertion order"
-        );
-    }
+        #[test]
+        fn test_layer_same_value_preserves_order() {
+            let values = stack(vec![
+                draw(|_, _| vec![1]).layer(5),
+                draw(|_, _| vec![2]).layer(5),
+                draw(|_, _| vec![3]).layer(5),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
-    #[test]
-    fn test_layer_child_overrides_parent() {
-        let values = stack(vec![
-            stack(vec![draw(|_, _| vec![1]).layer(10)]).layer(1),
-            draw(|_, _| vec![2]).layer(5),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+            assert_eq!(
+                values,
+                vec![1, 2, 3],
+                "Same layer values preserve insertion order"
+            );
+        }
 
-        assert_eq!(
-            values,
-            vec![2, 1],
-            "Child layer values override parent context"
-        );
-    }
+        #[test]
+        fn test_layer_child_overrides_parent() {
+            let values = stack(vec![
+                stack(vec![draw(|_, _| vec![1]).layer(10)]).layer(1),
+                draw(|_, _| vec![2]).layer(5),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
-    #[test]
-    fn test_layer_nested_inherits_context() {
-        let values = stack(vec![
-            stack(vec![draw(|_, _| vec![1]), draw(|_, _| vec![2])]).layer(1),
-            draw(|_, _| vec![3]).layer(2),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+            assert_eq!(
+                values,
+                vec![2, 1],
+                "Child layer values override parent context"
+            );
+        }
 
-        assert_eq!(
-            values,
-            vec![1, 2, 3],
-            "Nested draws inherit parent layer when not explicitly set"
-        );
+        #[test]
+        fn test_layer_nested_inherits_context() {
+            let values = stack(vec![
+                stack(vec![draw(|_, _| vec![1]), draw(|_, _| vec![2])]).layer(1),
+                draw(|_, _| vec![3]).layer(2),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+
+            assert_eq!(
+                values,
+                vec![1, 2, 3],
+                "Nested draws inherit parent layer when not explicitly set"
+            );
+        }
     }
 
     impl<D> Layout<'_, D> {
@@ -358,225 +366,229 @@ mod tests_module {
         }
     }
 
-    #[test]
-    fn test_expands_nested_nodes() {
-        let values: Vec<usize> = draw(|area, s: &mut ()| {
-            draw(|area, s: &mut ()| {
-                //>
-                draw(|_area, _: &mut ()| {
+    mod dynamic_tests {
+        use super::*;
+
+        #[test]
+        fn test_expands_nested_nodes() {
+            let values: Vec<usize> = draw(|area, s: &mut ()| {
+                draw(|area, s: &mut ()| {
                     //>
-                    vec![1]
+                    draw(|_area, _: &mut ()| {
+                        //>
+                        vec![1]
+                    })
+                    .draw(area, s)
                 })
                 .draw(area, s)
             })
-            .draw(area, s)
-        })
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-        assert_eq!(values.len(), 1);
-        assert_eq!(values[0], 1);
-    }
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+            assert_eq!(values.len(), 1);
+            assert_eq!(values[0], 1);
+        }
 
-    #[test]
-    fn test_draws_all_expanded_nodes() {
-        let values = draw(|area, s: &mut ()| {
-            stack(vec![
+        #[test]
+        fn test_draws_all_expanded_nodes() {
+            let values = draw(|area, s: &mut ()| {
                 stack(vec![
-                    draw(|area, s: &mut ()| draw(|_area, _: &mut ()| vec![1]).draw(area, s)),
+                    stack(vec![
+                        draw(|area, s: &mut ()| draw(|_area, _: &mut ()| vec![1]).draw(area, s)),
+                        draw(|_, _| vec![1]),
+                    ]),
                     draw(|_, _| vec![1]),
-                ]),
-                draw(|_, _| vec![1]),
+                ])
+                .draw(area, s)
+            })
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+            assert_eq!(values.len(), 3);
+        }
+
+        #[test]
+        fn test_simple_column_layout() {
+            column(vec![
+                draw(|a, _| {
+                    assert_eq!(a.width, 100.0);
+                    assert_eq!(a.height, 50.0);
+                    vec![()]
+                })
+                .height(50.0),
+                draw(|a, _| {
+                    assert_eq!(a.width, 100.0);
+                    assert_eq!(a.height, 50.0);
+                    assert_eq!(a.y, 50.0);
+                    vec![()]
+                })
+                .height(50.0),
             ])
-            .draw(area, s)
-        })
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-        assert_eq!(values.len(), 3);
-    }
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
 
-    #[test]
-    fn test_simple_column_layout() {
-        column(vec![
-            draw(|a, _| {
-                assert_eq!(a.width, 100.0);
-                assert_eq!(a.height, 50.0);
-                vec![()]
-            })
-            .height(50.0),
-            draw(|a, _| {
-                assert_eq!(a.width, 100.0);
-                assert_eq!(a.height, 50.0);
-                assert_eq!(a.y, 50.0);
-                vec![()]
-            })
-            .height(50.0),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
-
-    #[test]
-    fn test_simple_row_layout() {
-        row(vec![
-            draw(|a, _| {
-                assert_eq!(a.width, 50.0);
-                assert_eq!(a.height, 100.0);
-                vec![()]
-            })
-            .width(50.0),
-            draw(|a, _| {
-                assert_eq!(a.width, 50.0);
-                assert_eq!(a.height, 100.0);
-                assert_eq!(a.x, 50.0);
-                vec![()]
-            })
-            .width(50.0),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
-
-    #[test]
-    fn test_nested_layout() {
-        column(vec![
+        #[test]
+        fn test_simple_row_layout() {
             row(vec![
                 draw(|a, _| {
                     assert_eq!(a.width, 50.0);
-                    assert_eq!(a.height, 25.0);
+                    assert_eq!(a.height, 100.0);
                     vec![()]
                 })
                 .width(50.0),
                 draw(|a, _| {
                     assert_eq!(a.width, 50.0);
-                    assert_eq!(a.height, 25.0);
+                    assert_eq!(a.height, 100.0);
                     assert_eq!(a.x, 50.0);
                     vec![()]
                 })
                 .width(50.0),
             ])
-            .height(25.0),
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
+
+        #[test]
+        fn test_nested_layout() {
+            column(vec![
+                row(vec![
+                    draw(|a, _| {
+                        assert_eq!(a.width, 50.0);
+                        assert_eq!(a.height, 25.0);
+                        vec![()]
+                    })
+                    .width(50.0),
+                    draw(|a, _| {
+                        assert_eq!(a.width, 50.0);
+                        assert_eq!(a.height, 25.0);
+                        assert_eq!(a.x, 50.0);
+                        vec![()]
+                    })
+                    .width(50.0),
+                ])
+                .height(25.0),
+                draw(|a, _| {
+                    assert_eq!(a.width, 100.0);
+                    assert_eq!(a.height, 75.0);
+                    assert_eq!(a.y, 25.0);
+                    vec![()]
+                })
+                .height(75.0),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
+
+        #[test]
+        fn test_padding() {
             draw(|a, _| {
-                assert_eq!(a.width, 100.0);
-                assert_eq!(a.height, 75.0);
-                assert_eq!(a.y, 25.0);
+                assert_eq!(a.x, 10.0);
+                assert_eq!(a.y, 10.0);
+                assert_eq!(a.width, 80.0);
+                assert_eq!(a.height, 80.0);
                 vec![()]
             })
-            .height(75.0),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
+            .pad(10.0)
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
 
-    #[test]
-    fn test_padding() {
-        draw(|a, _| {
-            assert_eq!(a.x, 10.0);
-            assert_eq!(a.y, 10.0);
-            assert_eq!(a.width, 80.0);
-            assert_eq!(a.height, 80.0);
-            vec![()]
-        })
-        .pad(10.0)
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
+        #[test]
+        fn test_stack_layout() {
+            let values = stack(vec![
+                draw(|a, _| {
+                    assert_eq!(a.width, 100.0);
+                    assert_eq!(a.height, 100.0);
+                    vec![1]
+                }),
+                draw(|a, _| {
+                    assert_eq!(a.width, 100.0);
+                    assert_eq!(a.height, 100.0);
+                    vec![1]
+                }),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+            assert_eq!(values.len(), 2);
+        }
 
-    #[test]
-    fn test_stack_layout() {
-        let values = stack(vec![
+        #[test]
+        fn test_dynamic_node() {
             draw(|a, _| {
                 assert_eq!(a.width, 100.0);
-                assert_eq!(a.height, 100.0);
-                vec![1]
-            }),
-            draw(|a, _| {
-                assert_eq!(a.width, 100.0);
-                assert_eq!(a.height, 100.0);
-                vec![1]
-            }),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-        assert_eq!(values.len(), 2);
-    }
+                vec![()]
+            })
+            .height(50.0)
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
 
-    #[test]
-    fn test_dynamic_node() {
-        draw(|a, _| {
-            assert_eq!(a.width, 100.0);
-            vec![()]
-        })
-        .height(50.0)
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
+        #[test]
+        fn test_dynamic_node_drawing_issue() {
+            let values = column(vec![
+                draw(|_, _| vec!["dynamic_child_1".to_string()]).height(20.0),
+                draw(|_, _| vec!["static_draw".to_string()]).height(30.0),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
-    #[test]
-    fn test_dynamic_node_drawing_issue() {
-        let values = column(vec![
-            draw(|_, _| vec!["dynamic_child_1".to_string()]).height(20.0),
-            draw(|_, _| vec!["static_draw".to_string()]).height(30.0),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+            println!("Draw calls: {:?}", values);
+            assert!(
+                !values.is_empty(),
+                "Dynamic node children should have been drawn"
+            );
+            assert!(
+                values.contains(&"static_draw".to_string()),
+                "Static draw should be called"
+            );
+        }
 
-        println!("Draw calls: {:?}", values);
-        assert!(
-            !values.is_empty(),
-            "Dynamic node children should have been drawn"
-        );
-        assert!(
-            values.contains(&"static_draw".to_string()),
-            "Static draw should be called"
-        );
-    }
+        #[test]
+        fn test_nested_dynamic_nodes() {
+            let values = column(vec![
+                draw(|_, _| vec!["outer_before".to_string()]).height(10.0),
+                draw(|_, _| vec!["inner_1".to_string()]).height(20.0),
+                draw(|_, _| vec!["outer_after".to_string()]).height(15.0),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
-    #[test]
-    fn test_nested_dynamic_nodes() {
-        let values = column(vec![
-            draw(|_, _| vec!["outer_before".to_string()]).height(10.0),
-            draw(|_, _| vec!["inner_1".to_string()]).height(20.0),
-            draw(|_, _| vec!["outer_after".to_string()]).height(15.0),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+            println!("Nested draw calls: {:?}", values);
+            assert!(
+                values.contains(&"outer_before".to_string()),
+                "Outer before should be drawn"
+            );
+            assert!(
+                values.contains(&"outer_after".to_string()),
+                "Outer after should be drawn"
+            );
+            assert!(
+                values.iter().any(|call| call.starts_with("inner_")),
+                "Inner dynamic should be drawn"
+            );
+        }
 
-        println!("Nested draw calls: {:?}", values);
-        assert!(
-            values.contains(&"outer_before".to_string()),
-            "Outer before should be drawn"
-        );
-        assert!(
-            values.contains(&"outer_after".to_string()),
-            "Outer after should be drawn"
-        );
-        assert!(
-            values.iter().any(|call| call.starts_with("inner_")),
-            "Inner dynamic should be drawn"
-        );
-    }
+        #[test]
+        fn test_row_dynamic() {
+            column(vec![
+                row(vec![
+                    space().height(0.),
+                    assert_area!(Area::new(50., 0., 50., 20.)).height(20.),
+                ]),
+                assert_area!(Area::new(0., 20., 100., 80.)),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
 
-    #[test]
-    fn test_row_dynamic() {
-        column(vec![
-            row(vec![
-                space().height(0.),
-                assert_area!(Area::new(50., 0., 50., 20.)).height(20.),
-            ]),
-            assert_area!(Area::new(0., 20., 100., 80.)),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
+        #[test]
+        fn test_static_vs_dynamic_height() {
+            column(vec![
+                row(vec![
+                    space().height(0.),
+                    assert_area!(Area::new(50., 0., 50., 30.)).height(30.),
+                ]),
+                assert_area!(Area::new(0., 30., 100., 70.)),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
 
-    #[test]
-    fn test_static_vs_dynamic_height() {
-        column(vec![
-            row(vec![
-                space().height(0.),
-                assert_area!(Area::new(50., 0., 50., 30.)).height(30.),
-            ]),
-            assert_area!(Area::new(0., 30., 100., 70.)),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-
-        column(vec![
-            row(vec![
-                space().height(0.),
-                assert_area!(Area::new(50., 0., 50., 30.)).height(30.),
-            ]),
-            assert_area!(Area::new(0., 30., 100., 70.)),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+            column(vec![
+                row(vec![
+                    space().height(0.),
+                    assert_area!(Area::new(50., 0., 50., 30.)).height(30.),
+                ]),
+                assert_area!(Area::new(0., 30., 100., 70.)),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
     }
 
     #[cfg(test)]
@@ -1360,138 +1372,180 @@ mod tests_module {
         }
     }
 
-    #[test]
-    fn test_dropdown_stack_approach() {
-        let column_width = 50.;
+    mod inert_tests {
+        use super::*;
 
-        column(vec![
-            stack(vec![
-                draw(move |a, _| {
-                    assert_eq!(a.width, column_width);
-                    vec![()]
-                })
-                .inert(),
-                draw(|_, _| vec![()])
-                    .dynamic_height(|_, _| 30.)
-                    .width(30.)
-                    .pad_x(5.),
-            ])
-            .expand_x(),
-            stack(vec![
-                draw(move |a, _| {
-                    assert_eq!(a.width, column_width);
-                    vec![()]
-                })
-                .inert(),
-                draw(|_, _| vec![()]).dynamic_height(|_, _| 30.).width(50.),
-            ]),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
+        #[test]
+        fn test_dropdown_stack_approach() {
+            let column_width = 50.;
 
-    #[test]
-    fn test_transparent_in_column() {
-        column(vec![
-            assert_area!(Area::new(25., 25., 50., 50.))
-                .width(50.)
-                .height(50.),
-            draw(move |a, _| {
-                assert_eq!(a.width, 50.);
-                assert_eq!(a.height, 0.);
-                assert_eq!(a.y, 75.);
-                vec![()]
-            })
-            .inert(),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
-
-    #[test]
-    fn test_transparent_with_constraints() {
-        stack(vec![
-            draw(move |a, _| {
-                assert_eq!(a.width, 50.);
-                assert_eq!(a.height, 50.);
-                vec![()]
-            })
-            .width(50.)
-            .height(50.)
-            .inert(),
-            draw(|_, _| vec![()]).width(10.).height(10.),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-
-        column(vec![
-            draw(|_, _| vec![()]).width(10.).height(10.),
-            draw(move |a, _| {
-                assert_eq!(a.width, 50.);
-                assert_eq!(a.height, 50.);
-                vec![]
-            })
-            .width(50.)
-            .height(50.)
-            .inert(),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-
-        row(vec![
-            draw(|_, _| vec![()]).width(10.).height(10.),
-            draw(move |a, _| {
-                assert_eq!(a.width, 50.);
-                assert_eq!(a.height, 50.);
-                vec![]
-            })
-            .width(50.)
-            .height(50.)
-            .inert(),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
-
-    #[test]
-    fn test_dynamic_height_width_dependent_pad() {
-        let content_area = Area::new(10., 43., 80., 14.);
-        let bg_area = Area::new(0., 33., 100., 34.);
-        stack(vec![
-            assert_area!(bg_area).inert(),
-            stack(vec![
-                draw(|_, _| vec![()]).inert(),
-                assert_area!(content_area).dynamic_height(|_, _| 14.),
-            ])
-            .pad(10.),
-        ])
-        .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
-    }
-
-    #[test]
-    fn test_row_spaced_stack_with_unconstrained_child_preserves_spacing() {
-        row_spaced(
-            10.,
-            vec![
-                assert_area!(Area::new(0., 0., 30., 100.)),
+            column(vec![
                 stack(vec![
-                    assert_area!(Area::new(40., 0., 80., 100.)),
-                    draw(|_, _| vec![()]).width(80.).height(14.),
+                    draw(move |a, _| {
+                        assert_eq!(a.width, column_width);
+                        vec![()]
+                    })
+                    .inert(),
+                    draw(|_, _| vec![()])
+                        .dynamic_height(|_, _| 30.)
+                        .width(30.)
+                        .pad_x(5.),
+                ])
+                .expand_x(),
+                stack(vec![
+                    draw(move |a, _| {
+                        assert_eq!(a.width, column_width);
+                        vec![()]
+                    })
+                    .inert(),
+                    draw(|_, _| vec![()]).dynamic_height(|_, _| 30.).width(50.),
                 ]),
-            ],
-        )
-        .draw(Area::new(0., 0., 120., 100.), &mut ());
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
+
+        #[test]
+        fn test_transparent_in_column() {
+            column(vec![
+                assert_area!(Area::new(25., 25., 50., 50.))
+                    .width(50.)
+                    .height(50.),
+                draw(move |a, _| {
+                    assert_eq!(a.width, 50.);
+                    assert_eq!(a.height, 0.);
+                    assert_eq!(a.y, 75.);
+                    vec![()]
+                })
+                .inert(),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
+
+        #[test]
+        fn test_transparent_with_constraints() {
+            stack(vec![
+                draw(move |a, _| {
+                    assert_eq!(a.width, 50.);
+                    assert_eq!(a.height, 50.);
+                    vec![()]
+                })
+                .width(50.)
+                .height(50.)
+                .inert(),
+                draw(|_, _| vec![()]).width(10.).height(10.),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+
+            column(vec![
+                draw(|_, _| vec![()]).width(10.).height(10.),
+                draw(move |a, _| {
+                    assert_eq!(a.width, 50.);
+                    assert_eq!(a.height, 50.);
+                    vec![]
+                })
+                .width(50.)
+                .height(50.)
+                .inert(),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+
+            row(vec![
+                draw(|_, _| vec![()]).width(10.).height(10.),
+                draw(move |a, _| {
+                    assert_eq!(a.width, 50.);
+                    assert_eq!(a.height, 50.);
+                    vec![]
+                })
+                .width(50.)
+                .height(50.)
+                .inert(),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
     }
 
-    #[test]
-    fn test_row_inert_y_does_not_expand_past_constrained_height() {
-        stack(vec![
-            assert_area!(Area::new(0., 35., 100., 30.)).inert(),
+    mod general_tests {
+        use super::*;
+
+        #[test]
+        fn test_dynamic_height_width_dependent_pad() {
+            let content_area = Area::new(10., 43., 80., 14.);
+            let bg_area = Area::new(0., 33., 100., 34.);
+            stack(vec![
+                assert_area!(bg_area).inert(),
+                stack(vec![
+                    draw(|_, _| vec![()]).inert(),
+                    assert_area!(content_area).dynamic_height(|_, _| 14.),
+                ])
+                .pad(10.),
+            ])
+            .draw(Area::new(0.0, 0.0, 100.0, 100.0), &mut ());
+        }
+
+        #[test]
+        fn test_row_spaced_stack_with_unconstrained_child_preserves_spacing() {
             row_spaced(
                 10.,
                 vec![
-                    space().inert_y(),
-                    assert_area!(Area::new(70., 35., 30., 30.))
-                        .width(30.)
-                        .height(30.),
+                    assert_area!(Area::new(0., 0., 30., 100.)),
+                    stack(vec![
+                        assert_area!(Area::new(40., 0., 80., 100.)),
+                        draw(|_, _| vec![()]).width(80.).height(14.),
+                    ]),
                 ],
-            ),
-        ])
-        .draw(Area::new(0., 0., 100., 100.), &mut ());
+            )
+            .draw(Area::new(0., 0., 120., 100.), &mut ());
+        }
+
+        #[test]
+        fn test_row_inert_y_does_not_expand_past_constrained_height() {
+            stack(vec![
+                assert_area!(Area::new(0., 35., 100., 30.)).inert(),
+                row_spaced(
+                    10.,
+                    vec![
+                        space().inert_y(),
+                        assert_area!(Area::new(70., 35., 30., 30.))
+                            .width(30.)
+                            .height(30.),
+                    ],
+                ),
+            ])
+            .draw(Area::new(0., 0., 100., 100.), &mut ());
+        }
+    }
+
+    mod map_tests {
+        use super::*;
+
+        enum View {
+            Button(Area),
+            Label(Area),
+        }
+
+        #[test]
+        fn test_map_subtree_into_parent() {
+            let button_bar: Layout<'_, Area> = row(vec![
+                draw(|a, _: &mut ()| vec![a]).width(50.).height(30.),
+                draw(|a, _: &mut ()| vec![a]).width(50.).height(30.),
+            ]);
+
+            let mut layout: Layout<'_, View> = column(vec![
+                button_bar.map(View::Button),
+                draw(|a, _| vec![View::Label(a)]).height(40.),
+            ]);
+
+            let result = layout.draw(Area::new(0., 0., 100., 100.), &mut ());
+            let mut buttons = Vec::new();
+            let mut labels = Vec::new();
+            for v in &result {
+                match v {
+                    View::Button(a) => buttons.push(a),
+                    View::Label(a) => labels.push(a),
+                }
+            }
+            assert_eq!(buttons.len(), 2);
+            assert_eq!(labels.len(), 1);
+        }
     }
 }
