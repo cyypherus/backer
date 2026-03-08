@@ -1,5 +1,5 @@
-use std::fmt::Debug;
 use crate::tree::TreeNode;
+use std::fmt::Debug;
 
 pub(crate) type DrawFn<'a, D, S> = Box<dyn FnOnce(Area, &mut S) -> Vec<D> + 'a>;
 pub(crate) type DimensionFn<'a, S> = Option<Box<dyn Fn(f32, &mut S) -> f32 + 'a>>;
@@ -12,7 +12,7 @@ pub(crate) type DimensionFn<'a, S> = Option<Box<dyn Fn(f32, &mut S) -> f32 + 'a>
 ///
 /// # Generics & Lifetimes
 ///
-/// - `D` — The output type of draw closures. Each draw closure receives a laid-out [`Area`]
+/// - `D` — The output type of draw closures. Each draw closure receives an [`Area`]
 ///   and produces a `Vec<D>`. These are collected into a single `Vec<D>` when you call
 ///   [`Layout::draw`].
 /// - `S` — A global mutable context shared by the entire tree, passed as `&mut S` to every
@@ -57,7 +57,6 @@ impl<'a, D, S> Layout<'a, D, S> {
         self.resolved.unwrap_or(self.constraints)
     }
 }
-
 
 impl<'a, D, S> TreeNode for Layout<'a, D, S> {
     fn children_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Self> {
