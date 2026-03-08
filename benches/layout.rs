@@ -5,7 +5,7 @@ fn draw_noop() -> Layout<'static, Area> {
     draw(|area: Area, _: &mut ()| vec![area])
 }
 
-fn create_simple_column_mvp() -> Layout<'static, Area> {
+fn create_simple_column_layout() -> Layout<'static, Area> {
     column(vec![
         draw_noop().height(30.0),
         draw_noop().height(40.0),
@@ -13,7 +13,7 @@ fn create_simple_column_mvp() -> Layout<'static, Area> {
     ])
 }
 
-fn create_complex_nested_mvp() -> Layout<'static, Area> {
+fn create_complex_nested_layout() -> Layout<'static, Area> {
     column(vec![
         row(vec![
             draw_noop().width(50.0).height(30.0),
@@ -47,7 +47,7 @@ fn bench_simple_column(c: &mut Criterion) {
 
     group.bench_function("mvp", |b| {
         b.iter(|| {
-            let mut layout = create_simple_column_mvp();
+            let mut layout = create_simple_column_layout();
             let area = Area::new(0.0, 0.0, 100.0, 100.0);
             black_box(&mut layout).draw(black_box(area), &mut ());
         })
@@ -61,7 +61,7 @@ fn bench_complex_nested(c: &mut Criterion) {
 
     group.bench_function("mvp", |b| {
         b.iter(|| {
-            let mut layout = create_complex_nested_mvp();
+            let mut layout = create_complex_nested_layout();
             let area = Area::new(0.0, 0.0, 400.0, 300.0);
             black_box(&mut layout).draw(black_box(area), &mut ());
         })

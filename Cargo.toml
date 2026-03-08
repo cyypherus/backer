@@ -43,7 +43,7 @@ rustup-toolchain = "0.1.9"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bench]]
-name = "layout_comparison"
+name = "layout"
 harness = false
 
 [dependencies]
