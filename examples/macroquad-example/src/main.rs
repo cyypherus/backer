@@ -52,7 +52,7 @@ async fn main() {
         };
 
         let mut layout = layout_for_highlight(state.highlight);
-        let commands = layout.draw(available);
+        let commands = layout.draw(available, &mut ());
         process_commands(commands, &mut state);
 
         next_frame().await;
@@ -93,7 +93,7 @@ fn process_commands(commands: Vec<Drawable>, state: &mut State) {
     }
 }
 
-fn layout_for_highlight(highlight: HighlightedCase) -> Layout<Drawable> {
+fn layout_for_highlight(highlight: HighlightedCase) -> Layout<'static, Drawable, ()> {
     row_spaced(
         10.,
         vec![
@@ -111,7 +111,7 @@ fn layout_for_highlight(highlight: HighlightedCase) -> Layout<Drawable> {
     )
 }
 
-fn rel_abs_seq() -> Layout<Drawable> {
+fn rel_abs_seq() -> Layout<'static, Drawable, ()> {
     column_spaced(
         10.,
         vec![
@@ -134,7 +134,7 @@ fn rel_abs_seq() -> Layout<Drawable> {
     )
 }
 
-fn alignment_offset_section() -> Layout<Drawable> {
+fn alignment_offset_section() -> Layout<'static, Drawable, ()> {
     column_spaced(
         10.,
         vec![
@@ -179,26 +179,33 @@ fn alignment_offset_section() -> Layout<Drawable> {
     )
 }
 
-fn text(string: &'static str, font_size: f32, color: Color) -> Layout<Drawable> {
+fn text(string: &'static str, font_size: f32, color: Color) -> Layout<'static, Drawable, ()> {
     let dimensions = measure_text(string, None, font_size as u16, 1.0);
-    draw(move |area: Area| Drawable::Text {
-        area,
-        text: string,
-        font_size,
-        color,
+    draw(move |area: Area, _: &mut ()| {
+        vec![Drawable::Text {
+            area,
+            text: string,
+            font_size,
+            color,
+        }]
     })
     .width_range(200.0..)
     .height(dimensions.height)
 }
 
-fn rect(color: Color) -> Layout<Drawable> {
-    draw(move |area: Area| Drawable::Rect { area, color })
+fn rect(color: Color) -> Layout<'static, Drawable, ()> {
+    draw(move |area: Area, _: &mut ()| vec![Drawable::Rect { area, color }])
 }
 
-fn button(label: &'static str, action: impl Fn(&mut State) + 'static) -> Layout<Drawable> {
-    draw(move |area: Area| Drawable::Button {
-        area,
-        label,
-        action: Box::new(action),
+fn button(
+    label: &'static str,
+    action: impl Fn(&mut State) + 'static,
+) -> Layout<'static, Drawable, ()> {
+    draw(move |area: Area, _: &mut ()| {
+        vec![Drawable::Button {
+            area,
+            label,
+            action: Box::new(action),
+        }]
     })
 }

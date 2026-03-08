@@ -29,76 +29,87 @@ fn main() -> eframe::Result {
 
     eframe::run_simple_native("Layout Example", options, move |ctx, _frame| {
         egui::CentralPanel::default().show(ctx, |ui| {
-            let viewport = ctx.input(|i| i.screen_rect());
+            let viewport = ctx.input(|i| i.content_rect());
             let available_area = area_from(viewport);
-            let mut layout = my_layout(ui);
-            let commands = layout.draw(available_area);
+            let mut layout = my_layout(ctx);
+            let commands = layout.draw(available_area, &mut ());
             process_commands(ui, commands);
         });
     })
 }
 
-fn my_layout(ui: &mut Ui) -> Layout<Drawable> {
+fn my_layout(ctx: &egui::Context) -> Layout<'static, Drawable, ()> {
     column_spaced(
         10.,
         vec![
-            draw_a(ui),
+            draw_a(ctx),
             row_spaced(
                 10.,
                 vec![
-                    draw_b(ui).width_range(200.0..),
-                    column_spaced(10., vec![draw_a(ui), draw_b(ui), draw_c(ui)]),
+                    draw_b(ctx).width_range(200.0..),
+                    column_spaced(10., vec![draw_a(ctx), draw_b(ctx), draw_c(ctx)]),
                 ],
             ),
-            draw_c(ui),
+            draw_c(ctx),
         ],
     )
     .pad(10.)
 }
 
-fn draw_a(ui: &mut Ui) -> Layout<Drawable> {
-    labeled_rect(ui, "A".to_string(), Color32::BLUE)
+fn draw_a(ctx: &egui::Context) -> Layout<'static, Drawable, ()> {
+    labeled_rect(ctx, "A".to_string(), Color32::BLUE)
 }
 
-fn draw_b(ui: &mut Ui) -> Layout<Drawable> {
-    labeled_rect(ui, "B".to_string(), Color32::RED)
+fn draw_b(ctx: &egui::Context) -> Layout<'static, Drawable, ()> {
+    labeled_rect(ctx, "B".to_string(), Color32::RED)
 }
 
-fn draw_c(ui: &mut Ui) -> Layout<Drawable> {
-    labeled_rect(ui, "C".to_string(), Color32::GOLD)
+fn draw_c(ctx: &egui::Context) -> Layout<'static, Drawable, ()> {
+    labeled_rect(ctx, "C".to_string(), Color32::GOLD)
 }
 
-fn labeled_rect(ui: &mut Ui, text: String, color: Color32) -> Layout<Drawable> {
-    stack(vec![draw_rect(color, true), draw_label(ui, text)])
+fn labeled_rect(
+    ctx: &egui::Context,
+    text: String,
+    color: Color32,
+) -> Layout<'static, Drawable, ()> {
+    stack(vec![draw_rect(color, true), draw_label(ctx, text)])
 }
 
-fn draw_label(ui: &mut Ui, text: String) -> Layout<Drawable> {
+fn draw_label(ctx: &egui::Context, text: String) -> Layout<'static, Drawable, ()> {
     let rich_text = RichText::new(text).size(10.);
-    let text_rect = egui::Label::new(rich_text.clone()).layout_in_ui(ui).1.rect;
-    let width = text_rect.width();
-    let height = text_rect.height();
-    draw(move |area: Area| Drawable::Label {
-        area,
-        text: rich_text.clone(),
+    let job = egui::text::LayoutJob::simple_singleline(
+        rich_text.text().to_string(),
+        egui::FontId::proportional(10.),
+        Color32::WHITE,
+    );
+    let galley = ctx.fonts_mut(|f| f.layout_job(job));
+    let width = galley.size().x;
+    let height = galley.size().y;
+    draw(move |area: Area, _: &mut ()| {
+        vec![Drawable::Label {
+            area,
+            text: rich_text.clone(),
+        }]
     })
     .width(width)
     .height(height)
 }
 
-fn draw_rect(color: Color32, stroke: bool) -> Layout<Drawable> {
-    draw(move |area: Area| {
+fn draw_rect(color: Color32, stroke: bool) -> Layout<'static, Drawable, ()> {
+    draw(move |area: Area, _: &mut ()| {
         if stroke {
-            Drawable::RectStroke {
+            vec![Drawable::RectStroke {
                 area,
                 rounding: 5.,
                 stroke: Stroke::new(3., color),
-            }
+            }]
         } else {
-            Drawable::RectFill {
+            vec![Drawable::RectFill {
                 area,
                 rounding: 5.,
                 color,
-            }
+            }]
         }
     })
 }

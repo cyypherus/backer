@@ -96,8 +96,8 @@ impl eframe::App for MyApp {
           let mut area = area_from(scroll_rect);
           area.y = -area.y;
           area.width = viewport.width();
-          let mut layout = backer_layout(ui, &self.items);
-          let commands = layout.draw(area);
+          let mut layout = backer_layout(ctx, &self.items);
+          let commands = layout.draw(area, &mut ());
           let mut state = CommandState {
             ui,
             backer_on: &mut self.show_backer,
@@ -169,50 +169,63 @@ impl eframe::App for MyApp {
   }
 }
 
-fn draw_label(ui: &mut Ui, text: RichText) -> Layout<Drawable> {
-  let galley = egui::Label::new(text.clone()).layout_in_ui(ui).1.rect;
-  let width = galley.width();
-  let height = galley.height();
-  draw(move |area: Area| Drawable::Action {
-    area,
-    handler: Box::new({
-      let text = text.clone();
-      move |state: &mut CommandState, area: Area| {
-        state.ui.put(rect(area), egui::Label::new(text.clone()));
-      }
-    }),
+fn draw_label(
+  ctx: &egui::Context,
+  text: RichText,
+  font_size: f32,
+) -> Layout<'static, Drawable, ()> {
+  let job = egui::text::LayoutJob::simple_singleline(
+    text.text().to_string(),
+    egui::FontId::proportional(font_size),
+    Color32::WHITE,
+  );
+  let galley = ctx.fonts_mut(|f| f.layout_job(job));
+  let width = galley.size().x;
+  let height = galley.size().y;
+  draw(move |area: Area, _: &mut ()| {
+    vec![Drawable::Action {
+      area,
+      handler: Box::new({
+        let text = text.clone();
+        move |state: &mut CommandState, area: Area| {
+          state.ui.put(rect(area), egui::Label::new(text.clone()));
+        }
+      }),
+    }]
   })
   .width(width)
   .height(height)
 }
 
-fn backer_layout(ui: &mut Ui, items: &[Item]) -> Layout<Drawable> {
+fn backer_layout(ctx: &egui::Context, items: &[Item]) -> Layout<'static, Drawable, ()> {
   let mut elements = Vec::with_capacity(items.len() + 1);
   elements.push(backer_toggle_button());
-  elements.extend(items.iter().map(|item| bounty_card(ui, item)));
+  elements.extend(items.iter().map(|item| bounty_card(ctx, item)));
   column_spaced(10., elements).pad(10.).align(Align::Top)
 }
 
-fn backer_toggle_button() -> Layout<Drawable> {
-  draw(move |area: Area| Drawable::Action {
-    area,
-    handler: Box::new(move |state: &mut CommandState, area: Area| {
-      if state
-        .ui
-        .put(
-          rect(area),
-          Button::new("Disable Backer").min_size(Vec2::new(area.width, area.height)),
-        )
-        .clicked()
-      {
-        *state.backer_on = false;
-      }
-    }),
+fn backer_toggle_button() -> Layout<'static, Drawable, ()> {
+  draw(move |area: Area, _: &mut ()| {
+    vec![Drawable::Action {
+      area,
+      handler: Box::new(move |state: &mut CommandState, area: Area| {
+        if state
+          .ui
+          .put(
+            rect(area),
+            Button::new("Disable Backer").min_size(Vec2::new(area.width, area.height)),
+          )
+          .clicked()
+        {
+          *state.backer_on = false;
+        }
+      }),
+    }]
   })
   .height(15.)
 }
 
-fn bounty_card(ui: &mut Ui, item: &Item) -> Layout<Drawable> {
+fn bounty_card(ctx: &egui::Context, item: &Item) -> Layout<'static, Drawable, ()> {
   let title = RichText::new(item.title.clone())
     .color(Color32::WHITE)
     .size(18.);
@@ -234,11 +247,11 @@ fn bounty_card(ui: &mut Ui, item: &Item) -> Layout<Drawable> {
             row_spaced(
               10.,
               vec![
-                draw_label(ui, title.clone()).align(Align::Leading),
-                draw_label(ui, points.clone()),
+                draw_label(ctx, title.clone(), 18.).align(Align::Leading),
+                draw_label(ctx, points.clone(), 14.),
               ],
             ),
-            draw_label(ui, expires.clone())
+            draw_label(ctx, expires.clone(), 10.)
               .align(Align::Leading)
               .pad_leading(3.),
           ],
@@ -252,53 +265,59 @@ fn bounty_card(ui: &mut Ui, item: &Item) -> Layout<Drawable> {
   .height(58.)
 }
 
-fn card_outline() -> Layout<Drawable> {
-  draw(move |area: Area| Drawable::Action {
-    area,
-    handler: Box::new(move |state: &mut CommandState, area: Area| {
-      state.ui.painter().rect_stroke(
-        rect(area),
-        10.,
-        Stroke::new(2., Color32::from_rgb(50, 50, 50)),
-        StrokeKind::Middle,
-      );
-    }),
-  })
-}
-
-fn bounty_image() -> Layout<Drawable> {
-  draw(move |area: Area| Drawable::Action {
-    area,
-    handler: Box::new(move |state: &mut CommandState, area: Area| {
-      state.ui.put(
-        rect(area),
-        Image::new(egui::include_image!("../frs.png"))
-          .show_loading_spinner(true)
-          .fit_to_exact_size(Vec2::new(area.width, area.height))
-          .corner_radius(4.),
-      );
-    }),
-  })
-}
-
-fn open_button() -> Layout<Drawable> {
-  draw(move |area: Area| Drawable::Action {
-    area,
-    handler: Box::new(move |state: &mut CommandState, area: Area| {
-      if state
-        .ui
-        .put(
+fn card_outline() -> Layout<'static, Drawable, ()> {
+  draw(move |area: Area, _: &mut ()| {
+    vec![Drawable::Action {
+      area,
+      handler: Box::new(move |state: &mut CommandState, area: Area| {
+        state.ui.painter().rect_stroke(
           rect(area),
-          Button::new(RichText::new("Open").color(Color32::WHITE))
-            .fill(Color32::from_rgb(150, 0, 150))
-            .min_size(Vec2::new(area.width, area.height))
+          10.,
+          Stroke::new(2., Color32::from_rgb(50, 50, 50)),
+          StrokeKind::Middle,
+        );
+      }),
+    }]
+  })
+}
+
+fn bounty_image() -> Layout<'static, Drawable, ()> {
+  draw(move |area: Area, _: &mut ()| {
+    vec![Drawable::Action {
+      area,
+      handler: Box::new(move |state: &mut CommandState, area: Area| {
+        state.ui.put(
+          rect(area),
+          Image::new(egui::include_image!("../frs.png"))
+            .show_loading_spinner(true)
+            .fit_to_exact_size(Vec2::new(area.width, area.height))
             .corner_radius(4.),
-        )
-        .clicked()
-      {
-        dbg!("Click");
-      }
-    }),
+        );
+      }),
+    }]
+  })
+}
+
+fn open_button() -> Layout<'static, Drawable, ()> {
+  draw(move |area: Area, _: &mut ()| {
+    vec![Drawable::Action {
+      area,
+      handler: Box::new(move |state: &mut CommandState, area: Area| {
+        if state
+          .ui
+          .put(
+            rect(area),
+            Button::new(RichText::new("Open").color(Color32::WHITE))
+              .fill(Color32::from_rgb(150, 0, 150))
+              .min_size(Vec2::new(area.width, area.height))
+              .corner_radius(4.),
+          )
+          .clicked()
+        {
+          dbg!("Click");
+        }
+      }),
+    }]
   })
 }
 
