@@ -1,88 +1,79 @@
-use crate::layout::NodeValue;
-use std::fmt;
+use crate::{
+    Layout,
+    types::{DynamicConstraints, LayoutType},
+};
+use std::fmt::Debug;
 
-impl<State> fmt::Debug for NodeValue<'_, State> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl<'a, D, S> Debug for Layout<'a, D, S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Layout")
+            .field("layout", &format!("{:?}", &self.layout))
+            .field("constraints", &self.constraints)
+            .field("dynamic_constraints", &self.dynamic_constraints)
+            .field("resolved", &self.resolved)
+            .field("allocated", &self.allocated)
+            .field("children", &self.children)
+            .finish()
+    }
+}
+
+impl<'a, D, S> Debug for LayoutType<'a, D, S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NodeValue::Padding { amounts, element } => f
-                .debug_struct("Padding")
-                .field("amounts", amounts)
-                .field("element", element)
-                .finish(),
-            NodeValue::Column {
-                elements,
+            LayoutType::Draw(_) => f.debug_tuple("Draw").field(&"<function>").finish(),
+            LayoutType::Column {
                 spacing,
-                align,
-                off_axis_align,
-            } => f
-                .debug_struct("Column")
-                .field("elements", elements)
-                .field("spacing", spacing)
-                .field("align", align)
-                .field("off_axis_align", off_axis_align)
-                .finish(),
-            NodeValue::Row {
-                elements,
-                spacing,
-                align,
-                off_axis_align,
-            } => f
-                .debug_struct("Row")
-                .field("elements", elements)
-                .field("spacing", spacing)
-                .field("align", align)
-                .field("off_axis_align", off_axis_align)
-                .finish(),
-            NodeValue::Stack {
-                elements,
                 x_align,
                 y_align,
             } => f
-                .debug_struct("Stack")
-                .field("elements", elements)
+                .debug_struct("Column")
+                .field("spacing", spacing)
                 .field("x_align", x_align)
                 .field("y_align", y_align)
                 .finish(),
-            NodeValue::Group(elements) => f.debug_tuple("Group").field(elements).finish(),
-            NodeValue::Offset {
-                offset_x,
-                offset_y,
-                element,
+            LayoutType::Row {
+                spacing,
+                x_align,
+                y_align,
             } => f
+                .debug_struct("Row")
+                .field("spacing", spacing)
+                .field("x_align", x_align)
+                .field("y_align", y_align)
+                .finish(),
+            LayoutType::Stack { x_align, y_align } => f
+                .debug_struct("Stack")
+                .field("x_align", x_align)
+                .field("y_align", y_align)
+                .finish(),
+            LayoutType::Padding {
+                leading,
+                trailing,
+                top,
+                bottom,
+            } => f
+                .debug_struct("Padding")
+                .field("leading", leading)
+                .field("trailing", trailing)
+                .field("top", top)
+                .field("bottom", bottom)
+                .finish(),
+            LayoutType::Offset { x, y } => f
                 .debug_struct("Offset")
-                .field("offset_x", offset_x)
-                .field("offset_y", offset_y)
-                .field("element", element)
+                .field("x", x)
+                .field("y", y)
                 .finish(),
-            NodeValue::Draw(drawable) => f.debug_tuple("Draw").field(drawable).finish(),
-            NodeValue::Explicit { options, element } => f
-                .debug_struct("Explicit")
-                .field("options", &options)
-                .field("element", element)
-                .finish(),
-            NodeValue::Space => write!(f, "Space"),
-            NodeValue::Empty => write!(f, "Empty"),
-            NodeValue::AreaReader { .. } => write!(f, "WidthReader"),
-            NodeValue::Coupled {
-                element,
-                coupled,
-                over,
-            } => f
-                .debug_struct("Coupled")
-                .field("element", &element)
-                .field("coupled", coupled)
-                .field("over", over)
-                .finish(),
-            NodeValue::NodeTrait { .. } => f.debug_struct("NodeTrait").finish(),
-            NodeValue::Visibility { visible, element } => f
-                .debug_struct("Visibility")
-                .field("element", &element)
-                .field("visible", visible)
-                .finish(),
-            NodeValue::Dynamic { computed, .. } => f
-                .debug_struct("Dynamic")
-                .field("computed", computed)
-                .finish(),
+            LayoutType::Space => write!(f, "Space"),
+            LayoutType::Empty => write!(f, "Empty"),
         }
+    }
+}
+
+impl<'a, S> Debug for DynamicConstraints<'a, S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DynamicConstraints")
+            .field("width", &"<function>")
+            .field("height", &"<function>")
+            .finish()
     }
 }

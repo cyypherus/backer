@@ -1,4 +1,6 @@
 #![warn(missing_docs)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
 
 /*!
 A library for straight-forward UI layout.
@@ -10,28 +12,23 @@ _This library **only** implements layout & could be integrated with a range of U
 # Quick Start
 See [`Layout`] for setup.
 
-See [`Node`] for layout customization.
+See [`crate::nodes`] for available layout components.
 */
 
-mod constraints;
+mod api;
 mod debug;
-mod drawable;
-mod layout;
-pub use layout::Layout;
-mod modifiers;
-mod node;
-pub use node::Node;
-mod node_cache;
-mod scoper;
-pub use scoper::{ScopeCtx, ScopeCtxResult};
-mod subtree;
+mod passes;
+mod public_api_test;
 mod tests;
+mod tree;
+mod types;
 
-/// Traits for layout definitions
-pub mod traits;
+pub use types::{Align, Area, Layout};
 
-/// Structs involved in layout definitions
-pub mod models;
-
-/// Layout core node construction
-pub mod nodes;
+/// All available node constructors
+pub mod nodes {
+    pub use crate::api::{
+        column, column_aligned, column_spaced, column_spaced_aligned, draw, empty, row,
+        row_aligned, row_spaced, row_spaced_aligned, space, stack, stack_aligned,
+    };
+}

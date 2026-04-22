@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 backer = { path = "../../" }
-egui = { version = "0.28.1" }
-egui_extras = { version = "0.28.1", features = ["default", "image"] }
-eframe = "0.28.1"
+egui = { version = "0.33.2" }
+egui_extras = { version = "0.33.2", features = ["default", "image"] }
+eframe = "0.33.2"
 hound = "3.5.1"
