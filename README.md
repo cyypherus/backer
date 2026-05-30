@@ -48,7 +48,7 @@ The `View` in `Layout<'a, View, MyState>` is returned by `draw` nodes as `Vec<Vi
 fn label<'a>(text: &'static str) -> Layout<'a, View, MyState> {
     draw(move |area: Area, _: &mut MyState| {
         // The `area` parameter is the space alotted for your view after layout is calculated
-        // The `state` parameter is *your* global mutable state that you pass when you call layout (necessary things like text caches)
+        // The `state` parameter is *your* global mutable state that you pass when you call layout (necessary for things like text caches)
         // These returned values will be collected by `layout.draw`
         vec![View::Label { area, text }]
     })
