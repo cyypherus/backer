@@ -1,4 +1,3 @@
-
 <div align="center">
 
 # Backer
@@ -28,27 +27,30 @@ This project intends to be a flexible layout tool & not much else.
 
 # Quick Start
 
-## 1. Create a `Layout` struct with your layout function.
+## 1. Define your views.
 
 ```rust
-use backer::layout::Layout;
-use backer::layout::Node;
+use backer::nodes::*;
+use backer::{Area, Layout};
 
-let layout = Layout::new(my_layout_fn);
+struct MyState;
 
-fn my_layout_fn(state: &mut MyState) -> Node<MyState> { todo!() }
+enum View {
+    Label { area: Area, text: &'static str },
+}
 ```
 
 ## 2. Implement a `draw` node
 
-For reuse, you can construct your drawable in a function
+The `View` in `Layout<'a, View, MyState>` is returned by `draw` nodes as `Vec<View>` and collected by `layout.draw`.
 
 ```rust
-fn my_drawable<'a>(state: &'_ mut MyState) -> Node<'a, MyState> {
-    draw(move |area: Area, state: &mut MyState| {
+fn label<'a>(text: &'static str) -> Layout<'a, View, MyState> {
+    draw(move |area: Area, _: &mut MyState| {
         // The `area` parameter is the space alotted for your view after layout is calculated
-        // The `state` parameter is *your* mutable state that you pass when you call layout.
-        // This closure should draw UI based on the alotted area or update state so that drawing can be performed later.
+        // The `state` parameter is *your* global mutable state that you pass when you call layout (necessary things like text caches)
+        // These returned values will be collected by `layout.draw`
+        vec![View::Label { area, text }]
     })
 }
 ```
@@ -56,28 +58,30 @@ fn my_drawable<'a>(state: &'_ mut MyState) -> Node<'a, MyState> {
 ## 3. Combine nodes to define & customize your layout
 
 ```rust
-let mut layout = Layout::new(dynamic(|state| {
+fn my_layout<'a>() -> Layout<'a, View, MyState> {
     row(vec![
-        my_drawable(state),
+        label("Hello"),
     ])
-}));
+}
+
+let mut layout = my_layout();
 ```
 
 ## 4. Draw your layout
 
 ```rust
-// UI libraries generally will expose methods to get the available screen size
+// UI libraries generally will expose methods to get the available space for layout.
 // In a real implementation this should use the real screen size!
-let available_area = Area {
-    x: todo!(),
-    y: todo!(),
-    width: todo!(),
-    height: todo!(),
-};
+let available_area = Area::new(
+    0.,
+    0.,
+    400.,
+    600.,
+);
 let mut my_state = MyState;
 
-// Perform layout & draw all of your drawable nodes.
-layout.draw(available_area, &mut my_state);
+// Perform layout & collect the values returned by your draw nodes.
+let views: Vec<View> = layout.draw(available_area, &mut my_state);
 ```
 
 ## Preview
