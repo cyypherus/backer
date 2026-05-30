@@ -71,7 +71,7 @@ let mut layout = my_layout();
 
 ```rust
 // UI libraries generally will expose methods to get the available space for layout.
-// In a real implementation this should use the real screen size!
+// In a real implementation this would use the real screen size!
 let available_area = Area::new(
     0.,
     0.,
