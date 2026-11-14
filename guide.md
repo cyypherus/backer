@@ -1,56 +1,61 @@
-# Laying out views with Backer
+# Layout guide
 
-Children report size requirements; parents allocate space. Build layouts by deciding which content determines size, which containers accept extra room, and which decoration follows. Derive dimensions from those relationships instead of guessing them.
+A child reports the size it needs. Its parent gives it space.
 
-This guide targets Backer 0.12.0. Examples assume `use backer::{Align, nodes::*};` and prebuilt layout nodes.
+Let content set the size. Use fixed widths and heights only when the design requires them.
 
-## Expansion belongs to a specific node
+This guide uses Backer 0.12.0. Examples assume existing nodes and `use backer::{Align, nodes::*};`.
 
-Expanding children does not necessarily expand their parent. In the dashboard table, expanding columns left the enclosing row hugging its contents and centering them inside a wider border. The row itself needed `expand_x()`.
+## Use extra space
 
-Follow the allocation from the root to the intended flexible region. Use `expand_x` or `expand_y` on the containers that should accept extra room on that axis. Expansion preserves minimum requirements; it does not make oversized content fit.
+Use `expand_x()` for extra width. Use `expand_y()` for extra height.
 
-## A spacer affects both axes unless told otherwise
+Set expansion on each container that must grow. Do not assume that expanding a child also expands its parent.
 
-An unconstrained `draw` or `space` can make its container expand. A horizontal spacer should usually be excluded from vertical sizing:
+## Keep gaps flexible
+
+To push items apart in a row:
 
 ```rust
 row(vec![title, space().inert_y(), actions]).expand_x()
 ```
 
-Use `space().inert_x()` for the corresponding vertical relationship. Fully `inert()` children reserve no share on the sequence axis, so a fully inert spacer cannot push siblings apart.
+The gap uses extra width without setting the row's height.
 
-## Content determines size; decoration follows
+For a vertical gap, use `space().inert_x()` in a column.
 
-```rust
-stack(vec![
-    background.inert(),
-    content.pad(24.),
-])
-```
-
-An unconstrained background otherwise participates in sizing and can make a compact card fill its parent. `inert` excludes its requirements; it does not disable drawing or remove its own constraints. Use a stack when views should occupy the same region.
-
-## Sizing and placement are separate
-
-Equal-height cards did not give their content matching top edges. Shorter content groups were centered inside the taller cards.
-
-`column_aligned(Align::Top, ...)` aligns that column's children. To position the column inside its surrounding stack, align the column itself:
+## Let backgrounds follow content
 
 ```rust
-column_spaced(12., children).pad(16.).align(Align::Top)
+stack(vec![background.inert(), content.pad(24.)])
 ```
 
-Container alignment controls immediate children and takes precedence on its specified axes. Alignment has no visible effect when a node already fills its allocation.
+The content sets the size. The background receives that space without setting the stack's size.
 
-## Measure requirements instead of copying dimensions
+## Set position separately
 
-Backer does not measure text. Supply measured intrinsic sizes, or use `dynamic_height` to derive wrapped height from allocated width. `dynamic_width` receives height. Measurement callbacks can run repeatedly; keep their results deterministic.
+Equal card heights do not give their contents the same position.
 
-Independent table columns also do not automatically share row heights. Measure every cell with `min_height`, take each row's maximum, and use that measured height across the row. Matching padding is insufficient when cells contain different typography, badges, or icons.
+Use `align()` to place a column inside its parent:
 
-## Change the arrangement when content cannot fit
+```rust
+column(children).pad(16.).align(Align::Top)
+```
 
-Rows and columns do not automatically reflow. Choose another tree at the owning layout boundary; the dashboard changes from four metric columns to two. Keep table overflow scrollable instead of compressing measured content or silently clipping it.
+Use `column_aligned()` to place the children inside that column.
 
-Use padding and spacing for insets and gaps. Use aspect methods for genuine dimension dependencies. Numeric bounds need a design requirement, not a screenshot coordinate. Check actual allocations and rendered output with different widths, heights, and content lengths before trusting a rule.
+## Measure content
+
+Give Backer the text size measured by your text system.
+
+Use `dynamic_height()` when height depends on width. Use `dynamic_width()` when width depends on height.
+
+For a table, measure each cell with `min_height()`. Give all cells in a row the largest measured height.
+
+## Handle small spaces
+
+Backer keeps minimum sizes. If content does not fit, wrap text, add scrolling, or change the layout.
+
+Rows and columns do not change their arrangement automatically.
+
+Check small and large windows. Check longer text.
