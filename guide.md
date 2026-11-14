@@ -44,6 +44,17 @@ column(children).pad(16.).align(Align::Top)
 
 Use `column_aligned()` to place the children inside that column.
 
+## Check modifier order
+
+Padding and offsets add a parent node. Later modifiers change that parent.
+
+- `view.width(100.).pad(10.)`: set the content width, then add padding.
+- `view.pad(10.).width(100.)`: set the width of the padded box.
+
+Apply `inert()` after padding to exclude the whole padded view from its parent's size.
+
+Repeated `width()` calls use the last value. Independent settings, such as width and height, can change order.
+
 ## Choose where overflow goes
 
 When a view is larger than its space, alignment controls where it extends:
