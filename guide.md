@@ -46,7 +46,12 @@ Use `column_aligned()` to place the children inside that column.
 
 ## Check modifier order
 
-Padding and offsets add a parent node. Later modifiers change that parent.
+These modifiers add a parent node:
+
+- `pad()`, `pad_x()`, `pad_y()`, `pad_top()`, `pad_bottom()`, `pad_leading()`, `pad_trailing()`.
+- `offset()`, `offset_x()`, `offset_y()`.
+
+Later modifiers change that new parent.
 
 - `view.width(100.).pad(10.)`: set the content width, then add padding.
 - `view.pad(10.).width(100.)`: set the width of the padded box.
