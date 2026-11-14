@@ -27,6 +27,8 @@ This project intends to be a flexible layout tool & not much else.
 
 # Quick Start
 
+See the [layout guide](guide.md) for sizing, expansion, alignment, and composition.
+
 ## 1. Define your views.
 
 ```rust
