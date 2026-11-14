@@ -2,9 +2,11 @@
 
 A child reports the size it needs. Its parent gives it space.
 
-Let content set the size. Use fixed widths and heights only when the design requires them.
+Prefer inherent sizes over explicit widths and heights. Inherent sizes come from content.
 
-This guide uses Backer 0.12.0. Examples assume existing nodes and `use backer::{Align, nodes::*};`.
+Use expansion, flexible gaps, and alignment to fit the available space. Add an explicit size only when the design requires that size.
+
+Examples assume existing nodes and `use backer::{Align, nodes::*};`.
 
 ## Use extra space
 
@@ -34,15 +36,25 @@ The content sets the size. The background receives that space without setting th
 
 ## Set position separately
 
-Equal card heights do not give their contents the same position.
-
-Use `align()` to place a column inside its parent:
+To place content at the top of a card, align the content itself:
 
 ```rust
 column(children).pad(16.).align(Align::Top)
 ```
 
 Use `column_aligned()` to place the children inside that column.
+
+## Choose where overflow goes
+
+When a view is larger than its space, alignment controls where it extends:
+
+- `Leading`: past the right edge.
+- `Trailing`: past the left edge.
+- `CenterX`: past both edges.
+
+`Top`, `Bottom`, and `CenterY` apply the same rule vertically.
+
+Use `TopLeading` when overflow should extend to the right and bottom.
 
 ## Measure content
 
@@ -54,7 +66,7 @@ For a table, measure each cell with `min_height()`. Give all cells in a row the 
 
 ## Handle small spaces
 
-Backer keeps minimum sizes. If content does not fit, wrap text, add scrolling, or change the layout.
+If content does not fit, wrap the text, add scrolling, or change the layout.
 
 Rows and columns do not change their arrangement automatically.
 
